@@ -1,0 +1,12 @@
+version = "0.1.0"
+author = "Nim Ethers Authors"
+description = "library for interacting with Ethereum"
+license = "MIT"
+
+requires "chronos >= 3.0.0 & < 4.0.0"
+requires "contractabi >= 0.4.0 & < 0.5.0"
+
+task test, "Run the test suite":
+  exec "nimble install -d -y"
+  withDir "testmodule":
+    exec "nimble test"
