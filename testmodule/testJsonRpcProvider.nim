@@ -1,3 +1,4 @@
+import std/json
 import pkg/asynctest
 import pkg/chronos
 import pkg/ethers/providers/jsonrpc
@@ -21,3 +22,7 @@ suite "JsonRpcProvider":
   test "lists all accounts":
     let accounts = await provider.listAccounts()
     check accounts.len > 0
+
+  test "sends raw messages to the provider":
+    let response = await provider.send("evm_mine")
+    check response == %"0x0"

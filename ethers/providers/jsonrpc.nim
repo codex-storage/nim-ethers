@@ -26,6 +26,12 @@ proc connect(_: type RpcClient, url: string): Future[RpcClient] {.async.} =
 proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
   JsonRpcProvider(client: RpcClient.connect(url))
 
+proc send*(provider: JsonRpcProvider,
+           call: string,
+           arguments = %(@[])): Future[JsonNode] {.async.} =
+  let client = await provider.client
+  return await client.call(call, arguments)
+
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   let client = await provider.client
   return await client.eth_accounts()
