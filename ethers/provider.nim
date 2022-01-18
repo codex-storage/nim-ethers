@@ -2,6 +2,8 @@ import ./basics
 
 export basics
 
+push: {.upraises: [].}
+
 type
   Provider* = ref object of RootObj
 

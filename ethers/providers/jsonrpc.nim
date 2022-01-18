@@ -7,6 +7,8 @@ import ./rpccalls
 export basics
 export provider
 
+push: {.upraises: [].}
+
 type JsonRpcProvider* = ref object of Provider
   client: Future[RpcClient]
 
