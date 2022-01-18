@@ -1,0 +1,9 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "hardhat": "^2.8.2"
+  },
+  "scripts": {
+    "start": "npx hardhat node"
+  }
+}
