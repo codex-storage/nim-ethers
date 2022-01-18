@@ -1,1 +1,1 @@
-proc eth_accounts: seq[string]
+proc eth_accounts: seq[Address]

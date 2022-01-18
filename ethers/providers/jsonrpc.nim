@@ -28,8 +28,4 @@ proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
 
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   let client = await provider.client
-  var addresses: seq[Address]
-  for address in await client.eth_accounts():
-    if address =? Address.init(address):
-      addresses.add(address)
-  return addresses
+  return await client.eth_accounts()
