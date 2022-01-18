@@ -35,3 +35,7 @@ proc send*(provider: JsonRpcProvider,
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   let client = await provider.client
   return await client.eth_accounts()
+
+method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+  let client = await provider.client
+  return await client.eth_blockNumber()

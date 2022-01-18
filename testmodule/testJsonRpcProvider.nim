@@ -26,3 +26,9 @@ suite "JsonRpcProvider":
   test "sends raw messages to the provider":
     let response = await provider.send("evm_mine")
     check response == %"0x0"
+
+  test "returns block number":
+    let blocknumber1 = await provider.getBlockNumber()
+    discard await provider.send("evm_mine")
+    let blocknumber2 = await provider.getBlockNumber()
+    check blocknumber2 > blocknumber1
