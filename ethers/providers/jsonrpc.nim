@@ -2,6 +2,7 @@ import std/uri
 import pkg/json_rpc/rpcclient
 import ../basics
 import ../provider
+import ../signer
 import ./rpccalls
 
 export basics
@@ -9,8 +10,18 @@ export provider
 
 push: {.upraises: [].}
 
-type JsonRpcProvider* = ref object of Provider
-  client: Future[RpcClient]
+type
+  JsonRpcProvider* = ref object of Provider
+    client: Future[RpcClient]
+  JsonRpcSigner* = ref object of Signer
+    provider: JsonRpcProvider
+    address: ?Address
+  JsonRpcProviderError* = object of IOError
+
+template raiseProviderError(message: string) =
+  raise newException(JsonRpcProviderError, message)
+
+# Provider
 
 const defaultUrl = "http://localhost:8545"
 
@@ -38,6 +49,12 @@ proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   let client = await provider.client
   return await client.eth_accounts()
 
+proc getSigner*(provider: JsonRpcProvider): JsonRpcSigner =
+  JsonRpcSigner(provider: provider)
+
+proc getSigner*(provider: JsonRpcProvider, address: Address): JsonRpcSigner =
+  JsonRpcSigner(provider: provider, address: some address)
+
 method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   let client = await provider.client
   return await client.eth_blockNumber()
@@ -46,3 +63,15 @@ method call*(provider: JsonRpcProvider,
              tx: Transaction): Future[seq[byte]] {.async.} =
   let client = await provider.client
   return await client.eth_call(tx)
+
+# Signer
+
+method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
+  if address =? signer.address:
+    return address
+
+  let accounts = await signer.provider.listAccounts()
+  if accounts.len > 0:
+    return accounts[0]
+
+  raiseProviderError "no address found"
