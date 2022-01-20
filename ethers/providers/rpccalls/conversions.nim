@@ -1,5 +1,15 @@
 import std/json
+import pkg/stew/byteutils
 import ../../basics
+import ../../transaction
+
+# byte sequence
+
+func `%`*(bytes: seq[byte]): JsonNode =
+  %("0x" & bytes.toHex)
+
+func fromJson*(json: JsonNode, name: string, result: var seq[byte]) =
+  result = hexToSeqByte(json.getStr())
 
 # Address
 
@@ -19,3 +29,8 @@ func `%`*(integer: UInt256): JsonNode =
 
 func fromJson*(json: JsonNode, name: string, result: var UInt256) =
   result = UInt256.fromHex(json.getStr())
+
+# Transaction
+
+func `%`*(tx: Transaction): JsonNode =
+  %{ "to": %tx.to, "data": %tx.data }

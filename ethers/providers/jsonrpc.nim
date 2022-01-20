@@ -41,3 +41,8 @@ proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
 method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   let client = await provider.client
   return await client.eth_blockNumber()
+
+method call*(provider: JsonRpcProvider,
+             tx: Transaction): Future[seq[byte]] {.async.} =
+  let client = await provider.client
+  return await client.eth_call(tx)
