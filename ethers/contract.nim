@@ -47,14 +47,15 @@ func getParameterTuple(procedure: var NimNode): NimNode =
   return tupl
 
 func addContractCall(procedure: var NimNode) =
-  let name = $procedure[0]
+  let name = procedure[0]
+  let function = if name.kind == nnkPostfix: $name[1] else: $name
   let parameters = procedure[3]
   let contract = parameters[1][0]
   let contracttype = parameters[1][1]
   let resulttype = parameters[0]
   let tupl = getParameterTuple(procedure)
   procedure[6] = quote do:
-    result = await call[`contracttype`,`resulttype`](`contract`, `name`, `tupl`)
+    return await call[`contracttype`,`resulttype`](`contract`, `function`, `tupl`)
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]

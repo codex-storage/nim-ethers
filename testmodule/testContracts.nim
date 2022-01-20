@@ -4,12 +4,12 @@ import pkg/ethers
 import ./hardhat
 
 type
-  Erc20 = ref object of Contract
+  Erc20* = ref object of Contract
   TestToken = ref object of Erc20
 
-method totalSupply(erc20: Erc20): UInt256 {.base, contract.}
-method balanceOf(erc20: Erc20, account: Address): UInt256 {.base, contract.}
-method allowance(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract.}
+method totalSupply*(erc20: Erc20): UInt256 {.base, contract.}
+method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract.}
+method allowance*(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract.}
 
 suite "Contracts":
 
