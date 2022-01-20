@@ -2,7 +2,7 @@ import pkg/chronos
 import pkg/questionable
 import pkg/stint
 import pkg/upraises
-import ./address
+import pkg/contractabi/address
 
 export chronos
 export questionable
