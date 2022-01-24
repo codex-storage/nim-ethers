@@ -13,3 +13,9 @@ method getAddress*(signer: Signer): Future[Address] {.base.} =
 
 method getGasPrice*(signer: Signer): Future[UInt256] {.base.} =
   signer.provider.getGasPrice()
+
+method getTransactionCount*(signer: Signer,
+                            blockTag = BlockTag.latest):
+                           Future[UInt256] {.base, async.} =
+  let address = await signer.getAddress()
+  return await signer.provider.getTransactionCount(address, blockTag)

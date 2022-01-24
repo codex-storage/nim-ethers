@@ -2,6 +2,7 @@ import std/json
 import pkg/stew/byteutils
 import ../../basics
 import ../../transaction
+import ../../blocktag
 
 # byte sequence
 
@@ -34,3 +35,8 @@ func fromJson*(json: JsonNode, name: string, result: var UInt256) =
 
 func `%`*(tx: Transaction): JsonNode =
   %{ "to": %tx.to, "data": %tx.data }
+
+# BlockTag
+
+func `%`*(blockTag: BlockTag): JsonNode =
+  %($blockTag)
