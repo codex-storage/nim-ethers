@@ -16,3 +16,8 @@ suite "JsonRpcSigner":
     let account = (await provider.listAccounts())[1]
     let signer = provider.getSigner(account)
     check (await signer.getAddress()) == account
+
+  test "can retrieve gas price":
+    let signer = provider.getSigner()
+    let gasprice = await signer.getGasPrice()
+    check gasprice > 0.u256

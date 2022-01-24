@@ -64,7 +64,14 @@ method call*(provider: JsonRpcProvider,
   let client = await provider.client
   return await client.eth_call(tx)
 
+method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+  let client = await provider.client
+  return await client.eth_gasprice()
+
 # Signer
+
+method provider*(signer: JsonRpcSigner): Provider =
+  signer.provider
 
 method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
   if address =? signer.address:

@@ -14,3 +14,6 @@ method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
 
 method call*(provider: Provider, tx: Transaction): Future[seq[byte]] {.base.} =
   doAssert false, "not implemented"
+
+method getGasPrice*(provider: Provider): Future[UInt256] {.base.} =
+  doAssert false, "not implemented"
