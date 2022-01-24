@@ -80,6 +80,13 @@ method estimateGas*(provider: JsonRpcProvider,
   let client = await provider.client
   return await client.eth_estimateGas(transaction)
 
+method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+  let client = await provider.client
+  try:
+    return await client.eth_chainId()
+  except CatchableError:
+    return parse(await client.net_version(), UInt256)
+
 # Signer
 
 method provider*(signer: JsonRpcSigner): Provider =

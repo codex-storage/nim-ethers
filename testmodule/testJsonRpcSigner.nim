@@ -33,3 +33,8 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner()
     let estimate = await signer.estimateGas(Transaction.example)
     check estimate > 0.u256
+
+  test "can retrieve chain id":
+    let signer = provider.getSigner()
+    let chainId = await signer.getChainId()
+    check chainId == 31337.u256 # hardhat chain id

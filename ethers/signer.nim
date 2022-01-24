@@ -25,3 +25,6 @@ method estimateGas*(signer: Signer,
   var transaction = transaction
   transaction.sender = some(await signer.getAddress)
   return await signer.provider.estimateGas(transaction)
+
+method getChainId*(signer: Signer): Future[UInt256] {.base.} =
+  signer.provider.getChainId()

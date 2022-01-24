@@ -29,3 +29,6 @@ method getTransactionCount*(provider: Provider,
 method estimateGas*(provider: Provider,
                     transaction: Transaction): Future[UInt256] {.base.} =
   doAssert false, "not implemented"
+
+method getChainId*(provider: Provider): Future[UInt256] {.base.} =
+  doAssert false, "not implemented"
