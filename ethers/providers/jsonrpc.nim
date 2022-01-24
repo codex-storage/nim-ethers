@@ -75,6 +75,11 @@ method getTransactionCount*(provider: JsonRpcProvider,
   let client = await provider.client
   return await client.eth_getTransactionCount(address, blockTag)
 
+method estimateGas*(provider: JsonRpcProvider,
+                    transaction: Transaction): Future[UInt256] {.async.} =
+  let client = await provider.client
+  return await client.eth_estimateGas(transaction)
+
 # Signer
 
 method provider*(signer: JsonRpcSigner): Provider =

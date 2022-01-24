@@ -1,5 +1,6 @@
 import pkg/asynctest
 import pkg/ethers
+import ./examples
 
 suite "JsonRpcSigner":
 
@@ -27,3 +28,8 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner(accounts[9])
     let count = await signer.getTransactionCount(BlockTag.pending)
     check count == 0.u256
+
+  test "can estimate gas cost of a transaction":
+    let signer = provider.getSigner()
+    let estimate = await signer.estimateGas(Transaction.example)
+    check estimate > 0.u256

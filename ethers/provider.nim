@@ -25,3 +25,7 @@ method getTransactionCount*(provider: Provider,
                             blockTag = BlockTag.latest):
                            Future[UInt256] {.base.} =
   doAssert false, "not implemented"
+
+method estimateGas*(provider: Provider,
+                    transaction: Transaction): Future[UInt256] {.base.} =
+  doAssert false, "not implemented"

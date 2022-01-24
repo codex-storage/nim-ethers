@@ -19,3 +19,9 @@ method getTransactionCount*(signer: Signer,
                            Future[UInt256] {.base, async.} =
   let address = await signer.getAddress()
   return await signer.provider.getTransactionCount(address, blockTag)
+
+method estimateGas*(signer: Signer,
+                    transaction: Transaction): Future[UInt256] {.base, async.} =
+  var transaction = transaction
+  transaction.sender = some(await signer.getAddress)
+  return await signer.provider.estimateGas(transaction)

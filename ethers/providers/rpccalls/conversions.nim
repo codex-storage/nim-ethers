@@ -34,7 +34,9 @@ func fromJson*(json: JsonNode, name: string, result: var UInt256) =
 # Transaction
 
 func `%`*(tx: Transaction): JsonNode =
-  %{ "to": %tx.to, "data": %tx.data }
+  result = %{ "to": %tx.to, "data": %tx.data }
+  if sender =? tx.sender:
+    result["from"] = %sender
 
 # BlockTag
 
