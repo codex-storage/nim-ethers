@@ -12,6 +12,14 @@ func `%`*(bytes: seq[byte]): JsonNode =
 func fromJson*(json: JsonNode, name: string, result: var seq[byte]) =
   result = hexToSeqByte(json.getStr())
 
+# byte arrays
+
+func `%`*[N](bytes: array[N, byte]): JsonNode =
+  %("0x" & bytes.toHex)
+
+func fromJson*[N](json: JsonNode, name: string, result: var array[N, byte]) =
+  hexToByteArray(json.getStr(), result)
+
 # Address
 
 func `%`*(address: Address): JsonNode =
