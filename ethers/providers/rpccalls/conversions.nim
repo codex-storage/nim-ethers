@@ -26,17 +26,25 @@ func fromJson*(json: JsonNode, name: string, result: var Address) =
 # UInt256
 
 func `%`*(integer: UInt256): JsonNode =
-  %toHex(integer)
+  %("0x" & toHex(integer))
 
 func fromJson*(json: JsonNode, name: string, result: var UInt256) =
   result = UInt256.fromHex(json.getStr())
 
 # Transaction
 
-func `%`*(tx: Transaction): JsonNode =
-  result = %{ "to": %tx.to, "data": %tx.data }
-  if sender =? tx.sender:
+func `%`*(transaction: Transaction): JsonNode =
+  result = %{ "to": %transaction.to, "data": %transaction.data }
+  if sender =? transaction.sender:
     result["from"] = %sender
+  if nonce =? transaction.nonce:
+    result["nonce"] = %nonce
+  if chainId =? transaction.chainId:
+    result["chainId"] = %chainId
+  if gasPrice =? transaction.gasPrice:
+    result["gasPrice"] = %gasPrice
+  if gasLimit =? transaction.gasLimit:
+    result["gas"] = %gasLimit
 
 # BlockTag
 

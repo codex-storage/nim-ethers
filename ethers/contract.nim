@@ -11,7 +11,7 @@ type
   Contract* = ref object of RootObj
     provider: Provider
     address: Address
-  ContractError* = object of IOError
+  ContractError* = object of EthersError
 
 template raiseContractError(message: string) =
   raise newException(ContractError, message)

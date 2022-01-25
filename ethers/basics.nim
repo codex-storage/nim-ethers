@@ -11,3 +11,6 @@ export results
 export stint
 export upraises
 export address
+
+type
+  EthersError* = object of IOError

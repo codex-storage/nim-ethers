@@ -38,3 +38,38 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner()
     let chainId = await signer.getChainId()
     check chainId == 31337.u256 # hardhat chain id
+
+  test "can populate missing fields in a transaction":
+    let signer = provider.getSigner()
+    let transaction = Transaction.example
+    let populated = await signer.populateTransaction(transaction)
+    check !populated.sender == await signer.getAddress()
+    check !populated.gasPrice == await signer.getGasPrice()
+    check !populated.nonce == await signer.getTransactionCount(BlockTag.pending)
+    check !populated.gasLimit == await signer.estimateGas(transaction)
+    check !populated.chainId == await signer.getChainId()
+
+  test "populate does not overwrite existing fields":
+    let signer = provider.getSigner()
+    var transaction = Transaction.example
+    transaction.sender = some await signer.getAddress()
+    transaction.nonce = some UInt256.example
+    transaction.chainId = some await signer.getChainId()
+    transaction.gasPrice = some UInt256.example
+    transaction.gasLimit = some UInt256.example
+    let populated = await signer.populateTransaction(transaction)
+    check populated == transaction
+
+  test "populate fails when sender does not match signer address":
+    let signer = provider.getSigner()
+    var transaction = Transaction.example
+    transaction.sender = accounts[1].some
+    expect SignerError:
+      discard await signer.populateTransaction(transaction)
+
+  test "populate fails when chain id does not match":
+    let signer = provider.getSigner()
+    var transaction = Transaction.example
+    transaction.chainId = 0xdeadbeef.u256.some
+    expect SignerError:
+      discard await signer.populateTransaction(transaction)

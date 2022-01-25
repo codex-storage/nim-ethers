@@ -16,7 +16,7 @@ type
   JsonRpcSigner* = ref object of Signer
     provider: JsonRpcProvider
     address: ?Address
-  JsonRpcProviderError* = object of IOError
+  JsonRpcProviderError* = object of EthersError
 
 template raiseProviderError(message: string) =
   raise newException(JsonRpcProviderError, message)

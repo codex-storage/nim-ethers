@@ -4,6 +4,10 @@ import ./provider
 export basics
 
 type Signer* = ref object of RootObj
+type SignerError* = object of EthersError
+
+template raiseSignerError(message: string) =
+  raise newException(SignerError, message)
 
 method provider*(signer: Signer): Provider {.base.} =
   doAssert false, "not implemented"
@@ -28,3 +32,27 @@ method estimateGas*(signer: Signer,
 
 method getChainId*(signer: Signer): Future[UInt256] {.base.} =
   signer.provider.getChainId()
+
+method populateTransaction*(signer: Signer,
+                            transaction: Transaction):
+                           Future[Transaction] {.base, async.} =
+
+  if sender =? transaction.sender and sender != await signer.getAddress():
+    raiseSignerError("from address mismatch")
+  if chainId =? transaction.chainId and chainId != await signer.getChainId():
+    raiseSignerError("chain id mismatch")
+
+  var populated = transaction
+
+  if transaction.sender.isNone:
+    populated.sender = some(await signer.getAddress())
+  if transaction.nonce.isNone:
+    populated.nonce = some(await signer.getTransactionCount(BlockTag.pending))
+  if transaction.chainId.isNone:
+    populated.chainId = some(await signer.getChainId())
+  if transaction.gasPrice.isNone:
+    populated.gasPrice = some(await signer.getGasPrice())
+  if transaction.gasLimit.isNone:
+    populated.gasLimit = some(await signer.estimateGas(populated))
+
+  return populated
