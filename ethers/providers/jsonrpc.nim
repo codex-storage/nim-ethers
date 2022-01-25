@@ -41,9 +41,9 @@ proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
 
 proc send*(provider: JsonRpcProvider,
            call: string,
-           arguments = %(@[])): Future[JsonNode] {.async.} =
+           arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
   let client = await provider.client
-  return await client.call(call, arguments)
+  return await client.call(call, %arguments)
 
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   let client = await provider.client

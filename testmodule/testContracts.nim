@@ -1,3 +1,4 @@
+import std/json
 import pkg/asynctest
 import pkg/stint
 import pkg/ethers
@@ -15,11 +16,16 @@ suite "Contracts":
 
   var token: TestToken
   var provider: JsonRpcProvider
+  var snapshot: JsonNode
 
   setup:
     provider = JsonRpcProvider.new()
+    snapshot = await provider.send("evm_snapshot")
     let deployment = readDeployment()
     token = TestToken.new(!deployment.address(TestToken), provider)
+
+  teardown:
+    discard await provider.send("evm_revert", @[snapshot])
 
   test "can call view methods":
     let accounts = await provider.listAccounts()
