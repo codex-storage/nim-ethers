@@ -101,3 +101,8 @@ method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
     return accounts[0]
 
   raiseProviderError "no address found"
+
+method sendTransaction*(signer: JsonRpcSigner,
+                        transaction: Transaction) {.async.} =
+  let client = await signer.provider.client
+  discard await client.eth_sendTransaction(transaction)

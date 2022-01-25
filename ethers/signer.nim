@@ -15,6 +15,10 @@ method provider*(signer: Signer): Provider {.base.} =
 method getAddress*(signer: Signer): Future[Address] {.base.} =
   doAssert false, "not implemented"
 
+method sendTransaction*(signer: Signer,
+                        transaction: Transaction) {.base, async.} =
+  doAssert false, "not implemented"
+
 method getGasPrice*(signer: Signer): Future[UInt256] {.base.} =
   signer.provider.getGasPrice()
 
