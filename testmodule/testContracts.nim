@@ -11,6 +11,7 @@ type
 method totalSupply*(erc20: Erc20): UInt256 {.base, contract, view.}
 method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract, view.}
 method allowance*(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract, view.}
+method transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.base, contract.}
 
 method mint(token: TestToken, holder: Address, amount: UInt256) {.base, contract.}
 
@@ -66,3 +67,13 @@ suite "Contracts":
     let works = compiles:
       proc foo(token: TestToken, bar: Address): UInt256 {.contract.}
     check not works
+
+  test "can connect to different providers and signers":
+    let signer0 = provider.getSigner(accounts[0])
+    let signer1 = provider.getSigner(accounts[1])
+    await token.connect(signer0).mint(accounts[0], 100.u256)
+    await token.connect(signer0).transfer(accounts[1], 50.u256)
+    await token.connect(signer1).transfer(accounts[2], 25.u256)
+    check (await token.connect(provider).balanceOf(accounts[0])) == 50.u256
+    check (await token.connect(provider).balanceOf(accounts[1])) == 25.u256
+    check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256

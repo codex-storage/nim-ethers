@@ -25,6 +25,9 @@ func new*(ContractType: type Contract,
           signer: Signer): ContractType =
   ContractType(signer: some signer, provider: signer.provider, address: address)
 
+func connect*[T: Contract](contract: T, provider: Provider | Signer): T =
+  T.new(contract.address, provider)
+
 func provider*(contract: Contract): Provider =
   contract.provider
 
