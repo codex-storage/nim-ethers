@@ -52,6 +52,16 @@ suite "Contracts":
     await mint(token, accounts[1], 100.u256)
     check (await balanceOf(token, accounts[1])) == 0.u256
 
+  test "fails to compile when function has an implementation":
+    let works = compiles:
+      proc foo(token: TestToken, bar: Address) {.contract.} = discard
+    check not works
+
+  test "fails to compile when function has no parameters":
+    let works = compiles:
+      proc foo() {.contract.}
+    check not works
+
   test "fails to compile when non-constant function has a return type":
     let works = compiles:
       proc foo(token: TestToken, bar: Address): UInt256 {.contract.}
