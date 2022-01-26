@@ -1,5 +1,6 @@
 import pkg/asynctest
 import pkg/ethers
+import pkg/stew/byteutils
 import ./examples
 
 suite "JsonRpcSigner":
@@ -38,6 +39,11 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner()
     let chainId = await signer.getChainId()
     check chainId == 31337.u256 # hardhat chain id
+
+  test "can sign messages":
+    let signer = provider.getSigner()
+    let message = "hello".toBytes
+    check (await signer.signMessage(message)).len == 65
 
   test "can populate missing fields in a transaction":
     let signer = provider.getSigner()

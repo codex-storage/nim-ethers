@@ -15,6 +15,10 @@ method provider*(signer: Signer): Provider {.base.} =
 method getAddress*(signer: Signer): Future[Address] {.base.} =
   doAssert false, "not implemented"
 
+method signMessage*(signer: Signer,
+                    message: seq[byte]): Future[seq[byte]] {.base, async.} =
+  doAssert false, "not implemented"
+
 method sendTransaction*(signer: Signer,
                         transaction: Transaction) {.base, async.} =
   doAssert false, "not implemented"

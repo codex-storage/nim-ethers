@@ -102,6 +102,12 @@ method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
 
   raiseProviderError "no address found"
 
+method signMessage*(signer: JsonRpcSigner,
+                    message: seq[byte]): Future[seq[byte]] {.async.} =
+  let client = await signer.provider.client
+  let address = await signer.getAddress()
+  return await client.eth_sign(address, message)
+
 method sendTransaction*(signer: JsonRpcSigner,
                         transaction: Transaction) {.async.} =
   let client = await signer.provider.client
