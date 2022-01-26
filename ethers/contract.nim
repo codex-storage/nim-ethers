@@ -87,8 +87,6 @@ func isConstant(procedure: NimNode): bool =
       return true
     elif pragma.eqIdent "pure":
       return true
-    elif pragma.eqIdent "constant":
-      return true
   false
 
 func addContractCall(procedure: var NimNode) =
@@ -123,7 +121,7 @@ func checkReturnType(procedure: NimNode) =
   let returntype = procedure[3][0]
   if returntype.kind != nnkEmpty and not procedure.isConstant:
     const message =
-      "only contract functions with {.constant.}, {.pure.} or {.view.} " &
+      "only contract functions with {.view.} or {.pure.} " &
       "can have a return type"
     error(message, returntype)
 
@@ -144,4 +142,3 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
 template view* {.pragma.}
 template pure* {.pragma.}
-template constant* {.pragma.}
