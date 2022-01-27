@@ -23,6 +23,7 @@ jobs:
       working-directory: testnode
       run: npm install
     - name: Run test node
+      working-directory: testnode
       run: npm start &
     - name: Build
       run: nimble install -y
