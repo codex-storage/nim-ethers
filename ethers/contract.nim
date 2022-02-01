@@ -4,9 +4,11 @@ import pkg/contractabi
 import ./basics
 import ./provider
 import ./signer
+import ./events
 
 export basics
 export provider
+export events
 
 type
   Contract* = ref object of RootObj
