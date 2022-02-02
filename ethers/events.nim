@@ -1,10 +1,10 @@
 import std/macros
 import pkg/contractabi
 import ./basics
+import ./provider
 
 type
   Event* = object of RootObj
-  Topic* = array[32, byte]
   ValueType = uint8 | uint16 | uint32 | uint64 | UInt256 | UInt128 |
               int8 | int16 | int32 | int64 | Int256 | Int128 |
               bool | Address

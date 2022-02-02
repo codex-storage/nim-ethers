@@ -10,6 +10,15 @@ push: {.upraises: [].}
 
 type
   Provider* = ref object of RootObj
+  Subscription* = ref object of RootObj
+  Filter* = object
+    address*: Address
+    topics*: seq[Topic]
+  Log* = object
+    data*: seq[byte]
+    topics*: seq[Topic]
+  LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
+  Topic* = array[32, byte]
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
   doAssert false, "not implemented"
@@ -31,4 +40,13 @@ method estimateGas*(provider: Provider,
   doAssert false, "not implemented"
 
 method getChainId*(provider: Provider): Future[UInt256] {.base.} =
+  doAssert false, "not implemented"
+
+method subscribe*(provider: Provider,
+                  filter: Filter,
+                  callback: LogHandler):
+                 Future[Subscription] {.base.} =
+  doAssert false, "not implemented"
+
+method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
