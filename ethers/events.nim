@@ -13,7 +13,7 @@ push: {.upraises: [].}
 
 template indexed* {.pragma.}
 
-func decode[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
+func decode*[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   var event: E
   for field in event.fields:
     if not field.hasCustomPragma(indexed):
@@ -21,7 +21,6 @@ func decode[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   success event
 
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
-  bind decode
   var event = ?Abidecoder.decode(data, E)
   var i = 1
   for field in event.fields:
