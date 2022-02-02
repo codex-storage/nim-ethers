@@ -90,6 +90,44 @@ await writableToken.transfer(accounts[7], 42.u256)
 
 Which transfers 42 tokens from account 3 to account 7
 
+Events
+------
+
+You can subscribe to events that are emitted by a smart contract. For instance,
+to get notified about token transfers you define the `Transfer` event:
+
+```nim
+type Transfer = object of Event
+  sender {.indexed.}: Address
+  receiver {.indexed.}: Address
+  value: UInt256
+```
+
+Notice that `Transfer` inherits from `Event`, and that some event parameters are
+marked with `{.indexed.}` to match the definition in Solidity.
+
+You can now subscribe to Transfer events by calling `subscribe` on the contract
+instance.
+
+```nim
+proc handleTransfer(transfer: Transfer) =
+  echo "received transfer: ", transfer
+
+let subscription = await token.subscribe(Transfer, handleTransfer)
+```
+
+When a Transfer event is emitted, the `handleTransfer` proc that you just
+defined will be called.
+
+When you're no longer interested in these events, you can unsubscribe:
+
+```nim
+await subscription.unsubscribe()
+```
+
+Subscriptions are currently only supported when using a JSON RPC provider that
+is created with a websockets URL such as `ws://localhost:8545`.
+
 Thanks
 ------
 
