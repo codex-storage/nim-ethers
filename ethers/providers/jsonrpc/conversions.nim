@@ -1,10 +1,10 @@
 import std/json
 import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
-import ../basics
-import ../transaction
-import ../blocktag
-import ../provider
+import ../../basics
+import ../../transaction
+import ../../blocktag
+import ../../provider
 
 export jsonmarshal
 

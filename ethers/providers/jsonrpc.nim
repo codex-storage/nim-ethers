@@ -5,8 +5,8 @@ import pkg/json_rpc/rpcclient
 import ../basics
 import ../provider
 import ../signer
-import ./rpccalls
-import ./conversions
+import ./jsonrpc/rpccalls
+import ./jsonrpc/conversions
 
 export basics
 export provider
