@@ -1,6 +1,6 @@
 import std/macros
 
-macro fieldValues*(obj: object): tuple =
+macro fieldValues*(obj: object): auto =
   result = newNimNode(nnkTupleConstr)
   let typ = getTypeImpl(obj)
   let fields = typ[2]
