@@ -1,9 +1,12 @@
+import std/json
+import std/tables
 import std/uri
 import pkg/json_rpc/rpcclient
 import ../basics
 import ../provider
 import ../signer
 import ./rpccalls
+import ./conversions
 
 export basics
 export provider
@@ -13,6 +16,10 @@ push: {.upraises: [].}
 type
   JsonRpcProvider* = ref object of Provider
     client: Future[RpcClient]
+    subscriptions: Table[JsonNode, LogHandler]
+  JsonRpcSubscription = ref object of Subscription
+    provider: JsonRpcProvider
+    id: JsonNode
   JsonRpcSigner* = ref object of Signer
     provider: JsonRpcProvider
     address: ?Address
@@ -36,8 +43,12 @@ proc connect(_: type RpcClient, url: string): Future[RpcClient] {.async.} =
     await client.connect(url)
     return client
 
+proc handleSubscriptions(provider: JsonRpcProvider) {.async.}
+
 proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
-  JsonRpcProvider(client: RpcClient.connect(url))
+  let provider = JsonRpcProvider(client: RpcClient.connect(url))
+  asyncSpawn provider.handleSubscriptions()
+  provider
 
 proc send*(provider: JsonRpcProvider,
            call: string,
@@ -86,6 +97,42 @@ method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
     return await client.eth_chainId()
   except CatchableError:
     return parse(await client.net_version(), UInt256)
+
+proc handleSubscriptions(provider: JsonRpcProvider) {.async.} =
+
+  proc getLogHandler(id: JsonNode): ?LogHandler =
+    try:
+      if provider.subscriptions.hasKey(id):
+        provider.subscriptions[id].some
+      else:
+        LogHandler.none
+    except Exception:
+      LogHandler.none
+
+  proc handleSubscription(arguments: JsonNode) {.upraises: [].} =
+    if id =? arguments["subscription"].catch and
+       handler =? getLogHandler(id) and
+       log =? Log.fromJson(arguments["result"]).catch:
+      handler(log)
+
+  let client = await provider.client
+  client.setMethodHandler("eth_subscription", handleSubscription)
+
+method subscribe*(provider: JsonRpcProvider,
+                  filter: Filter,
+                  callback: LogHandler):
+                 Future[Subscription] {.async.} =
+  let client = await provider.client
+  doAssert client of RpcWebSocketClient, "subscriptions require websockets"
+  let id = await client.eth_subscribe("logs", some filter)
+  provider.subscriptions[id] = callback
+  return JsonRpcSubscription(id: id, provider: provider)
+
+method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
+  let provider = subscription.provider
+  let client = await provider.client
+  discard await client.eth_unsubscribe(subscription.id)
+  provider.subscriptions.del(subscription.id)
 
 # Signer
 

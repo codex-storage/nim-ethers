@@ -5,8 +5,14 @@ import pkg/ethers
 import ./hardhat
 
 type
+
   Erc20* = ref object of Contract
   TestToken = ref object of Erc20
+
+  Transfer = object of Event
+    sender {.indexed.}: Address
+    receiver {.indexed.}: Address
+    value: UInt256
 
 method totalSupply*(erc20: Erc20): UInt256 {.base, contract, view.}
 method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract, view.}
@@ -23,7 +29,7 @@ suite "Contracts":
   var accounts: seq[Address]
 
   setup:
-    provider = JsonRpcProvider.new()
+    provider = JsonRpcProvider.new("ws://localhost:8545")
     snapshot = await provider.send("evm_snapshot")
     accounts = await provider.listAccounts()
     let deployment = readDeployment()
@@ -77,3 +83,40 @@ suite "Contracts":
     check (await token.connect(provider).balanceOf(accounts[0])) == 50.u256
     check (await token.connect(provider).balanceOf(accounts[1])) == 25.u256
     check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256
+
+  test "receives events when subscribed":
+    var transfers: seq[Transfer]
+
+    proc handleTransfer(transfer: Transfer) =
+      transfers.add(transfer)
+
+    let signer0 = provider.getSigner(accounts[0])
+    let signer1 = provider.getSigner(accounts[1])
+
+    let subscription = await token.subscribe(Transfer, handleTransfer)
+    await token.connect(signer0).mint(accounts[0], 100.u256)
+    await token.connect(signer0).transfer(accounts[1], 50.u256)
+    await token.connect(signer1).transfer(accounts[2], 25.u256)
+    await subscription.unsubscribe()
+
+    check transfers == @[
+      Transfer(receiver: accounts[0], value: 100.u256),
+      Transfer(sender: accounts[0], receiver: accounts[1], value: 50.u256),
+      Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
+    ]
+
+  test "stops receiving events when unsubscribed":
+    var transfers: seq[Transfer]
+
+    proc handleTransfer(transfer: Transfer) =
+      transfers.add(transfer)
+
+    let signer0 = provider.getSigner(accounts[0])
+
+    let subscription = await token.subscribe(Transfer, handleTransfer)
+    await token.connect(signer0).mint(accounts[0], 100.u256)
+    await subscription.unsubscribe()
+
+    await token.connect(signer0).transfer(accounts[1], 50.u256)
+
+    check transfers == @[Transfer(receiver: accounts[0], value: 100.u256)]

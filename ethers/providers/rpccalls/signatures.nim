@@ -8,3 +8,5 @@ proc eth_estimateGas(transaction: Transaction): UInt256
 proc eth_chainId(): UInt256
 proc eth_sendTransaction(transaction: Transaction): array[32, byte]
 proc eth_sign(account: Address, message: seq[byte]): seq[byte]
+proc eth_subscribe(name: string, filter: ?Filter): JsonNode
+proc eth_unsubscribe(id: JsonNode): bool

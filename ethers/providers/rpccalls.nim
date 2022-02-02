@@ -3,7 +3,8 @@ import pkg/json_rpc/rpcclient
 import ../basics
 import ../transaction
 import ../blocktag
-import ./rpccalls/conversions
+import ../provider
+import ./conversions
 
 const file = currentSourcePath.parentDir / "rpccalls" / "signatures.nim"
 

@@ -5,6 +5,7 @@ import ./basics
 import ./provider
 import ./signer
 import ./events
+import ./fields
 
 export basics
 export provider
@@ -16,6 +17,7 @@ type
     signer: ?Signer
     address: Address
   ContractError* = object of EthersError
+  EventHandler*[E: Event] = proc(event: E) {.gcsafe, upraises:[].}
 
 func new*(ContractType: type Contract,
           address: Address,
@@ -144,3 +146,17 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
 template view* {.pragma.}
 template pure* {.pragma.}
+
+proc subscribe*[E: Event](contract: Contract,
+                          _: type E,
+                          handler: EventHandler[E]):
+                         Future[Subscription] =
+
+  let topic = topic($E, E.fieldTypes).toArray
+  let filter = Filter(address: contract.address, topics: @[topic])
+
+  proc logHandler(log: Log) {.upraises: [].} =
+    if event =? E.decode(log.data, log.topics):
+      handler(event)
+
+  contract.provider.subscribe(filter, logHandler)

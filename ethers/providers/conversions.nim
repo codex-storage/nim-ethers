@@ -1,8 +1,15 @@
 import std/json
+import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
-import ../../basics
-import ../../transaction
-import ../../blocktag
+import ../basics
+import ../transaction
+import ../blocktag
+import ../provider
+
+export jsonmarshal
+
+func fromJson*(T: type, json: JsonNode, name = ""): T =
+  fromJson(json, name, result)
 
 # byte sequence
 
@@ -58,3 +65,12 @@ func `%`*(transaction: Transaction): JsonNode =
 
 func `%`*(blockTag: BlockTag): JsonNode =
   %($blockTag)
+
+# Log
+
+func fromJson*(json: JsonNode, name: string, result: var Log) =
+  var data: seq[byte]
+  var topics: seq[Topic]
+  fromJson(json["data"], "data", data)
+  fromJson(json["topics"], "topics", topics)
+  result = Log(data: data, topics: topics)
