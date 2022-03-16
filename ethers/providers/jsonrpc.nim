@@ -70,6 +70,11 @@ method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   let client = await provider.client
   return await client.eth_blockNumber()
 
+method getBlock*(provider: JsonRpcProvider,
+                 tag: BlockTag): Future[?Block] {.async.} =
+  let client = await provider.client
+  return await client.eth_getBlockByNumber(tag, false)
+
 method call*(provider: JsonRpcProvider,
              tx: Transaction): Future[seq[byte]] {.async.} =
   let client = await provider.client

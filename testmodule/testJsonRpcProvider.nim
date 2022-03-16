@@ -32,3 +32,10 @@ suite "JsonRpcProvider":
     discard await provider.send("evm_mine")
     let blocknumber2 = await provider.getBlockNumber()
     check blocknumber2 > blocknumber1
+
+  test "returns block":
+    let block1 = !await provider.getBlock(BlockTag.earliest)
+    let block2 = !await provider.getBlock(BlockTag.latest)
+    check block1.hash != block2.hash
+    check block1.number < block2.number
+    check block1.timestamp < block2.timestamp
