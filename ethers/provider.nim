@@ -19,8 +19,15 @@ type
     topics*: seq[Topic]
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
+  Block* = object
+    number*: UInt256
+    timestamp*: UInt256
+    hash*: array[32, byte]
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
+  doAssert false, "not implemented"
+
+method getBlock*(provider: Provider, tag: BlockTag): Future[Block] {.base.} =
   doAssert false, "not implemented"
 
 method call*(provider: Provider, tx: Transaction): Future[seq[byte]] {.base.} =
