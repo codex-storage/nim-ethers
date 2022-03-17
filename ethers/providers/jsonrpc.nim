@@ -10,6 +10,7 @@ import ./jsonrpc/conversions
 
 export basics
 export provider
+export conversions
 
 push: {.upraises: [].}
 
