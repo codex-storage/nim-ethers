@@ -14,12 +14,14 @@ suite "Events":
       b {.indexed.}: Address
       c: Address
       d {.indexed.}: UInt256
+      e {.indexed.}: array[32, byte]
     ComplexIndexedEvent = object of Event
       a {.indexed.}: array[42, UInt256]
       b {.indexed.}: seq[UInt256]
       c {.indexed.}: string
       d {.indexed.}: seq[byte]
       e {.indexed.}: (Address, UInt256)
+      f {.indexed.}: array[33, byte]
 
   proc example(_: type SimpleEvent): SimpleEvent =
     SimpleEvent(
@@ -32,7 +34,8 @@ suite "Events":
       a: UInt256.example,
       b: Address.example,
       c: Address.example,
-      d: UInt256.example
+      d: UInt256.example,
+      e: array[32, byte].example
     )
 
   func encode[T](_: type Topic, value: T): Topic =
@@ -50,6 +53,7 @@ suite "Events":
     topics.add Topic.default
     topics.add Topic.encode(event.b)
     topics.add Topic.encode(event.d)
+    topics.add Topic.encode(event.e)
     let data = AbiEncoder.encode( (event.a, event.c) )
     check IndexedEvent.decode(data, topics) == success event
 
@@ -69,6 +73,7 @@ suite "Events":
   test "ignores indexed complex arguments":
     let topics = @[
       Topic.default,
+      Topic.example,
       Topic.example,
       Topic.example,
       Topic.example,
