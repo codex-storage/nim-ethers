@@ -1,7 +1,7 @@
 proc net_version(): string
 proc eth_accounts: seq[Address]
 proc eth_blockNumber: UInt256
-proc eth_call(transaction: Transaction): seq[byte]
+proc eth_call(transaction: Transaction, blockTag: BlockTag): seq[byte]
 proc eth_gasPrice(): UInt256
 proc eth_getBlockByNumber(blockTag: BlockTag, includeTransactions: bool): ?Block
 proc eth_getTransactionCount(address: Address, blockTag: BlockTag): UInt256

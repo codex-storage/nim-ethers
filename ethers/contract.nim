@@ -56,16 +56,20 @@ proc decodeResponse(T: type, bytes: seq[byte]): T =
     raiseContractError "unable to decode return value as " & $T
   return decoded
 
-proc call(contract: Contract, function: string, parameters: tuple) {.async.} =
+proc call(contract: Contract,
+          function: string,
+          parameters: tuple,
+          blockTag = BlockTag.latest) {.async.} =
   let transaction = createTransaction(contract, function, parameters)
-  discard await contract.provider.call(transaction)
+  discard await contract.provider.call(transaction, blockTag)
 
 proc call(contract: Contract,
           function: string,
           parameters: tuple,
-          ReturnType: type): Future[ReturnType] {.async.} =
+          ReturnType: type,
+          blockTag = BlockTag.latest): Future[ReturnType] {.async.} =
   let transaction = createTransaction(contract, function, parameters)
-  let response = await contract.provider.call(transaction)
+  let response = await contract.provider.call(transaction, blockTag)
   return decodeResponse(ReturnType, response)
 
 proc send(contract: Contract, function: string, parameters: tuple) {.async.} =

@@ -77,9 +77,10 @@ method getBlock*(provider: JsonRpcProvider,
   return await client.eth_getBlockByNumber(tag, false)
 
 method call*(provider: JsonRpcProvider,
-             tx: Transaction): Future[seq[byte]] {.async.} =
+             tx: Transaction,
+             blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
   let client = await provider.client
-  return await client.eth_call(tx)
+  return await client.eth_call(tx, blockTag)
 
 method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   let client = await provider.client
