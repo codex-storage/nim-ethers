@@ -26,9 +26,11 @@ template indexed* {.pragma.}
 
 func decode*[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   var event: E
+  decoder.startTuple()
   for field in event.fields:
     if not field.hasCustomPragma(indexed):
       field = ?decoder.read(typeof(field))
+  decoder.finishTuple()
   success event
 
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
