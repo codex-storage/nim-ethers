@@ -9,6 +9,9 @@ suite "Events":
     SimpleEvent = object of Event
       a: UInt256
       b: Address
+    DynamicSizeEvent = object of Event
+      a: array[32, byte]
+      b: seq[byte]
     IndexedEvent = object of Event
       a: UInt256
       b {.indexed.}: Address
@@ -29,6 +32,12 @@ suite "Events":
       b: Address.example
     )
 
+  proc example(_: type DynamicSizeEvent): DynamicSizeEvent =
+    DynamicSizeEvent(
+      a: array[32, byte].example,
+      b: seq[byte].example
+    )
+
   proc example(_: type IndexedEvent): IndexedEvent =
     IndexedEvent(
       a: UInt256.example,
@@ -46,6 +55,11 @@ suite "Events":
     let event = SimpleEvent.example
     let data = AbiEncoder.encode( (event.a, event.b) )
     check SimpleEvent.decode(data, @[]) == success event
+
+  test "decodes dynamically sized fields":
+    let event = DynamicSizeEvent.example
+    let data = AbiEncoder.encode( (event.a, event.b) )
+    check DynamicSizeEvent.decode(data, @[]) == success event
 
   test "decodes indexed fields":
     let event = IndexedEvent.example
