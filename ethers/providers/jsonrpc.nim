@@ -44,11 +44,33 @@ proc connect(_: type RpcClient, url: string): Future[RpcClient] {.async.} =
     await client.connect(url)
     return client
 
-proc handleSubscriptions(provider: JsonRpcProvider) {.async.}
+proc connect(provider: JsonRpcProvider, url: string) =
+
+  proc getLogHandler(subscriptionId: JsonNode): ?LogHandler =
+    try:
+      if provider.subscriptions.hasKey(subscriptionId):
+        provider.subscriptions[subscriptionId].some
+      else:
+        LogHandler.none
+    except Exception:
+      LogHandler.none
+
+  proc handleSubscription(arguments: JsonNode) {.upraises: [].} =
+    if id =? arguments["subscription"].catch and
+       handler =? getLogHandler(id) and
+       log =? Log.fromJson(arguments["result"]).catch:
+      handler(log)
+
+  proc subscribe: Future[RpcClient] {.async.} =
+    let client = await RpcClient.connect(url)
+    client.setMethodHandler("eth_subscription", handleSubscription)
+    return client
+
+  provider.client = subscribe()
 
 proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
-  let provider = JsonRpcProvider(client: RpcClient.connect(url))
-  asyncSpawn provider.handleSubscriptions()
+  let provider = JsonRpcProvider()
+  provider.connect(url)
   provider
 
 proc send*(provider: JsonRpcProvider,
@@ -104,26 +126,6 @@ method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
     return await client.eth_chainId()
   except CatchableError:
     return parse(await client.net_version(), UInt256)
-
-proc handleSubscriptions(provider: JsonRpcProvider) {.async.} =
-
-  proc getLogHandler(id: JsonNode): ?LogHandler =
-    try:
-      if provider.subscriptions.hasKey(id):
-        provider.subscriptions[id].some
-      else:
-        LogHandler.none
-    except Exception:
-      LogHandler.none
-
-  proc handleSubscription(arguments: JsonNode) {.upraises: [].} =
-    if id =? arguments["subscription"].catch and
-       handler =? getLogHandler(id) and
-       log =? Log.fromJson(arguments["result"]).catch:
-      handler(log)
-
-  let client = await provider.client
-  client.setMethodHandler("eth_subscription", handleSubscription)
 
 method subscribe*(provider: JsonRpcProvider,
                   filter: Filter,
