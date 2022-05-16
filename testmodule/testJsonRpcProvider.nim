@@ -39,3 +39,14 @@ suite "JsonRpcProvider":
     check block1.hash != block2.hash
     check block1.number < block2.number
     check block1.timestamp < block2.timestamp
+
+  test "subscribes to new blocks":
+    let oldBlock = !await provider.getBlock(BlockTag.latest)
+    var newBlock: Block
+    let blockHandler = proc(blck: Block) = newBlock = blck
+    let subscription = await provider.subscribe(blockHandler)
+    discard await provider.send("evm_mine")
+    check newBlock.number > oldBlock.number
+    check newBlock.timestamp > oldBlock.timestamp
+    check newBlock.hash != oldBlock.hash
+    await subscription.unsubscribe()

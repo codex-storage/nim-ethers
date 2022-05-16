@@ -127,21 +127,34 @@ method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   except CatchableError:
     return parse(await client.net_version(), UInt256)
 
+proc subscribe(provider: JsonRpcProvider,
+               name: string,
+               filter: ?Filter,
+               handler: SubscriptionHandler): Future[Subscription] {.async.} =
+  let client = await provider.client
+  doAssert client of RpcWebSocketClient, "subscriptions require websockets"
+
+  let id = await client.eth_subscribe(name, filter)
+  provider.subscriptions[id] = handler
+
+  return JsonRpcSubscription(id: id, provider: provider)
+
 method subscribe*(provider: JsonRpcProvider,
                   filter: Filter,
                   callback: LogHandler):
                  Future[Subscription] {.async.} =
-  let client = await provider.client
-  doAssert client of RpcWebSocketClient, "subscriptions require websockets"
-
   proc handler(id, arguments: JsonNode) =
     if log =? Log.fromJson(arguments["result"]).catch:
       callback(log)
+  return await provider.subscribe("logs", filter.some, handler)
 
-  let id = await client.eth_subscribe("logs", some filter)
-  provider.subscriptions[id] = handler
-
-  return JsonRpcSubscription(id: id, provider: provider)
+method subscribe*(provider: JsonRpcProvider,
+                  callback: BlockHandler):
+                 Future[Subscription] {.async.} =
+  proc handler(id, arguments: JsonNode) =
+    if blck =? Block.fromJson(arguments["result"]).catch:
+      callback(blck)
+  return await provider.subscribe("newHeads", Filter.none, handler)
 
 method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
   let provider = subscription.provider
