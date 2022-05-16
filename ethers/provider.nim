@@ -18,6 +18,7 @@ type
     data*: seq[byte]
     topics*: seq[Topic]
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
+  BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
   Block* = object
     number*: UInt256
@@ -54,6 +55,11 @@ method getChainId*(provider: Provider): Future[UInt256] {.base.} =
 method subscribe*(provider: Provider,
                   filter: Filter,
                   callback: LogHandler):
+                 Future[Subscription] {.base.} =
+  doAssert false, "not implemented"
+
+method subscribe*(provider: Provider,
+                  callback: BlockHandler):
                  Future[Subscription] {.base.} =
   doAssert false, "not implemented"
 
