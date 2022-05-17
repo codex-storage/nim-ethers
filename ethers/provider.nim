@@ -10,30 +10,22 @@ push: {.upraises: [].}
 
 type
   Provider* = ref object of RootObj
-
   Subscription* = ref object of RootObj
-
   Filter* = object
     address*: Address
     topics*: seq[Topic]
-
   Log* = object
     data*: seq[byte]
     topics*: seq[Topic]
-
   TransactionHash* = array[32, byte]
-
   BlockHash* = array[32, byte]
-
   TransactionStatus* = enum
     Failure = 0,
     Success = 1,
     Invalid = 2
-
   TransactionResponse* = object
     provider*: Provider
     hash*: TransactionHash
-
   TransactionReceipt* = object
     sender*: ?Address
     to*: ?Address
@@ -47,38 +39,17 @@ type
     blockNumber*: ?UInt256
     cumulativeGasUsed*: UInt256
     status*: TransactionStatus
-
-  ProviderEventKind* = enum
-    LogEvent,
-    NewHeadEvent
-
-  ProviderEvent* = object
-    case kind*: ProviderEventKind
-    of LogEvent:
-      log*: Log
-    of NewHeadEvent:
-      newHead*: NewHead
-
-  ProviderEventHandler* = proc(event: ProviderEvent) {.gcsafe, upraises:[].}
-
-  ProviderEventCallback* = (ProviderEventHandler, ProviderEventKind)
-
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
   BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
-
-  NewHead* = object
-    number*: UInt256 # block number
-    transactions*: seq[TransactionHash]
-  # NewHeadHandler* = EventHandler[NewHead]
-
   Topic* = array[32, byte]
-
   Block* = object
     number*: UInt256
     timestamp*: UInt256
     hash*: array[32, byte]
 
 const DEFAULT_CONFIRMATIONS* {.intdefine.} = 12
+const RECEIPT_TIMEOUT_BLKS* {.intdefine.} = 50 # in blocks
+const RECEIPT_POLLING_INTERVAL* {.intdefine.} = 1 # in seconds
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
   doAssert false, "not implemented"

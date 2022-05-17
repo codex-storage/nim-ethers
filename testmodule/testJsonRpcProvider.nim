@@ -1,7 +1,7 @@
 import std/json
 import pkg/asynctest
 import pkg/chronos
-import pkg/ethers #/providers/jsonrpc
+import pkg/ethers
 import pkg/stew/byteutils
 import ./examples
 import ./miner
