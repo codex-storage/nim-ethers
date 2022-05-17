@@ -198,7 +198,7 @@ method sendTransaction*(signer: JsonRpcSigner,
 
 method wait*(tx: TransactionResponse,
              wantedConfirms = DEFAULT_CONFIRMATIONS,
-             timeoutInBlocks = int.none): # will error if tx not mined in x blocks
+             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some): # will error if tx not mined in x blocks
             Future[TransactionReceipt]
             {.async, upraises: [JsonRpcProviderError].} = # raises for clarity
 
@@ -239,8 +239,7 @@ method wait*(tx: TransactionResponse,
         raiseProviderError("Transaction was not mined in " &
           $(!timeoutInBlocks) & " blocks")
 
-    # TODO: should this be set to the current block time?
-    await sleepAsync(1.seconds)
+    await sleepAsync(RECEIPT_POLLING_INTERVAL.seconds)
 
   # has been mined, need to check # of confirmations thus far
   let confirms = (!receipt).confirmations(startBlock)
@@ -254,7 +253,7 @@ method wait*(tx: TransactionResponse,
 
 method wait*(tx: Future[TransactionResponse],
              wantedConfirms = DEFAULT_CONFIRMATIONS,
-             timeoutInBlocks = int.none):
+             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some):
             Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a sendTransaction
   ## call, eg:
@@ -262,3 +261,19 @@ method wait*(tx: Future[TransactionResponse],
 
   let txResp = await tx
   return await txResp.wait(wantedConfirms, timeoutInBlocks)
+
+method wait*(tx: Future[?TransactionResponse],
+             wantedConfirms = DEFAULT_CONFIRMATIONS,
+             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some):
+            Future[TransactionReceipt] {.async.} =
+  ## Convenience method that allows wait to be chained to a contract
+  ## transaction, eg:
+  ## `await token.connect(signer0)
+  ##          .mint(accounts[1], 100.u256)
+  ##          .wait(3)`
+
+  let txResp = await tx
+  if txResp.isNone:
+    raiseProviderError("Transaction hash required. Possibly was a call instead of a send?")
+
+  return await (!txResp).wait(wantedConfirms, timeoutInBlocks)

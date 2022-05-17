@@ -101,6 +101,13 @@ func isConstant(procedure: NimNode): bool =
       return true
   false
 
+func isTxResponse(returntype: NimNode): bool =
+  return returntype.kind == nnkPrefix and
+    returntype[0].kind == nnkIdent and
+    returntype[0].strVal == "?" and
+    returntype[1].kind == nnkIdent and
+    returntype[1].strVal == $TransactionResponse
+
 func addContractCall(procedure: var NimNode) =
   let contract = procedure[3][1][0]
   let function = $basename(procedure[0])
@@ -115,9 +122,15 @@ func addContractCall(procedure: var NimNode) =
         quote:
           return await call(`contract`, `function`, `parameters`, `returntype`)
     else:
-      quote:
-        # TODO: need to be able to use wait here
-        discard await send(`contract`, `function`, `parameters`)
+      # When ?TransactionResponse is specified as the return type of contract
+      # method, it allows for contract transactions to be awaited on
+      # confirmations
+      if returntype.isTxResponse:
+        quote:
+          return await send(`contract`, `function`, `parameters`)
+      else:
+        quote:
+          discard await send(`contract`, `function`, `parameters`)
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]
@@ -132,11 +145,18 @@ func addAsyncPragma(procedure: var NimNode) =
 
 func checkReturnType(procedure: NimNode) =
   let returntype = procedure[3][0]
-  if returntype.kind != nnkEmpty and not procedure.isConstant:
-    const message =
-      "only contract functions with {.view.} or {.pure.} " &
-      "can have a return type"
-    error(message, returntype)
+
+  if returntype.kind != nnkEmpty:
+    # Do not throw exception for methods that have a TransactionResponse
+    # return type as that is needed for .wait
+    if returntype.isTxResponse:
+      return
+
+    if not procedure.isConstant:
+      const message =
+        "only contract functions with {.view.} or {.pure.} " &
+        "can have a return type"
+      error(message, returntype)
 
 macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
