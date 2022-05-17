@@ -158,9 +158,9 @@ method subscribe*(provider: JsonRpcProvider,
 
 method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
   let provider = subscription.provider
+  provider.subscriptions.del(subscription.id)
   let client = await provider.client
   discard await client.eth_unsubscribe(subscription.id)
-  provider.subscriptions.del(subscription.id)
 
 # Signer
 
