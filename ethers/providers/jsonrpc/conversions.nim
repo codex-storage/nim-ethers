@@ -1,4 +1,5 @@
 import std/json
+import std/strutils
 import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
 import ../../basics
@@ -74,3 +75,12 @@ func fromJson*(json: JsonNode, name: string, result: var Log) =
   fromJson(json["data"], "data", data)
   fromJson(json["topics"], "topics", topics)
   result = Log(data: data, topics: topics)
+
+# TransactionStatus
+
+func fromJson*(json: JsonNode, name: string, result: var TransactionStatus) =
+  let val = fromHex[int](json.getStr)
+  result = TransactionStatus(val)
+
+func `%`*(status: TransactionStatus): JsonNode =
+  %(status.int.toHex)

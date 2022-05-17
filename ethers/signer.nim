@@ -20,7 +20,7 @@ method signMessage*(signer: Signer,
   doAssert false, "not implemented"
 
 method sendTransaction*(signer: Signer,
-                        transaction: Transaction) {.base, async.} =
+                        transaction: Transaction): Future[TransactionResponse] {.base, async.} =
   doAssert false, "not implemented"
 
 method getGasPrice*(signer: Signer): Future[UInt256] {.base.} =
