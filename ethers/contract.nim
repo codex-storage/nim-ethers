@@ -72,13 +72,17 @@ proc call(contract: Contract,
   let response = await contract.provider.call(transaction, blockTag)
   return decodeResponse(ReturnType, response)
 
-proc send(contract: Contract, function: string, parameters: tuple) {.async.} =
+proc send(contract: Contract, function: string, parameters: tuple):
+    Future[?TransactionResponse] {.async.} =
+
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters)
     let populated = await signer.populateTransaction(transaction)
-    await signer.sendTransaction(populated)
+    let txResp = await signer.sendTransaction(populated)
+    return txResp.some
   else:
     await call(contract, function, parameters)
+    return TransactionResponse.none
 
 func getParameterTuple(procedure: NimNode): NimNode =
   let parameters = procedure[3]
@@ -112,7 +116,8 @@ func addContractCall(procedure: var NimNode) =
           return await call(`contract`, `function`, `parameters`, `returntype`)
     else:
       quote:
-        await send(`contract`, `function`, `parameters`)
+        # TODO: need to be able to use wait here
+        discard await send(`contract`, `function`, `parameters`)
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]

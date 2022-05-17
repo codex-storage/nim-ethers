@@ -1,7 +1,10 @@
 import std/json
 import pkg/asynctest
 import pkg/chronos
-import pkg/ethers/providers/jsonrpc
+import pkg/ethers #/providers/jsonrpc
+import pkg/stew/byteutils
+import ./examples
+import ./miner
 
 suite "JsonRpcProvider":
 
@@ -50,3 +53,42 @@ suite "JsonRpcProvider":
     check newBlock.timestamp > oldBlock.timestamp
     check newBlock.hash != oldBlock.hash
     await subscription.unsubscribe()
+
+  test "can send a transaction":
+    let signer = provider.getSigner()
+    let transaction = Transaction.example
+    let populated = await signer.populateTransaction(transaction)
+
+    let txResp = await signer.sendTransaction(populated)
+    check txResp.hash.len == 32 and UInt256.fromHex(txResp.hash.toHex) > 0
+
+  test "can wait for a transaction to be confirmed":
+    let signer = provider.getSigner()
+    let transaction = Transaction.example
+    let populated = await signer.populateTransaction(transaction)
+
+    # must be spawned so we can get newHeads inside of .wait
+    asyncSpawn provider.mineBlocks(3)
+
+    let receipt = await signer.sendTransaction(populated).wait(3)
+    let endBlock = await provider.getBlockNumber()
+
+    check receipt.blockNumber.isSome # was eventually mined
+    check (endBlock - !receipt.blockNumber) + 1 == 3 # +1 for the block the tx was mined in
+
+  test "waiting for block to be mined times out":
+
+    # must be spawned so we can get newHeads inside of .wait
+    asyncSpawn provider.mineBlocks(10)
+
+    let startBlock = await provider.getBlockNumber()
+    let response = TransactionResponse(hash: TransactionHash.example,
+                                      provider: provider)
+    try:
+      discard await response.wait(wantedConfirms = 2,
+                                  timeoutInBlocks = 5.some)
+    except JsonRpcProviderError as e:
+      check e.msg == "Transaction was not mined in 5 blocks"
+
+      let endBlock = await provider.getBlockNumber()
+      check (endBlock - startBlock) + 1 == 5 # +1 including start block
