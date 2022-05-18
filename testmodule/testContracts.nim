@@ -19,7 +19,7 @@ method totalSupply*(erc20: Erc20): UInt256 {.base, contract, view.}
 method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract, view.}
 method allowance*(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract, view.}
 method transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.base, contract.}
-method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
+method mint(token: TestToken, holder: Address, amount: UInt256): Confirmable {.base, contract.}
 
 suite "Contracts":
 
@@ -122,14 +122,20 @@ suite "Contracts":
     check transfers == @[Transfer(receiver: accounts[0], value: 100.u256)]
 
   test "can wait for contract interaction tx to be mined":
-    # must be spawned so we can get newHeads inside of .wait
-    asyncSpawn provider.mineBlocks(3)
+    # must not be awaited so we can get newHeads inside of .wait
+    let futMined = provider.mineBlocks(10)
 
     let signer0 = provider.getSigner(accounts[0])
     let receipt = await token.connect(signer0)
                     .mint(accounts[1], 100.u256)
-                    .wait(3) # wait for 3 confirmations
+                    .confirm(3) # wait for 3 confirmations
     let endBlock = await provider.getBlockNumber()
 
     check receipt.blockNumber.isSome # was eventually mined
-    check (endBlock - !receipt.blockNumber) + 1 == 3 # +1 for the block the tx was mined in
+
+    # >= 3 because more blocks may have been mined by the time the
+    # check in `.wait` was done.
+    # +1 for the block the tx was mined in
+    check (endBlock - !receipt.blockNumber) + 1 >= 3
+
+    await futMined

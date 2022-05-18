@@ -17,6 +17,7 @@ type
     signer: ?Signer
     address: Address
   ContractError* = object of EthersError
+  Confirmable* = ?TransactionResponse
   EventHandler*[E: Event] = proc(event: E) {.gcsafe, upraises:[].}
 
 func new*(ContractType: type Contract,
@@ -102,17 +103,16 @@ func isConstant(procedure: NimNode): bool =
   false
 
 func isTxResponse(returntype: NimNode): bool =
-  return returntype.kind == nnkPrefix and
-    returntype[0].kind == nnkIdent and
-    returntype[0].strVal == "?" and
-    returntype[1].kind == nnkIdent and
-    returntype[1].strVal == $TransactionResponse
+  return returntype.eqIdent($ Confirmable)
 
 func addContractCall(procedure: var NimNode) =
   let contract = procedure[3][1][0]
   let function = $basename(procedure[0])
   let parameters = getParameterTuple(procedure)
   let returntype = procedure[3][0]
+  # procedure[5] =
+  #   quote:
+  #     static: checkReturnType(type(result))
   procedure[6] =
     if procedure.isConstant:
       if returntype.kind == nnkEmpty:
@@ -145,7 +145,6 @@ func addAsyncPragma(procedure: var NimNode) =
 
 func checkReturnType(procedure: NimNode) =
   let returntype = procedure[3][0]
-
   if returntype.kind != nnkEmpty:
     # Do not throw exception for methods that have a TransactionResponse
     # return type as that is needed for .wait
