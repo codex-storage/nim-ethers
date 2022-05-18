@@ -25,7 +25,7 @@ type
     provider: JsonRpcProvider
     address: ?Address
   JsonRpcProviderError* = object of EthersError
-  SubscriptionHandler = proc(id, arguments: JsonNode) {.gcsafe, upraises:[].}
+  SubscriptionHandler = proc(id, arguments: JsonNode): Future[void] {.gcsafe, upraises:[].}
 
 template raiseProviderError(message: string) =
   raise newException(JsonRpcProviderError, message)
@@ -59,7 +59,8 @@ proc connect(provider: JsonRpcProvider, url: string) =
   proc handleSubscription(arguments: JsonNode) {.upraises: [].} =
     if id =? arguments["subscription"].catch and
        handler =? getSubscriptionHandler(id):
-      handler(id, arguments)
+      # fire and forget
+      discard handler(id, arguments)
 
   proc subscribe: Future[RpcClient] {.async.} =
     let client = await RpcClient.connect(url)
@@ -114,6 +115,7 @@ method getTransactionCount*(provider: JsonRpcProvider,
                            Future[UInt256] {.async.} =
   let client = await provider.client
   return await client.eth_getTransactionCount(address, blockTag)
+
 method getTransactionReceipt*(provider: JsonRpcProvider,
                             txHash: TransactionHash):
                            Future[?TransactionReceipt] {.async.} =
@@ -148,7 +150,7 @@ method subscribe*(provider: JsonRpcProvider,
                   filter: Filter,
                   callback: LogHandler):
                  Future[Subscription] {.async.} =
-  proc handler(id, arguments: JsonNode) =
+  proc handler(id, arguments: JsonNode) {.async.} =
     if log =? Log.fromJson(arguments["result"]).catch:
       callback(log)
   return await provider.subscribe("logs", filter.some, handler)
@@ -156,9 +158,9 @@ method subscribe*(provider: JsonRpcProvider,
 method subscribe*(provider: JsonRpcProvider,
                   callback: BlockHandler):
                  Future[Subscription] {.async.} =
-  proc handler(id, arguments: JsonNode) =
+  proc handler(id, arguments: JsonNode) {.async.} =
     if blck =? Block.fromJson(arguments["result"]).catch:
-      callback(blck)
+      await callback(blck)
   return await provider.subscribe("newHeads", Filter.none, handler)
 
 method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
@@ -196,84 +198,111 @@ method sendTransaction*(signer: JsonRpcSigner,
 
   return TransactionResponse(hash: hash, provider: signer.provider)
 
-method wait*(tx: TransactionResponse,
-             wantedConfirms = DEFAULT_CONFIRMATIONS,
-             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some): # will error if tx not mined in x blocks
+
+# Removed from `confirm` closure and exported so it can be tested.
+# Likely there is a better way
+func confirmations*(receiptBlk, atBlk: UInt256): UInt256 =
+  ## Calculates the number of confirmations between two blocks
+  if atBlk < receiptBlk:
+    return 0.u256
+  else:
+    return (atBlk - receiptBlk) + 1 # add 1 for current block
+
+# Removed from `confirm` closure and exported so it can be tested.
+# Likely there is a better way
+func hasBeenMined*(receipt: ?TransactionReceipt,
+                  atBlock: UInt256,
+                  wantedConfirms: int): bool =
+  ## Returns true if the transaction receipt has been returned from the node
+  ## with a valid block number and block hash and the specified number of
+  ## blocks have passed since the tx was mined (confirmations)
+
+  if receipt.isSome and
+    receipt.get.blockNumber.isSome and
+    receipt.get.blockNumber.get > 0 and
+    # from ethers.js: "geth-etc" returns receipts before they are ready
+    receipt.get.blockHash.isSome:
+
+    let receiptBlock = receipt.get.blockNumber.get
+    return receiptBlock.confirmations(atBlock) >= wantedConfirms.u256
+
+  return false
+
+method confirm*(tx: TransactionResponse,
+             wantedConfirms: Positive = EthersDefaultConfirmations,
+             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt]
             {.async, upraises: [JsonRpcProviderError].} = # raises for clarity
+  ## Waits for a transaction to be mined and for the specified number of blocks
+  ## to pass since it was mined (confirmations).
+  ## A timeout, in blocks, can be specified that will raise a
+  ## JsonRpcProviderError if too many blocks have passed without the tx
+  ## having been mined.
+  ## Note: this method requires that the JsonRpcProvider client connects
+  ## using RpcWebSocketClient, otherwise it will raise a Defect.
 
-  var
-    receipt: ?TransactionReceipt
-    subscription: JsonRpcSubscription
-
+  var subscription: JsonRpcSubscription
   let
     provider = JsonRpcProvider(tx.provider)
     retFut = newFuture[TransactionReceipt]("wait")
 
-  proc confirmations(receipt: TransactionReceipt, atBlkNum: UInt256): UInt256 =
-
-    var confirms = (atBlkNum - !receipt.blockNumber) + 1
-    if confirms <= 0: confirms = 1.u256
-    return confirms
-
-  proc newBlock(blk: Block) =
-    # has been mined, need to check # of confirmations thus far
-    let confirms = (!receipt).confirmations(blk.number)
-    if confirms >= wantedConfirms.u256:
-      # fire and forget
-      discard subscription.unsubscribe()
-      retFut.complete(!receipt)
-
+  # used to check for block timeouts
   let startBlock = await provider.getBlockNumber()
 
-  # loop until the tx is mined, or times out (in blocks) if timeout specified
-  while receipt.isNone:
-    receipt = await provider.getTransactionReceipt(tx.hash)
-    if receipt.isSome and (!receipt).blockNumber.isSome:
-      break
+  proc newBlock(blk: Block) {.async.} =
+    ## subscription callback, called every time a new block event is sent from
+    ## the node
 
-    if timeoutInBlocks.isSome:
-      let currBlock = await provider.getBlockNumber()
-      let blocksPassed = (currBlock - startBlock) + 1
-      if blocksPassed >= (!timeoutInBlocks).u256:
-        raiseProviderError("Transaction was not mined in " &
-          $(!timeoutInBlocks) & " blocks")
+    # if ethereum node doesn't include blockNumber in the event
+    without blkNum =? blk.number:
+      return
 
-    await sleepAsync(RECEIPT_POLLING_INTERVAL.seconds)
+    let receipt = await provider.getTransactionReceipt(tx.hash)
+    if receipt.hasBeenMined(blkNum, wantedConfirms):
+      # fire and forget
+      discard subscription.unsubscribe()
+      retFut.complete(receipt.get)
 
-  # has been mined, need to check # of confirmations thus far
-  let confirms = (!receipt).confirmations(startBlock)
-  if confirms >= wantedConfirms.u256:
-    return !receipt
+    elif timeoutInBlocks > 0:
+      let blocksPassed = (blkNum - startBlock) + 1
+      if blocksPassed >= timeoutInBlocks.u256:
+        discard subscription.unsubscribe()
+        retFut.fail(
+          newException(JsonRpcProviderError, "Transaction was not mined in " &
+            $timeoutInBlocks & " blocks"))
 
+  # If our tx is already mined, return the receipt. Otherwise, check each
+  # new block to see if the tx has been mined
+  let receipt = await provider.getTransactionReceipt(tx.hash)
+  if receipt.hasBeenMined(startBlock, wantedConfirms):
+    return receipt.get
   else:
     let sub = await provider.subscribe(newBlock)
     subscription = JsonRpcSubscription(sub)
     return (await retFut)
 
-method wait*(tx: Future[TransactionResponse],
-             wantedConfirms = DEFAULT_CONFIRMATIONS,
-             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some):
+method confirm*(tx: Future[TransactionResponse],
+             wantedConfirms: Positive = EthersDefaultConfirmations,
+             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a sendTransaction
   ## call, eg:
-  ## `await signer.sendTransaction(populated).wait(3)`
+  ## `await signer.sendTransaction(populated).confirm(3)`
 
   let txResp = await tx
-  return await txResp.wait(wantedConfirms, timeoutInBlocks)
+  return await txResp.confirm(wantedConfirms, timeoutInBlocks)
 
-method wait*(tx: Future[?TransactionResponse],
-             wantedConfirms = DEFAULT_CONFIRMATIONS,
-             timeoutInBlocks = RECEIPT_TIMEOUT_BLKS.some):
+method confirm*(tx: Future[?TransactionResponse],
+             wantedConfirms: Positive = EthersDefaultConfirmations,
+             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a contract
   ## transaction, eg:
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
-  ##          .wait(3)`
+  ##          .confirm(3)`
 
-  let txResp = await tx
-  if txResp.isNone:
+  without txResp =? (await tx):
     raiseProviderError("Transaction hash required. Possibly was a call instead of a send?")
 
-  return await (!txResp).wait(wantedConfirms, timeoutInBlocks)
+  return await txResp.confirm(wantedConfirms, timeoutInBlocks)

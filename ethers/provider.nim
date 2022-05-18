@@ -33,23 +33,22 @@ type
     transactionIndex*: UInt256
     gasUsed*: UInt256
     logsBloom*: seq[byte]
-    blockHash*: BlockHash
+    blockHash*: ?BlockHash
     transactionHash*: TransactionHash
     logs*: seq[Log]
     blockNumber*: ?UInt256
     cumulativeGasUsed*: UInt256
     status*: TransactionStatus
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
-  BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
+  BlockHandler* = proc(blck: Block): Future[void] {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
   Block* = object
-    number*: UInt256
+    number*: ?UInt256
     timestamp*: UInt256
     hash*: array[32, byte]
 
-const DEFAULT_CONFIRMATIONS* {.intdefine.} = 12
-const RECEIPT_TIMEOUT_BLKS* {.intdefine.} = 50 # in blocks
-const RECEIPT_POLLING_INTERVAL* {.intdefine.} = 1 # in seconds
+const EthersDefaultConfirmations* {.intdefine.} = 12
+const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
   doAssert false, "not implemented"
@@ -69,6 +68,11 @@ method getTransactionCount*(provider: Provider,
                             address: Address,
                             blockTag = BlockTag.latest):
                            Future[UInt256] {.base.} =
+  doAssert false, "not implemented"
+
+method getTransactionReceipt*(provider: Provider,
+                            txHash: TransactionHash):
+                           Future[?TransactionReceipt] {.base.} =
   doAssert false, "not implemented"
 
 method estimateGas*(provider: Provider,
