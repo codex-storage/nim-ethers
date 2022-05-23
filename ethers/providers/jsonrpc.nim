@@ -261,15 +261,17 @@ method confirm*(tx: TransactionResponse,
     if receipt.hasBeenMined(blkNum, wantedConfirms):
       # fire and forget
       discard subscription.unsubscribe()
-      retFut.complete(receipt.get)
+      if not retFut.finished:
+        retFut.complete(receipt.get)
 
     elif timeoutInBlocks > 0:
       let blocksPassed = (blkNum - startBlock) + 1
       if blocksPassed >= timeoutInBlocks.u256:
         discard subscription.unsubscribe()
-        retFut.fail(
-          newException(JsonRpcProviderError, "Transaction was not mined in " &
-            $timeoutInBlocks & " blocks"))
+        if not retFut.finished:
+          let message =
+            "Transaction was not mined in " & $timeoutInBlocks & " blocks"
+          retFut.fail(newException(JsonRpcProviderError, message))
 
   # If our tx is already mined, return the receipt. Otherwise, check each
   # new block to see if the tx has been mined
