@@ -96,8 +96,6 @@ method subscribe*(provider: Provider,
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
 
-import std/options # TODO
-
 # Removed from `confirm` closure and exported so it can be tested.
 # Likely there is a better way
 func confirmations*(receiptBlk, atBlk: UInt256): UInt256 =
@@ -109,21 +107,19 @@ func confirmations*(receiptBlk, atBlk: UInt256): UInt256 =
 
 # Removed from `confirm` closure and exported so it can be tested.
 # Likely there is a better way
-func hasBeenMined*(receipt: ?TransactionReceipt,
+func hasBeenMined*(receipt: TransactionReceipt,
                   atBlock: UInt256,
                   wantedConfirms: int): bool =
   ## Returns true if the transaction receipt has been returned from the node
   ## with a valid block number and block hash and the specified number of
   ## blocks have passed since the tx was mined (confirmations)
 
-  if receipt.isSome and
-    receipt.get.blockNumber.isSome and
-    receipt.get.blockNumber.get > 0 and
+  if number =? receipt.blockNumber and
+     number > 0 and
     # from ethers.js: "geth-etc" returns receipts before they are ready
-    receipt.get.blockHash.isSome:
+    receipt.blockHash.isSome:
 
-    let receiptBlock = receipt.get.blockNumber.get
-    return receiptBlock.confirmations(atBlock) >= wantedConfirms.u256
+    return number.confirmations(atBlock) >= wantedConfirms.u256
 
   return false
 
@@ -153,12 +149,12 @@ proc confirm*(tx: TransactionResponse,
     without blkNum =? blk.number:
       return
 
-    let receipt = await provider.getTransactionReceipt(tx.hash)
-    if receipt.hasBeenMined(blkNum, wantedConfirms):
+    if receipt =? (await provider.getTransactionReceipt(tx.hash)) and
+       receipt.hasBeenMined(blkNum, wantedConfirms):
       # fire and forget
       discard subscription.unsubscribe()
       if not retFut.finished:
-        retFut.complete(receipt.get)
+        retFut.complete(receipt)
 
     elif timeoutInBlocks > 0:
       let blocksPassed = (blkNum - startBlock) + 1
@@ -171,9 +167,9 @@ proc confirm*(tx: TransactionResponse,
 
   # If our tx is already mined, return the receipt. Otherwise, check each
   # new block to see if the tx has been mined
-  let receipt = await provider.getTransactionReceipt(tx.hash)
-  if receipt.hasBeenMined(startBlock, wantedConfirms):
-    return receipt.get
+  if receipt =? (await provider.getTransactionReceipt(tx.hash)) and
+     receipt.hasBeenMined(startBlock, wantedConfirms):
+    return receipt
   else:
     subscription = await provider.subscribe(newBlock)
     return (await retFut)

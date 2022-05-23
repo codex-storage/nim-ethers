@@ -201,45 +201,42 @@ suite "JsonRpcProvider":
 
   test "checks if transation has been mined correctly":
 
-    var receipt = TransactionReceipt.none
+    var receipt: TransactionReceipt
     var currentBlock = 1.u256
     var wantedConfirms = 1
     let blockHash = hexToByteArray[32](
       "0x7b00154e06fe4f27a87208eba220efb4dbc52f7429549a39a17bba2e0d98b960"
     ).some
 
-    # if TransactionReceipt is none, should not be considered mined
-    check not receipt.hasBeenMined(currentBlock, wantedConfirms)
-
     # missing blockHash
     receipt = TransactionReceipt(
       blockNumber: 1.u256.some
-    ).some
+    )
     check not receipt.hasBeenMined(currentBlock, wantedConfirms)
 
     # missing block number
     receipt = TransactionReceipt(
       blockHash: blockHash
-    ).some
+    )
     check not receipt.hasBeenMined(currentBlock, wantedConfirms)
 
     # block number is 0
     receipt = TransactionReceipt(
       blockNumber: 0.u256.some
-    ).some
+    )
     check not receipt.hasBeenMined(currentBlock, wantedConfirms)
 
     # not enough confirms
     receipt = TransactionReceipt(
       blockNumber: 1.u256.some
-    ).some
+    )
     check not receipt.hasBeenMined(currentBlock, wantedConfirms)
 
     # success
     receipt = TransactionReceipt(
       blockNumber: 1.u256.some,
       blockHash: blockHash
-    ).some
+    )
     currentBlock = int.high.u256
     wantedConfirms = int.high
     check receipt.hasBeenMined(currentBlock, wantedConfirms)
