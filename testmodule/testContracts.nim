@@ -1,5 +1,6 @@
 import std/json
 import pkg/asynctest
+import pkg/questionable
 import pkg/stint
 import pkg/ethers
 import ./hardhat
@@ -19,7 +20,7 @@ method totalSupply*(erc20: Erc20): UInt256 {.base, contract, view.}
 method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract, view.}
 method allowance*(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract, view.}
 method transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.base, contract.}
-method mint(token: TestToken, holder: Address, amount: UInt256): Confirmable {.base, contract.}
+method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 
 suite "Contracts":
 
