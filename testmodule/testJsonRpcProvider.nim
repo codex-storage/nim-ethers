@@ -95,7 +95,7 @@ suite "JsonRpcProvider":
                                      timeoutInBlocks = 5)
 
       await futMined
-    except JsonRpcProviderError as e:
+    except EthersError as e:
       check e.msg == "Transaction was not mined in 5 blocks"
 
       let endBlock = await provider.getBlockNumber()

@@ -232,7 +232,7 @@ proc confirm*(tx: TransactionResponse,
              wantedConfirms: Positive = EthersDefaultConfirmations,
              timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt]
-            {.async, upraises: [JsonRpcProviderError].} = # raises for clarity
+            {.async, upraises: [EthersError].} = # raises for clarity
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise a
@@ -271,7 +271,7 @@ proc confirm*(tx: TransactionResponse,
         if not retFut.finished:
           let message =
             "Transaction was not mined in " & $timeoutInBlocks & " blocks"
-          retFut.fail(newException(JsonRpcProviderError, message))
+          retFut.fail(newException(EthersError, message))
 
   # If our tx is already mined, return the receipt. Otherwise, check each
   # new block to see if the tx has been mined
@@ -305,6 +305,9 @@ proc confirm*(tx: Future[?TransactionResponse],
   ##          .confirm(3)`
 
   without txResp =? (await tx):
-    raiseProviderError("Transaction hash required. Possibly was a call instead of a send?")
+    raise newException(
+      EthersError,
+      "Transaction hash required. Possibly was a call instead of a send?"
+    )
 
   return await txResp.confirm(wantedConfirms, timeoutInBlocks)
