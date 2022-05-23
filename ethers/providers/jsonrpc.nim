@@ -228,7 +228,7 @@ func hasBeenMined*(receipt: ?TransactionReceipt,
 
   return false
 
-method confirm*(tx: TransactionResponse,
+proc confirm*(tx: TransactionResponse,
              wantedConfirms: Positive = EthersDefaultConfirmations,
              timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt]
@@ -283,7 +283,7 @@ method confirm*(tx: TransactionResponse,
     subscription = JsonRpcSubscription(sub)
     return (await retFut)
 
-method confirm*(tx: Future[TransactionResponse],
+proc confirm*(tx: Future[TransactionResponse],
              wantedConfirms: Positive = EthersDefaultConfirmations,
              timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
@@ -294,7 +294,7 @@ method confirm*(tx: Future[TransactionResponse],
   let txResp = await tx
   return await txResp.confirm(wantedConfirms, timeoutInBlocks)
 
-method confirm*(tx: Future[?TransactionResponse],
+proc confirm*(tx: Future[?TransactionResponse],
              wantedConfirms: Positive = EthersDefaultConfirmations,
              timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
