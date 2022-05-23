@@ -102,35 +102,35 @@ func isConstant(procedure: NimNode): bool =
       return true
   false
 
-func isTxResponse(returntype: NimNode): bool =
-  return returntype.eqIdent($ Confirmable)
-
 func addContractCall(procedure: var NimNode) =
   let contract = procedure[3][1][0]
   let function = $basename(procedure[0])
   let parameters = getParameterTuple(procedure)
   let returntype = procedure[3][0]
-  # procedure[5] =
-  #   quote:
-  #     static: checkReturnType(type(result))
+
+  func call: NimNode =
+    if returntype.kind == nnkEmpty:
+      quote:
+        await call(`contract`, `function`, `parameters`)
+    else:
+      quote:
+        return await call(`contract`, `function`, `parameters`, `returntype`)
+
+  func send: NimNode =
+    if returntype.kind == nnkEmpty:
+      quote:
+        discard await send(`contract`, `function`, `parameters`)
+    else:
+      quote:
+        when typeof(result) isnot Confirmable:
+          {.error: "unexpected return type, missing {.view.} or {.pure.} ?".}
+        return await send(`contract`, `function`, `parameters`)
+
   procedure[6] =
     if procedure.isConstant:
-      if returntype.kind == nnkEmpty:
-        quote:
-          await call(`contract`, `function`, `parameters`)
-      else:
-        quote:
-          return await call(`contract`, `function`, `parameters`, `returntype`)
+      call()
     else:
-      # When ?TransactionResponse is specified as the return type of contract
-      # method, it allows for contract transactions to be awaited on
-      # confirmations
-      if returntype.isTxResponse:
-        quote:
-          return await send(`contract`, `function`, `parameters`)
-      else:
-        quote:
-          discard await send(`contract`, `function`, `parameters`)
+      send()
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]
@@ -143,20 +143,6 @@ func addAsyncPragma(procedure: var NimNode) =
     procedure[4] = newNimNode(nnkPragma)
   procedure[4].add ident("async")
 
-func checkReturnType(procedure: NimNode) =
-  let returntype = procedure[3][0]
-  if returntype.kind != nnkEmpty:
-    # Do not throw exception for methods that have a TransactionResponse
-    # return type as that is needed for .wait
-    if returntype.isTxResponse:
-      return
-
-    if not procedure.isConstant:
-      const message =
-        "only contract functions with {.view.} or {.pure.} " &
-        "can have a return type"
-      error(message, returntype)
-
 macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
   let parameters = procedure[3]
@@ -164,7 +150,6 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
   parameters.expectMinLen(2) # at least return type and contract instance
   body.expectKind(nnkEmpty)
-  procedure.checkReturnType()
 
   var contractcall = copyNimTree(procedure)
   contractcall.addContractCall()
