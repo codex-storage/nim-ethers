@@ -60,6 +60,33 @@ suite "Contracts":
     await mint(token, accounts[1], 100.u256)
     check (await balanceOf(token, accounts[1])) == 0.u256
 
+  test "can call non-constant functions without a return type":
+    token = TestToken.new(token.address, provider.getSigner())
+    proc mint(token: TestToken, holder: Address, amount: UInt256) {.contract.}
+    await token.mint(accounts[1], 100.u256)
+    check (await balanceOf(token, accounts[1])) == 100.u256
+
+  test "can call non-constant functions with a ?TransactionResponse return type":
+    token = TestToken.new(token.address, provider.getSigner())
+    proc mint(token: TestToken,
+              holder: Address,
+              amount: UInt256): ?TransactionResponse {.contract.}
+    let txResp = await token.mint(accounts[1], 100.u256)
+    # `of` instead of `is` due to v1.4.8 compiler error:
+    # "invalid type: 'type Confirmable' for var"
+    check txResp of (?TransactionResponse)
+    check txResp.isSome
+
+  test "can call non-constant functions with a Confirmable return type":
+
+    token = TestToken.new(token.address, provider.getSigner())
+    proc mint(token: TestToken,
+              holder: Address,
+              amount: UInt256): Confirmable {.contract.}
+    let txResp = await token.mint(accounts[1], 100.u256)
+    check txResp is Confirmable
+    check txResp.isSome
+
   test "fails to compile when function has an implementation":
     let works = compiles:
       proc foo(token: TestToken, bar: Address) {.contract.} = discard
