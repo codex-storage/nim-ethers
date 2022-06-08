@@ -53,9 +53,9 @@ proc createTransaction(contract: Contract,
   Transaction(to: contract.address, data: data)
 
 proc decodeResponse(T: type, bytes: seq[byte]): T =
-  without decoded =? AbiDecoder.decode(bytes, T):
+  without decoded =? AbiDecoder.decode(bytes, (T,)):
     raiseContractError "unable to decode return value as " & $T
-  return decoded
+  return decoded[0]
 
 proc call(contract: Contract,
           function: string,
