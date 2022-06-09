@@ -52,10 +52,13 @@ proc createTransaction(contract: Contract,
   let data = @selector & AbiEncoder.encode(parameters)
   Transaction(to: contract.address, data: data)
 
-proc decodeResponse(T: type, bytes: seq[byte]): T =
-  without decoded =? AbiDecoder.decode(bytes, (T,)):
-    raiseContractError "unable to decode return value as " & $T
-  return decoded[0]
+proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
+  when multiple:
+    without decoded =? AbiDecoder.decode(bytes, T):
+      raiseContractError "unable to decode return value as " & $T
+    return decoded
+  else:
+    return decodeResponse((T,), true, bytes)[0]
 
 proc call(contract: Contract,
           function: string,
@@ -68,10 +71,11 @@ proc call(contract: Contract,
           function: string,
           parameters: tuple,
           ReturnType: type,
+          returnMultiple: static bool,
           blockTag = BlockTag.latest): Future[ReturnType] {.async.} =
   let transaction = createTransaction(contract, function, parameters)
   let response = await contract.provider.call(transaction, blockTag)
-  return decodeResponse(ReturnType, response)
+  return decodeResponse(ReturnType, returnMultiple, response)
 
 proc send(contract: Contract, function: string, parameters: tuple):
     Future[?TransactionResponse] {.async.} =
@@ -102,22 +106,29 @@ func isConstant(procedure: NimNode): bool =
       return true
   false
 
+func isMultipleReturn(returnType: NimNode): bool =
+  (returnType.kind == nnkPar and returnType.len > 1) or
+  (returnType.kind == nnkTupleConstr) or
+  (returnType.kind == nnkTupleTy)
+
 func addContractCall(procedure: var NimNode) =
   let contract = procedure[3][1][0]
   let function = $basename(procedure[0])
   let parameters = getParameterTuple(procedure)
-  let returntype = procedure[3][0]
+  let returnType = procedure[3][0]
+  let returnMultiple = returnType.isMultipleReturn.newLit
 
   func call: NimNode =
-    if returntype.kind == nnkEmpty:
+    if returnType.kind == nnkEmpty:
       quote:
         await call(`contract`, `function`, `parameters`)
     else:
       quote:
-        return await call(`contract`, `function`, `parameters`, `returntype`)
+        return await call(
+          `contract`, `function`, `parameters`, `returnType`, `returnMultiple`)
 
   func send: NimNode =
-    if returntype.kind == nnkEmpty:
+    if returnType.kind == nnkEmpty:
       quote:
         discard await send(`contract`, `function`, `parameters`)
     else:
