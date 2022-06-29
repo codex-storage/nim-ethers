@@ -241,3 +241,17 @@ suite "JsonRpcProvider":
     wantedConfirms = int.high
     check receipt.hasBeenMined(currentBlock, wantedConfirms)
 
+  test "raises JsonRpcProviderError when something goes wrong":
+    let provider = JsonRpcProvider.new("http://invalid.")
+    expect JsonRpcProviderError:
+      discard await provider.listAccounts()
+    expect JsonRpcProviderError:
+      discard await provider.send("evm_mine")
+    expect JsonRpcProviderError:
+      discard await provider.getBlockNumber()
+    expect JsonRpcProviderError:
+      discard await provider.getBlock(BlockTag.latest)
+    expect JsonRpcProviderError:
+      discard await provider.subscribe(proc(_: Block) {.async.} = discard)
+    expect JsonRpcProviderError:
+      discard await provider.getSigner().sendTransaction(Transaction.example)

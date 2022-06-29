@@ -2,6 +2,7 @@ import std/json
 import std/tables
 import std/uri
 import pkg/json_rpc/rpcclient
+import pkg/json_rpc/errors
 import ../basics
 import ../provider
 import ../signer
@@ -29,6 +30,12 @@ type
 
 template raiseProviderError(message: string) =
   raise newException(JsonRpcProviderError, message)
+
+template convertError(body) =
+  try:
+    body
+  except JsonRpcError as error:
+    raiseProviderError(error.msg)
 
 # Provider
 
@@ -77,12 +84,14 @@ proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
 proc send*(provider: JsonRpcProvider,
            call: string,
            arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
-  let client = await provider.client
-  return await client.call(call, %arguments)
+  convertError:
+    let client = await provider.client
+    return await client.call(call, %arguments)
 
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
-  let client = await provider.client
-  return await client.eth_accounts()
+  convertError:
+    let client = await provider.client
+    return await client.eth_accounts()
 
 proc getSigner*(provider: JsonRpcProvider): JsonRpcSigner =
   JsonRpcSigner(provider: provider)
@@ -91,60 +100,69 @@ proc getSigner*(provider: JsonRpcProvider, address: Address): JsonRpcSigner =
   JsonRpcSigner(provider: provider, address: some address)
 
 method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
-  let client = await provider.client
-  return await client.eth_blockNumber()
+  convertError:
+    let client = await provider.client
+    return await client.eth_blockNumber()
 
 method getBlock*(provider: JsonRpcProvider,
                  tag: BlockTag): Future[?Block] {.async.} =
-  let client = await provider.client
-  return await client.eth_getBlockByNumber(tag, false)
+  convertError:
+    let client = await provider.client
+    return await client.eth_getBlockByNumber(tag, false)
 
 method call*(provider: JsonRpcProvider,
              tx: Transaction,
              blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
-  let client = await provider.client
-  return await client.eth_call(tx, blockTag)
+  convertError:
+    let client = await provider.client
+    return await client.eth_call(tx, blockTag)
 
 method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
-  let client = await provider.client
-  return await client.eth_gasprice()
+  convertError:
+    let client = await provider.client
+    return await client.eth_gasprice()
 
 method getTransactionCount*(provider: JsonRpcProvider,
                             address: Address,
                             blockTag = BlockTag.latest):
                            Future[UInt256] {.async.} =
-  let client = await provider.client
-  return await client.eth_getTransactionCount(address, blockTag)
+  convertError:
+    let client = await provider.client
+    return await client.eth_getTransactionCount(address, blockTag)
 
 method getTransactionReceipt*(provider: JsonRpcProvider,
                             txHash: TransactionHash):
                            Future[?TransactionReceipt] {.async.} =
-  let client = await provider.client
-  return await client.eth_getTransactionReceipt(txHash)
+  convertError:
+    let client = await provider.client
+    return await client.eth_getTransactionReceipt(txHash)
 
 method estimateGas*(provider: JsonRpcProvider,
                     transaction: Transaction): Future[UInt256] {.async.} =
-  let client = await provider.client
-  return await client.eth_estimateGas(transaction)
+  convertError:
+    let client = await provider.client
+    return await client.eth_estimateGas(transaction)
 
 method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
-  let client = await provider.client
-  try:
-    return await client.eth_chainId()
-  except CatchableError:
-    return parse(await client.net_version(), UInt256)
+  convertError:
+    let client = await provider.client
+    try:
+      return await client.eth_chainId()
+    except CatchableError:
+      return parse(await client.net_version(), UInt256)
 
 proc subscribe(provider: JsonRpcProvider,
                name: string,
                filter: ?Filter,
                handler: SubscriptionHandler): Future[Subscription] {.async.} =
-  let client = await provider.client
-  doAssert client of RpcWebSocketClient, "subscriptions require websockets"
+  convertError:
+    let client = await provider.client
+    doAssert client of RpcWebSocketClient, "subscriptions require websockets"
 
-  let id = await client.eth_subscribe(name, filter)
-  provider.subscriptions[id] = handler
+    let id = await client.eth_subscribe(name, filter)
+    provider.subscriptions[id] = handler
 
-  return JsonRpcSubscription(id: id, provider: provider)
+    return JsonRpcSubscription(id: id, provider: provider)
 
 method subscribe*(provider: JsonRpcProvider,
                   filter: Filter,
@@ -164,10 +182,11 @@ method subscribe*(provider: JsonRpcProvider,
   return await provider.subscribe("newHeads", Filter.none, handler)
 
 method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
-  let provider = subscription.provider
-  provider.subscriptions.del(subscription.id)
-  let client = await provider.client
-  discard await client.eth_unsubscribe(subscription.id)
+  convertError:
+    let provider = subscription.provider
+    provider.subscriptions.del(subscription.id)
+    let client = await provider.client
+    discard await client.eth_unsubscribe(subscription.id)
 
 # Signer
 
@@ -186,14 +205,16 @@ method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
 
 method signMessage*(signer: JsonRpcSigner,
                     message: seq[byte]): Future[seq[byte]] {.async.} =
-  let client = await signer.provider.client
-  let address = await signer.getAddress()
-  return await client.eth_sign(address, message)
+  convertError:
+    let client = await signer.provider.client
+    let address = await signer.getAddress()
+    return await client.eth_sign(address, message)
 
 method sendTransaction*(signer: JsonRpcSigner,
                         transaction: Transaction): Future[TransactionResponse] {.async.} =
-  let
-    client = await signer.provider.client
-    hash = await client.eth_sendTransaction(transaction)
+  convertError:
+    let
+      client = await signer.provider.client
+      hash = await client.eth_sendTransaction(transaction)
 
-  return TransactionResponse(hash: hash, provider: signer.provider)
+    return TransactionResponse(hash: hash, provider: signer.provider)
