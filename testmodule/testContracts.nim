@@ -74,9 +74,7 @@ suite "Contracts":
               holder: Address,
               amount: UInt256): ?TransactionResponse {.contract.}
     let txResp = await token.mint(accounts[1], 100.u256)
-    # `of` instead of `is` due to v1.4.8 compiler error:
-    # "invalid type: 'type Confirmable' for var"
-    check txResp of (?TransactionResponse)
+    check txResp is (?TransactionResponse)
     check txResp.isSome
 
   test "can call non-constant functions with a Confirmable return type":
