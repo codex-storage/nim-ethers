@@ -5,6 +5,7 @@ import pkg/stint
 import pkg/ethers
 import ./hardhat
 import ./miner
+import ./mocks
 
 type
 
@@ -111,6 +112,19 @@ suite "Contracts":
     check (await token.connect(provider).balanceOf(accounts[0])) == 50.u256
     check (await token.connect(provider).balanceOf(accounts[1])) == 25.u256
     check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256
+
+  test "takes custom values for nonce, gasprice and gaslimit":
+    let overrides = Transaction(
+      nonce: some 100.u256,
+      gasPrice: some 200.u256,
+      gasLimit: some 300.u256
+    )
+    let signer = MockSigner.new(provider)
+    discard await token.connect(signer).mint(accounts[0], 42.u256, overrides)
+    check signer.transactions.len == 1
+    check signer.transactions[0].nonce == overrides.nonce
+    check signer.transactions[0].gasPrice == overrides.gasPrice
+    check signer.transactions[0].gasLimit == overrides.gasLimit
 
   test "receives events when subscribed":
     var transfers: seq[Transfer]
