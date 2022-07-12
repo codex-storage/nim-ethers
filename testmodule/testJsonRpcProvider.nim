@@ -60,7 +60,8 @@ suite "JsonRpcProvider":
     let populated = await signer.populateTransaction(transaction)
 
     let txResp = await signer.sendTransaction(populated)
-    check txResp.hash.len == 32 and UInt256.fromHex(txResp.hash.toHex) > 0
+    check txResp.hash.len == 32
+    check UInt256.fromHex("0x" & txResp.hash.toHex) > 0
 
   test "can wait for a transaction to be confirmed":
     let signer = provider.getSigner()
