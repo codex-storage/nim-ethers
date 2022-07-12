@@ -151,6 +151,14 @@ method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
     except CatchableError:
       return parse(await client.net_version(), UInt256)
 
+method sendRawTransaction*(provider: JsonRpcProvider, rawTransaction: string): Future[TransactionResponse] {.async.} =
+  convertError:
+    let
+      client = await provider.client
+      hash = await client.eth_sendRawTransaction(rawTransaction)
+    
+    return TransactionResponse(hash: hash, provider: provider)
+
 proc subscribe(provider: JsonRpcProvider,
                name: string,
                filter: ?Filter,
