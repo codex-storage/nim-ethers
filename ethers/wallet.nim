@@ -51,6 +51,8 @@ method provider*(wallet: Wallet): Provider =
   else:
     raise newException(WalletError, "Wallet has no provider")
 
+#TODO add other methods defined in signer. Currently you have to specify nonce, gaslimit, gasPrice.
+
 method populateTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[transaction.Transaction] {.async.} =
   var populated = tx
   if tx.nonce.isNone:
@@ -131,3 +133,8 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[strin
   signTransaction(s, wallet.privateKey)
  
   return "0x" & rlp.encode(s).toHex
+
+
+#TODO add functionality to sign messages
+
+#TODO add functionality to create wallets from Mnemoniks or Keystores

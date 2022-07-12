@@ -9,6 +9,10 @@ proc transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.contract.}
 
 suite "Wallet":
 
+  #TODO add more tests. I am not sure if I am testing everything currently
+  #TODO take close look at current signing tests. I am not 100% sure they are correct and work
+  #TODO add setup/teardown if required. Currently doing all nonces manually
+
   test "Can create Wallet with private key":
     discard Wallet.new(pk1)
 
