@@ -89,7 +89,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   else:
     raise newException(WalletError, "Transaction type not supported")
 
-proc sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
+method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
   if tx.sender.isSome:
     doAssert tx.sender.get == wallet.address, "from Address mismatch"
   isPopulated(tx)
