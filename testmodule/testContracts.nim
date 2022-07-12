@@ -114,7 +114,7 @@ suite "Contracts":
     check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256
 
   test "takes custom values for nonce, gasprice and gaslimit":
-    let overrides = Transaction(
+    let overrides = TransactionOverrides(
       nonce: some 100.u256,
       gasPrice: some 200.u256,
       gasLimit: some 300.u256
