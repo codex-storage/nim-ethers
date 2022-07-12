@@ -45,6 +45,12 @@ proc createRandom*(_: type Wallet, provider: JsonRpcProvider): Wallet =
   result.address = Address.init(result.publicKey.toCanonicalAddress())
   result.provider = some provider
 
+method provider*(wallet: Wallet): Provider =
+  if wallet.provider.isSome:
+    return wallet.provider.get
+  else:
+    raise newException(WalletError, "Wallet has no provider")
+
 method populateTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[transaction.Transaction] {.async.} =
   var populated = tx
   if tx.nonce.isNone:
