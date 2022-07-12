@@ -10,6 +10,7 @@ requires "upraises >= 0.1.0 & < 0.2.0"
 requires "json_rpc"
 requires "stint"
 requires "stew"
+requires "eth"
 
 task test, "Run the test suite":
   exec "nimble install -d -y"
