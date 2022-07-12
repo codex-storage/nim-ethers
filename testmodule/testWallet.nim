@@ -4,6 +4,9 @@ import ../ethers
 const pk1 = "9c0257114eb9399a2985f8e75dad7600c5d89fe3824ffa99ec1c3eb8bf3b0501"
 const pk_with_funds = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 
+type Erc20* = ref object of Contract
+proc transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.contract.}
+
 suite "Wallet":
 
   test "Can create Wallet with private key":
@@ -89,3 +92,26 @@ suite "Wallet":
     let signedTx = await wallet.signTransaction(tx)
     let txHash = await provider.sendRawTransaction(signedTx)
     check txHash.hash == TransactionHash([167.byte, 105, 79, 222, 144, 123, 214, 138, 4, 199, 124, 181, 35, 236, 79, 93, 84, 4, 85, 172, 40, 50, 189, 187, 219, 6, 172, 98, 243, 196, 93, 64])
+  
+  test "Can call state-changing function automatically":
+    #TODO add actual token contract, not random address. Should work regardless
+    let provider = JsonRpcProvider.new()
+    let wallet = Wallet.new(pk_with_funds, provider)
+    let overrides = TransactionOverrides(
+      nonce: some 1.u256,
+      gasPrice: some 1_000_000_000.u256,
+      gasLimit: some 22_000.u256)
+    let testToken = Erc20.new(wallet.address, wallet)
+    await testToken.transfer(wallet.address, 24.u256, overrides)
+  
+  test "Can call state-changing function automatically EIP1559":
+    #TODO add actual token contract, not random address. Should work regardless
+    let provider = JsonRpcProvider.new()
+    let wallet = Wallet.new(pk_with_funds, provider)
+    let overrides = TransactionOverrides(
+      nonce: some 2.u256,
+      maxFee: some 1_000_000_000.u256,
+      maxPriorityFee: some 1_000_000_000.u256,
+      gasLimit: some 22_000.u256)
+    let testToken = Erc20.new(wallet.address, wallet)
+    await testToken.transfer(wallet.address, 24.u256, overrides)
