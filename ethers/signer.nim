@@ -58,7 +58,7 @@ method populateTransaction*(signer: Signer,
     populated.nonce = some(await signer.getTransactionCount(BlockTag.pending))
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone:
+  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
   if transaction.gasLimit.isNone:
     populated.gasLimit = some(await signer.estimateGas(populated))

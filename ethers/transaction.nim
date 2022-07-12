@@ -8,6 +8,8 @@ type Transaction* = object
   nonce*: ?UInt256
   chainId*: ?UInt256
   gasPrice*: ?UInt256
+  maxFee*: ?UInt256
+  maxPriorityFee*: ?UInt256
   gasLimit*: ?UInt256
 
 func `$`*(transaction: Transaction): string =
