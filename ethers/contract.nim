@@ -18,7 +18,10 @@ type
     address: Address
   TransactionOverrides* = object
     nonce*: ?UInt256
+    chainId*: ?UInt256
     gasPrice*: ?UInt256
+    maxFee*: ?UInt256
+    maxPriorityFee*: ?UInt256
     gasLimit*: ?UInt256
 
   ContractError* = object of EthersError
@@ -59,9 +62,12 @@ proc createTransaction(contract: Contract,
   Transaction(
     to: contract.address,
     data: data,
+    nonce: overrides.nonce,
+    chainId: overrides.chainId,
     gasPrice: overrides.gasPrice,
+    maxFee: overrides.maxFee,
+    maxPriorityFee: overrides.maxPriorityFee,
     gasLimit: overrides.gasLimit,
-    nonce: overrides.nonce
   )
 
 proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
