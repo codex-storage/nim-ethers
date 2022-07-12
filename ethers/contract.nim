@@ -16,6 +16,11 @@ type
     provider: Provider
     signer: ?Signer
     address: Address
+  TransactionOverrides* = object
+    nonce*: ?UInt256
+    gasPrice*: ?UInt256
+    gasLimit*: ?UInt256
+
   ContractError* = object of EthersError
   Confirmable* = ?TransactionResponse
   EventHandler*[E: Event] = proc(event: E) {.gcsafe, upraises:[].}
@@ -48,13 +53,16 @@ template raiseContractError(message: string) =
 proc createTransaction(contract: Contract,
                        function: string,
                        parameters: tuple,
-                       overrides = Transaction.default): Transaction =
+                       overrides = TransactionOverrides.default): Transaction =
   let selector = selector(function, typeof parameters).toArray
   let data = @selector & AbiEncoder.encode(parameters)
-  var transaction = overrides
-  transaction.to = contract.address
-  transaction.data = data
-  return transaction
+  Transaction(
+    to: contract.address,
+    data: data,
+    gasPrice: overrides.gasPrice,
+    gasLimit: overrides.gasLimit,
+    nonce: overrides.nonce
+  )
 
 proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
   when multiple:
@@ -84,7 +92,7 @@ proc call(contract: Contract,
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = Transaction.default):
+          overrides = TransactionOverrides.default):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
@@ -122,7 +130,7 @@ func addOverrides(procedure: var NimNode) =
     newIdentDefs(
       ident("overrides"),
       newEmptyNode(),
-      quote do: Transaction.default
+      quote do: TransactionOverrides.default
     )
   )
 
