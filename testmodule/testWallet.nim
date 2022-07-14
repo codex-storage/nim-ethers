@@ -101,7 +101,7 @@ suite "Wallet":
       gasLimit: some 21_000.u256,
     )
     let signedTx = await wallet.signTransaction(tx)
-    let txHash = await provider.sendRawTransaction(signedTx)
+    let txHash = await provider.sendTransaction(signedTx)
     check txHash.hash == TransactionHash([167.byte, 105, 79, 222, 144, 123, 214, 138, 4, 199, 124, 181, 35, 236, 79, 93, 84, 4, 85, 172, 40, 50, 189, 187, 219, 6, 172, 98, 243, 196, 93, 64])
   
   test "Can call state-changing function automatically":

@@ -75,14 +75,16 @@ method getTransactionReceipt*(provider: Provider,
                            Future[?TransactionReceipt] {.base.} =
   doAssert false, "not implemented"
 
+method sendTransaction*(provider: Provider,
+                        rawTransaction: seq[byte]):
+                       Future[TransactionResponse] {.base.} =
+  doAssert false, "not implemented"
+
 method estimateGas*(provider: Provider,
                     transaction: Transaction): Future[UInt256] {.base.} =
   doAssert false, "not implemented"
 
 method getChainId*(provider: Provider): Future[UInt256] {.base.} =
-  doAssert false, "not implemented"
-
-method sendRawTransaction*(provider: Provider, rawTransaction: seq[byte]): Future[TransactionResponse] {.base, async.} =
   doAssert false, "not implemented"
 
 method subscribe*(provider: Provider,
