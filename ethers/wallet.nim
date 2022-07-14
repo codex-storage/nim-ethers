@@ -2,7 +2,6 @@ import eth/keys
 import eth/rlp
 import eth/common
 import eth/common/transaction as ct
-import stew/byteutils
 import ./provider
 import ./transaction
 import ./signer
@@ -12,9 +11,9 @@ export keys
 var rng {.threadvar.}: ref HmacDrbgContext
 
 proc getRng: ref HmacDrbgContext =
-  if rng.isnil:
+  if rng.isNil:
     rng = newRng()
-  return rng
+  rng
 
 type SignableTransaction = common.Transaction
 
