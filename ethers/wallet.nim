@@ -51,20 +51,12 @@ proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result.provider = some provider
 
 method provider*(wallet: Wallet): Provider =
-  if wallet.provider.isSome:
-    return wallet.provider.get
-  else:
+  without provider =? wallet.provider:
     raise newException(WalletError, "Wallet has no provider")
+  provider
 
 method getAddress(wallet: Wallet): Future[Address] {.async.} =
   return wallet.address
-
-func isPopulated(tx: transaction.Transaction) =
-  if tx.nonce.isNone or
-     tx.chainId.isNone or
-     tx.gasLimit.isNone or
-     (tx.gasPrice.isNone and (tx.maxFee.isNone or tx.maxPriorityFee.isNone)):
-    raise newException(WalletError, "Transaction is not properly populated")
 
 proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   let h = tr.txHashNoSignature
@@ -86,20 +78,27 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
     raise newException(WalletError, "Transaction type not supported")
 
 proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[byte]] {.async.} =
-  if tx.sender.isSome:
-    doAssert tx.sender.get == wallet.address, "from Address mismatch"
-  isPopulated(tx)
+  if sender =? tx.sender and sender != wallet.address:
+    raise newException(WalletError, "from address mismatch")
+
+  without nonce =? tx.nonce and chainId =? tx.chainId and gasLimit =? tx.gasLimit:
+    raise newException(WalletError, "Transaction is properly populated")
+
   var s: SignableTransaction
-  if tx.maxFee.isSome and tx.maxPriorityFee.isSome:
+
+  if maxFee =? tx.maxFee and maxPriorityFee =? tx.maxPriorityFee:
     s.txType = TxEip1559
-    s.maxFee = GasInt(tx.maxFee.get.truncate(uint64))
-    s.maxPriorityFee = GasInt(tx.maxPriorityFee.get.truncate(uint64))
-  else:
+    s.maxFee = GasInt(maxFee.truncate(uint64))
+    s.maxPriorityFee = GasInt(maxPriorityFee.truncate(uint64))
+  elif gasPrice =? tx.gasPrice:
     s.txType = TxLegacy
-    s.gasPrice = GasInt(tx.gasPrice.get.truncate(uint64))
-  s.chainId = ChainId(tx.chainId.get.truncate(uint64))
-  s.gasLimit = GasInt(tx.gasLimit.get.truncate(uint64))
-  s.nonce = tx.nonce.get.truncate(uint64)
+    s.gasPrice = GasInt(gasPrice.truncate(uint64))
+  else:
+    raise newException(WalletError, "Transaction is properly populated")
+
+  s.chainId = ChainId(chainId.truncate(uint64))
+  s.gasLimit = GasInt(gasLimit.truncate(uint64))
+  s.nonce = nonce.truncate(uint64)
   s.to = some EthAddress(tx.to)
   s.payload = tx.data
   signTransaction(s, wallet.privateKey)
