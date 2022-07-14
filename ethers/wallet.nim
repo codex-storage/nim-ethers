@@ -107,7 +107,7 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[b
 
 method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
   let rawTX = await signTransaction(wallet, tx)
-  return await wallet.provider.get.sendTransaction(rawTX)
+  return await provider(wallet).sendTransaction(rawTX)
 
 #TODO add functionality to sign messages
 
