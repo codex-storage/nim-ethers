@@ -156,7 +156,7 @@ method sendTransaction*(provider: JsonRpcProvider, rawTransaction: seq[byte]): F
     let
       client = await provider.client
       hash = await client.eth_sendRawTransaction(rawTransaction)
-    
+
     return TransactionResponse(hash: hash, provider: provider)
 
 proc subscribe(provider: JsonRpcProvider,
