@@ -159,19 +159,12 @@ proc subscribe(provider: JsonRpcProvider,
     let client = await provider.client
     doAssert client of RpcWebSocketClient, "subscriptions require websockets"
 
-    let id = await client.eth_subscribe(name, filter)
-    provider.subscriptions[id] = handler
+    var id: JsonNode
+    if filter =? filter:
+      id = await client.eth_subscribe(name, filter)
+    else:
+      id = await client.eth_subscribe(name)
 
-    return JsonRpcSubscription(id: id, provider: provider)
-
-proc subscribe(provider: JsonRpcProvider,
-               name: string,
-               handler: SubscriptionHandler): Future[Subscription] {.async.} =
-  convertError:
-    let client = await provider.client
-    doAssert client of RpcWebSocketClient, "subscriptions require websockets"
-
-    let id = await client.eth_subscribe(name)
     provider.subscriptions[id] = handler
 
     return JsonRpcSubscription(id: id, provider: provider)
@@ -191,7 +184,7 @@ method subscribe*(provider: JsonRpcProvider,
   proc handler(id, arguments: JsonNode) {.async.} =
     if blck =? Block.fromJson(arguments["result"]).catch:
       await callback(blck)
-  return await provider.subscribe("newHeads", handler)
+  return await provider.subscribe("newHeads", Filter.none, handler)
 
 method unsubscribe*(subscription: JsonRpcSubscription) {.async.} =
   convertError:
