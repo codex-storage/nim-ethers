@@ -9,7 +9,12 @@ import ./signer
 
 export keys
 
-let rng = newRng()
+var rng {.threadvar.}: ref HmacDrbgContext
+
+proc getRng: ref HmacDrbgContext =
+  if rng.isnil:
+    rng = newRng()
+  return rng
 
 type SignableTransaction = common.Transaction
 
@@ -35,12 +40,12 @@ proc connect*(wallet: Wallet, provider: JsonRpcProvider) =
   wallet.provider = some provider
 proc createRandom*(_: type Wallet): Wallet =
   result = Wallet()
-  result.privateKey = PrivateKey.random(rng[])
+  result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
   result.address = Address.init(result.publicKey.toCanonicalAddress())
 proc createRandom*(_: type Wallet, provider: JsonRpcProvider): Wallet =
   result = Wallet()
-  result.privateKey = PrivateKey.random(rng[])
+  result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
   result.address = Address.init(result.publicKey.toCanonicalAddress())
   result.provider = some provider
@@ -51,19 +56,8 @@ method provider*(wallet: Wallet): Provider =
   else:
     raise newException(WalletError, "Wallet has no provider")
 
-#TODO add other methods defined in signer. Currently you have to specify nonce, gaslimit, gasPrice.
-
-method populateTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[transaction.Transaction] {.async.} =
-  var populated = tx
-  if tx.nonce.isNone:
-    populated.nonce = some(await wallet.getTransactionCount(BlockTag.pending))
-  if tx.chainId.isNone:
-    populated.chainId = some(await wallet.getChainId())
-  if tx.gasLimit.isNone:
-    populated.gasLimit = some(await wallet.estimateGas(populated))
-  if tx.gasPrice.isNone and (tx.maxFee.isNone and tx.maxPriorityFee.isNone):
-    populated.gasPrice = some(await wallet.getGasPrice())
-  return populated
+method getAddress(wallet: Wallet): Future[Address] {.async.} =
+  return wallet.address
 
 func isPopulated(tx: transaction.Transaction) =
   if tx.nonce.isNone or
@@ -91,29 +85,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   else:
     raise newException(WalletError, "Transaction type not supported")
 
-method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
-  if tx.sender.isSome:
-    doAssert tx.sender.get == wallet.address, "from Address mismatch"
-  isPopulated(tx)
-  var s: SignableTransaction
-  if tx.maxFee.isSome and tx.maxPriorityFee.isSome:
-    s.txType = TxEip1559
-    s.maxFee = GasInt(tx.maxFee.get.truncate(uint64))
-    s.maxPriorityFee = GasInt(tx.maxPriorityFee.get.truncate(uint64))
-  else:
-    s.txType = TxLegacy
-    s.gasPrice = GasInt(tx.gasPrice.get.truncate(uint64))
-  s.chainId = ChainId(tx.chainId.get.truncate(uint64))
-  s.gasLimit = GasInt(tx.gasLimit.get.truncate(uint64))
-  s.nonce = tx.nonce.get.truncate(uint64)
-  s.to = some EthAddress(tx.to)
-  s.payload = tx.data
-  signTransaction(s, wallet.privateKey)
-
-  let rawTX = "0x" & rlp.encode(s).toHex 
-  return await wallet.provider.get.sendRawTransaction(rawTX)
-
-proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[string] {.async.} =
+proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[byte]] {.async.} =
   if tx.sender.isSome:
     doAssert tx.sender.get == wallet.address, "from Address mismatch"
   isPopulated(tx)
@@ -132,8 +104,11 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[strin
   s.payload = tx.data
   signTransaction(s, wallet.privateKey)
  
-  return "0x" & rlp.encode(s).toHex
+  return rlp.encode(s)
 
+method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
+  let rawTX = await signTransaction(wallet, tx)
+  return await wallet.provider.get.sendRawTransaction(rawTX)
 
 #TODO add functionality to sign messages
 
