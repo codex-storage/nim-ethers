@@ -3,7 +3,7 @@ import eth/rlp
 import eth/common
 import eth/common/transaction as ct
 import stew/byteutils
-import ./providers/jsonrpc
+import ./provider
 import ./transaction
 import ./signer
 
@@ -23,9 +23,9 @@ type Wallet* = ref object of Signer
   privateKey*: PrivateKey
   publicKey*: PublicKey
   address*: Address
-  provider*: ?JsonRpcProvider
+  provider*: ?Provider
 
-proc new*(_: type Wallet, pk: string, provider: JsonRpcProvider): Wallet =
+proc new*(_: type Wallet, pk: string, provider: Provider): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.fromHex(pk).value
   result.publicKey = result.privateKey.toPublicKey()
@@ -36,14 +36,14 @@ proc new*(_: type Wallet, pk: string): Wallet =
   result.privateKey = PrivateKey.fromHex(pk).value
   result.publicKey = result.privateKey.toPublicKey()
   result.address = Address.init(result.publicKey.toCanonicalAddress())
-proc connect*(wallet: Wallet, provider: JsonRpcProvider) =
+proc connect*(wallet: Wallet, provider: Provider) =
   wallet.provider = some provider
 proc createRandom*(_: type Wallet): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
   result.address = Address.init(result.publicKey.toCanonicalAddress())
-proc createRandom*(_: type Wallet, provider: JsonRpcProvider): Wallet =
+proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()

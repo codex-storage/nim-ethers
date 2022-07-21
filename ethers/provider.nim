@@ -82,6 +82,9 @@ method estimateGas*(provider: Provider,
 method getChainId*(provider: Provider): Future[UInt256] {.base.} =
   doAssert false, "not implemented"
 
+method sendRawTransaction*(provider: Provider, rawTransaction: seq[byte]): Future[TransactionResponse] {.base, async.} =
+  doAssert false, "not implemented"
+
 method subscribe*(provider: Provider,
                   filter: Filter,
                   callback: LogHandler):
