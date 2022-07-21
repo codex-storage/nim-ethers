@@ -8,7 +8,7 @@ proc eth_getTransactionCount(address: Address, blockTag: BlockTag): UInt256
 proc eth_estimateGas(transaction: Transaction): UInt256
 proc eth_chainId(): UInt256
 proc eth_sendTransaction(transaction: Transaction): TransactionHash
-proc eth_sendRawTransaction(data: string): TransactionHash
+proc eth_sendRawTransaction(data: seq[byte]): TransactionHash
 proc eth_getTransactionReceipt(hash: TransactionHash): ?TransactionReceipt
 proc eth_sign(account: Address, message: seq[byte]): seq[byte]
 proc eth_subscribe(name: string, filter: Filter): JsonNode
