@@ -20,8 +20,8 @@ suite "Wallet":
     provider = JsonRpcProvider.new()
     snapshot = await provider.send("evm_snapshot")
   
-  #teardown:
-  #  discard await provider.send("evm_revert", @[snapshot])
+  teardown:
+    discard await provider.send("evm_revert", @[snapshot])
 
   test "Can create Wallet with private key":
     discard Wallet.new(pk1)
@@ -108,7 +108,7 @@ suite "Wallet":
     #TODO add actual token contract, not random address. Should work regardless
     let wallet = Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
-      nonce: some 1.u256,
+      nonce: some 0.u256,
       gasPrice: some 1_000_000_000.u256,
       gasLimit: some 22_000.u256)
     let testToken = Erc20.new(wallet.address, wallet)
@@ -118,7 +118,7 @@ suite "Wallet":
     #TODO add actual token contract, not random address. Should work regardless
     let wallet = Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
-      nonce: some 2.u256,
+      nonce: some 0.u256,
       maxFee: some 1_000_000_000.u256,
       maxPriorityFee: some 1_000_000_000.u256,
       gasLimit: some 22_000.u256)
