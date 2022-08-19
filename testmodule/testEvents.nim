@@ -3,6 +3,26 @@ import pkg/ethers
 import pkg/contractabi
 import ./examples
 
+## Define outside the scope of the suite to allow for exporting
+## To use custom distinct types, these procs will generally need
+## to be defined in the application code anyway, to support ABI
+## encoding/decoding
+type
+  DistinctAlias = distinct array[32, byte]
+
+proc `==`*(x, y: DistinctAlias): bool {.borrow.}
+
+func toArray(value: DistinctAlias): array[32, byte] =
+  array[32, byte](value)
+
+func encode*(encoder: var AbiEncoder, value: DistinctAlias) =
+  encoder.write(value.toArray)
+
+func decode*(decoder: var AbiDecoder,
+             T: type DistinctAlias): ?!T =
+  let d = ?decoder.read(type array[32, byte])
+  success DistinctAlias(d)
+
 suite "Events":
 
   type
@@ -25,6 +45,9 @@ suite "Events":
       d {.indexed.}: seq[byte]
       e {.indexed.}: (Address, UInt256)
       f {.indexed.}: array[33, byte]
+    IndexedWithDistinctType = object of Event
+      a {.indexed.}: DistinctAlias
+      b: DistinctAlias
 
   proc example(_: type SimpleEvent): SimpleEvent =
     SimpleEvent(
@@ -46,6 +69,14 @@ suite "Events":
       d: UInt256.example,
       e: array[32, byte].example
     )
+
+  proc example(_: type IndexedWithDistinctType): IndexedWithDistinctType =
+    IndexedWithDistinctType(
+      a: DistinctAlias(array[32, byte].example)
+    )
+
+  func encode(_: type AbiEncoder, value: DistinctAlias): seq[byte] =
+    @(value.toArray)
 
   func encode[T](_: type Topic, value: T): Topic =
     let encoded = AbiEncoder.encode(value)
@@ -70,6 +101,14 @@ suite "Events":
     topics.add Topic.encode(event.e)
     let data = AbiEncoder.encode( (event.a, event.c) )
     check IndexedEvent.decode(data, topics) == success event
+
+  test "decodes indexed fields with distinct types":
+    let event = IndexedWithDistinctType.example
+    var topics: seq[Topic]
+    topics.add Topic.default
+    topics.add Topic.encode(event.a)
+    let data = AbiEncoder.encode( (event.b,) )
+    check IndexedWithDistinctType.decode(data, topics) == success event
 
   test "fails when data is incomplete":
     let event = SimpleEvent.example
