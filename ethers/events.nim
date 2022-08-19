@@ -34,6 +34,14 @@ func decode*[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   decoder.finishTuple()
   success event
 
+func isSupported(T: type): bool =
+  var supported = T is ValueType or
+                  T is SmallByteArray
+  when compiles (T.distinctBase):
+    supported = supported or T.distinctBase is ValueType or
+                             T.distinctBase is SmallByteArray
+  return supported
+
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
   var event = ?Abidecoder.decode(data, E)
   var i = 1
@@ -41,10 +49,7 @@ func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
     if field.hasCustomPragma(indexed):
       if i >= topics.len:
         return failure "indexed event parameter not found"
-      if typeof(field) is ValueType or
-         typeof(field) is SmallByteArray or
-         typeof(field).distinctBase is ValueType or
-         typeof(field).distinctBase is SmallByteArray:
-          field = ?AbiDecoder.decode(@(topics[i]), typeof(field))
+      if typeof(field).isSupported:
+        field = ?AbiDecoder.decode(@(topics[i]), typeof(field))
       inc i
   success event
