@@ -106,6 +106,35 @@ type Transfer = object of Event
 Notice that `Transfer` inherits from `Event`, and that some event parameters are
 marked with `{.indexed.}` to match the definition in Solidity.
 
+Note that valid types of indexed parameters are:
+```nim
+uint8 | uint16 | uint32 | uint64 | UInt256 | UInt128 |
+int8 | int16 | int32 | int64 | Int256 | Int128 |
+bool | Address | array[ 1..32, byte]
+```
+Distinct types of valid types are also supported for indexed fields, eg:
+```nim
+type
+  DistinctAlias = distinct array[32, byte]
+  MyEvent = object of Event
+    a {.indexed.}: DistinctAlias
+    b: DistinctAlias # also allowed for non-indexed fields
+
+## The below funcs generally need to be included for ABI
+## encoding/decoding purposes when implementing distinct types.
+
+func toArray(value: DistinctAlias): array[32, byte] =
+  array[32, byte](value)
+
+func encode*(encoder: var AbiEncoder, value: DistinctAlias) =
+  encoder.write(value.toArray)
+
+func decode*(decoder: var AbiDecoder,
+             T: type DistinctAlias): ?!T =
+  let d = ?decoder.read(type array[32, byte])
+  success DistinctAlias(d)
+```
+
 You can now subscribe to Transfer events by calling `subscribe` on the contract
 instance.
 
