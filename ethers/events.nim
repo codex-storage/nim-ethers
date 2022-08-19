@@ -1,4 +1,5 @@
 import std/macros
+import std/typetraits
 import pkg/contractabi
 import ./basics
 import ./provider
@@ -40,7 +41,10 @@ func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
     if field.hasCustomPragma(indexed):
       if i >= topics.len:
         return failure "indexed event parameter not found"
-      if typeof(field) is ValueType or typeof(field) is SmallByteArray:
-        field = ?AbiDecoder.decode(@(topics[i]), typeof(field))
+      if typeof(field) is ValueType or
+         typeof(field) is SmallByteArray or
+         typeof(field).distinctBase is ValueType or
+         typeof(field).distinctBase is SmallByteArray:
+          field = ?AbiDecoder.decode(@(topics[i]), typeof(field))
       inc i
   success event
