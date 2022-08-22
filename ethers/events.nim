@@ -35,11 +35,15 @@ func decode*[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   success event
 
 func isSupported(T: type): bool =
-  var supported = T is ValueType or
-                  T is SmallByteArray
-  when compiles (T.distinctBase):
-    supported = supported or T.distinctBase is ValueType or
-                             T.distinctBase is SmallByteArray
+  var supported = false
+  # nim 1.2.x fails distinctBase checks on non-distinct types at compile time,
+  # so we must separate with `when`
+  when T is distinct:
+    supported = T.distinctBase is ValueType or
+                T.distinctBase is SmallByteArray
+  else:
+    supported = T is ValueType or
+                T is SmallByteArray
   return supported
 
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
