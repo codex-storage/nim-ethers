@@ -119,20 +119,6 @@ type
   MyEvent = object of Event
     a {.indexed.}: DistinctAlias
     b: DistinctAlias # also allowed for non-indexed fields
-
-## The below funcs generally need to be included for ABI
-## encoding/decoding purposes when implementing distinct types.
-
-func toArray(value: DistinctAlias): array[32, byte] =
-  array[32, byte](value)
-
-func encode*(encoder: var AbiEncoder, value: DistinctAlias) =
-  encoder.write(value.toArray)
-
-func decode*(decoder: var AbiDecoder,
-             T: type DistinctAlias): ?!T =
-  let d = ?decoder.read(type array[32, byte])
-  success DistinctAlias(d)
 ```
 
 You can now subscribe to Transfer events by calling `subscribe` on the contract
