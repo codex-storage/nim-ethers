@@ -36,6 +36,10 @@ template convertError(body) =
     body
   except JsonRpcError as error:
     raiseProviderError(error.msg)
+  # Catch all ValueErrors for now, at least until JsonRpcError is actually
+  # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
+  except ValueError as error:
+    raiseProviderError(error.msg)
 
 # Provider
 
