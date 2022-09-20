@@ -2,7 +2,7 @@ import std/json
 import std/strutils
 import pkg/ethers
 
-proc revertReason*(e: ref EthersError): string =
+proc revertReason*(e: ref JsonRpcProviderError): string =
   try:
     let json = parseJson(e.msg)
     var msg = json{"message"}.getStr
@@ -25,10 +25,8 @@ template reverts*(body: untyped): untyped =
     try:
       body
       return false
-    except EthersError:
+    except JsonRpcProviderError:
       return true
-    except CatchableError:
-      return false
   waitFor asyncproc()
 
 template revertsWith*(reason: string, body: untyped): untyped =
@@ -36,10 +34,8 @@ template revertsWith*(reason: string, body: untyped): untyped =
     try:
       body
       return false
-    except EthersError as e:
+    except JsonRpcProviderError as e:
       return reason == revertReason(e)
-    except CatchableError as e:
-      return false
   waitFor asyncproc()
 
 template doesNotRevert*(body: untyped): untyped =
