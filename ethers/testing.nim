@@ -1,5 +1,6 @@
 import std/strutils
-import pkg/ethers
+import std/json
+import ./provider
 
 proc revertReason*(e: ref ProviderError): string =
   try:
