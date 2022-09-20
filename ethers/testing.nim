@@ -20,30 +20,22 @@ proc revertReason*(e: ref JsonRpcProviderError): string =
   except JsonParsingError:
     return ""
 
-template reverts*(body: untyped): untyped =
-  let asyncproc = proc(): Future[bool] {.async.} =
-    try:
-      body
-      return false
-    except JsonRpcProviderError:
-      return true
-  waitFor asyncproc()
+proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
+  try:
+    when T is void:
+      await call
+    else:
+      discard await call # TODO test this
+    return false
+  except JsonRpcProviderError:
+    return true # TODO: check that error started with revert prefix
 
-template revertsWith*(reason: string, body: untyped): untyped =
-  let asyncproc = proc(): Future[bool] {.async.} =
-    try:
-      body
-      return false
-    except JsonRpcProviderError as e:
-      return reason == revertReason(e)
-  waitFor asyncproc()
-
-template doesNotRevert*(body: untyped): untyped =
-  let asyncproc = proc(): Future[bool] {.async.} =
-    return not reverts(body)
-  waitFor asyncproc()
-
-template doesNotRevertWith*(reason: string, body: untyped): untyped =
-  let asyncproc = proc(): Future[bool] {.async.} =
-    return not revertsWith(reason, body)
-  waitFor asyncproc()
+proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
+  try:
+    when T is void:
+      await call
+    else:
+      discard await call # TODO test this
+    return false
+  except JsonRpcProviderError as error:
+    return reason == error.revertReason
