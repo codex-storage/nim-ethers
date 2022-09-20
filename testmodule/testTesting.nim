@@ -14,112 +14,55 @@ suite "Testing helpers":
                fmt"reverted with reason string '{revertReason}'"
   }
 
-  test "can use block syntax async":
-    let ethCallAsync = proc() {.async.} =
+  test "checks that call reverts":
+    proc call() {.async.} =
       raise newException(JsonRpcProviderError, $rpcResponse)
 
-    check:
-      reverts:
-        await ethCallAsync()
+    check await call().reverts()
 
-  test "can use block syntax sync":
-    let ethCall = proc() =
+  test "checks reason for revert":
+    proc call() {.async.} =
       raise newException(JsonRpcProviderError, $rpcResponse)
 
-    check:
-      reverts:
-        ethCall()
-
-  test "can use parameter syntax async":
-    let ethCallAsync = proc() {.async.} =
-      raise newException(JsonRpcProviderError, $rpcResponse)
-
-    check:
-      reverts (await ethCallAsync())
-
-  test "can use parameter syntax sync":
-    let ethCall = proc() =
-      raise newException(JsonRpcProviderError, $rpcResponse)
-
-    check:
-      reverts ethCall()
-
-  test "successfully checks revert reason async":
-    let ethCallAsync = proc() {.async.} =
-      raise newException(JsonRpcProviderError, $rpcResponse)
-
-    check:
-      revertsWith revertReason:
-        await ethCallAsync()
-
-  test "successfully checks revert reason sync":
-    let ethCall = proc() =
-      raise newException(JsonRpcProviderError, $rpcResponse)
-
-    check:
-      revertsWith revertReason:
-        ethCall()
-
+    check await call().reverts(revertReason)
 
   test "correctly indicates there was no revert":
-    let ethCall = proc() = discard
+    proc call() {.async.} = discard
 
-    check:
-      doesNotRevert:
-        ethCall()
+    check not await call().reverts()
 
-  test "revert only checks JsonRpcProviderErrors":
-    let ethCall = proc() =
+  test "reverts only checks JsonRpcProviderErrors":
+    proc call() {.async.} =
       raise newException(ContractError, "test")
 
-    var success = false
+    expect ContractError:
+      check await call().reverts()
 
-    try:
-      check:
-        reverts:
-          ethCall()
-    except ContractError:
-      success = true
-    check success
-
-  test "revertsWith only checks JsonRpcProviderErrors":
-    let ethCall = proc() =
+  test "reverts with reason only checks JsonRpcProviderErrors":
+    proc call() {.async.} =
       raise newException(ContractError, "test")
 
-    var success = false
+    expect ContractError:
+      check await call().reverts(revertReason)
 
-    try:
-      check:
-        revertsWith revertReason:
-          ethCall()
-    except ContractError:
-      success = true
-    check success
+  test "reverts with reason is false when there is no revert":
+    proc call() {.async.} = discard
 
-  test "revertsWith is false when there is no revert":
-    let ethCall = proc() = discard
+    check not await call().reverts(revertReason)
 
-    check:
-      doesNotRevertWith revertReason:
-        ethCall()
-
-  test "revertsWith is false when the revert reason doesn't match":
-    let ethCall = proc() =
+  test "reverts is false when the revert reason doesn't match":
+    proc call() {.async.} =
       raise newException(JsonRpcProviderError, "other reason")
 
-    check:
-      doesNotRevertWith revertReason:
-        ethCall()
+    check not await call().reverts(revertReason)
 
-  test "revertsWith handles non-standard revert prefix":
+  test "revert handles non-standard revert prefix":
     let nonStdMsg = fmt"Provider VM Exception: reverted with {revertReason}"
     let nonStdRpcResponse = %* { "message": nonStdMsg }
-    let ethCall = proc() =
+    proc call() {.async.} =
       raise newException(JsonRpcProviderError, $nonStdRpcResponse)
 
-    check:
-      revertsWith nonStdMsg:
-        ethCall()
+    check await call().reverts(nonStdMsg)
 
 type
   TestHelpers* = ref object of Contract
@@ -127,7 +70,7 @@ type
 method revertsWith*(self: TestHelpers,
                     revertReason: string) {.base, contract, view.}
 
-suite "Testing helpers - current provider":
+suite "Testing helpers - provider":
 
   var helpersContract: TestHelpers
   var provider: JsonRpcProvider
@@ -145,7 +88,5 @@ suite "Testing helpers - current provider":
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
 
-  test "revert prefix is emitted from current provider":
-    check:
-      revertsWith revertReason:
-        await helpersContract.revertsWith(revertReason)
+  test "revert works with provider":
+    check await helpersContract.revertsWith(revertReason).reverts(revertReason)
