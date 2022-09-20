@@ -28,7 +28,12 @@ type
   JsonRpcProviderError* = object of EthersError
   SubscriptionHandler = proc(id, arguments: JsonNode): Future[void] {.gcsafe, upraises:[].}
 
-template raiseProviderError(message: string) =
+proc raiseProviderError(message: string) {.upraises: [JsonRpcProviderError].} =
+  var message = message
+  try:
+    message = parseJson(message){"message"}.getStr
+  except Exception:
+    discard
   raise newException(JsonRpcProviderError, message)
 
 template convertError(body) =
