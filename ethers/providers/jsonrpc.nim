@@ -25,7 +25,7 @@ type
   JsonRpcSigner* = ref object of Signer
     provider: JsonRpcProvider
     address: ?Address
-  JsonRpcProviderError* = object of EthersError
+  JsonRpcProviderError* = object of ProviderError
   SubscriptionHandler = proc(id, arguments: JsonNode): Future[void] {.gcsafe, upraises:[].}
 
 proc raiseProviderError(message: string) {.upraises: [JsonRpcProviderError].} =

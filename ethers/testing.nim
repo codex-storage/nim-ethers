@@ -1,8 +1,7 @@
-import std/json
 import std/strutils
 import pkg/ethers
 
-proc revertReason*(e: ref JsonRpcProviderError): string =
+proc revertReason*(e: ref ProviderError): string =
   try:
     var msg = e.msg
     const revertPrefixes = @[
@@ -26,7 +25,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
     else:
       discard await call # TODO test this
     return false
-  except JsonRpcProviderError:
+  except ProviderError:
     return true
 
 proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
@@ -36,5 +35,5 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     else:
       discard await call # TODO test this
     return false
-  except JsonRpcProviderError as error:
+  except ProviderError as error:
     return reason == error.revertReason

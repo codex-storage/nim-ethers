@@ -10,6 +10,7 @@ push: {.upraises: [].}
 
 type
   Provider* = ref object of RootObj
+  ProviderError* = object of EthersError
   Subscription* = ref object of RootObj
   Filter* = object
     address*: Address

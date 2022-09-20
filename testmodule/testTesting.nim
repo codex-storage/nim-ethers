@@ -13,13 +13,13 @@ suite "Testing helpers":
 
   test "checks that call reverts":
     proc call() {.async.} =
-      raise newException(JsonRpcProviderError, $rpcResponse)
+      raise newException(ProviderError, $rpcResponse)
 
     check await call().reverts()
 
   test "checks reason for revert":
     proc call() {.async.} =
-      raise newException(JsonRpcProviderError, $rpcResponse)
+      raise newException(ProviderError, $rpcResponse)
 
     check await call().reverts(revertReason)
 
@@ -28,14 +28,14 @@ suite "Testing helpers":
 
     check not await call().reverts()
 
-  test "reverts only checks JsonRpcProviderErrors":
+  test "reverts only checks ProviderErrors":
     proc call() {.async.} =
       raise newException(ContractError, "test")
 
     expect ContractError:
       check await call().reverts()
 
-  test "reverts with reason only checks JsonRpcProviderErrors":
+  test "reverts with reason only checks ProviderErrors":
     proc call() {.async.} =
       raise newException(ContractError, "test")
 
@@ -49,14 +49,14 @@ suite "Testing helpers":
 
   test "reverts is false when the revert reason doesn't match":
     proc call() {.async.} =
-      raise newException(JsonRpcProviderError, "other reason")
+      raise newException(ProviderError, "other reason")
 
     check not await call().reverts(revertReason)
 
   test "revert handles non-standard revert prefix":
     let nonStdMsg = fmt"Provider VM Exception: reverted with {revertReason}"
     proc call() {.async.} =
-      raise newException(JsonRpcProviderError, nonStdMsg)
+      raise newException(ProviderError, nonStdMsg)
 
     check await call().reverts(nonStdMsg)
 
