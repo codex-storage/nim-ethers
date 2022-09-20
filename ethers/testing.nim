@@ -23,7 +23,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
     when T is void:
       await call
     else:
-      discard await call # TODO test this
+      discard await call
     return false
   except ProviderError:
     return true
@@ -33,7 +33,7 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     when T is void:
       await call
     else:
-      discard await call # TODO test this
+      discard await call
     return false
   except ProviderError as error:
     return reason == error.revertReason

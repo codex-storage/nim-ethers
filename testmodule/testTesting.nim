@@ -60,6 +60,11 @@ suite "Testing helpers":
 
     check await call().reverts(nonStdMsg)
 
+  test "works with functions that return a value":
+    proc call(): Future[int] {.async.} = return 42
+    check not await call().reverts()
+    check not await call().reverts("some reason")
+
 type
   TestHelpers* = ref object of Contract
 
