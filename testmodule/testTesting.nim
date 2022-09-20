@@ -1,4 +1,3 @@
-import std/json
 import std/strformat
 import pkg/asynctest
 import pkg/chronos
@@ -9,10 +8,8 @@ import ./hardhat
 suite "Testing helpers":
 
   let revertReason = "revert reason"
-  let rpcResponse = %* {
-    "message": "Error: VM Exception while processing transaction: " &
-               fmt"reverted with reason string '{revertReason}'"
-  }
+  let rpcResponse = "Error: VM Exception while processing transaction: " &
+                    fmt"reverted with reason string '{revertReason}'"
 
   test "checks that call reverts":
     proc call() {.async.} =
@@ -58,9 +55,8 @@ suite "Testing helpers":
 
   test "revert handles non-standard revert prefix":
     let nonStdMsg = fmt"Provider VM Exception: reverted with {revertReason}"
-    let nonStdRpcResponse = %* { "message": nonStdMsg }
     proc call() {.async.} =
-      raise newException(JsonRpcProviderError, $nonStdRpcResponse)
+      raise newException(JsonRpcProviderError, nonStdMsg)
 
     check await call().reverts(nonStdMsg)
 

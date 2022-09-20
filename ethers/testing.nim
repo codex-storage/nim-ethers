@@ -4,8 +4,7 @@ import pkg/ethers
 
 proc revertReason*(e: ref JsonRpcProviderError): string =
   try:
-    let json = parseJson(e.msg)
-    var msg = json{"message"}.getStr
+    var msg = e.msg
     const revertPrefixes = @[
       # hardhat
       "Error: VM Exception while processing transaction: reverted with " &
@@ -28,7 +27,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
       discard await call # TODO test this
     return false
   except JsonRpcProviderError:
-    return true # TODO: check that error started with revert prefix
+    return true
 
 proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
   try:
