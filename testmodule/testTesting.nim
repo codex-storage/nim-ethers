@@ -3,10 +3,10 @@ import std/strformat
 import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
+import pkg/ethers/testing
 import ./hardhat
-import ./helpers
 
-suite "Revert helpers":
+suite "Testing helpers":
 
   let revertReason = "revert reason"
   let rpcResponse = %* {
@@ -16,7 +16,7 @@ suite "Revert helpers":
 
   test "can use block syntax async":
     let ethCallAsync = proc() {.async.} =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       reverts:
@@ -24,7 +24,7 @@ suite "Revert helpers":
 
   test "can use block syntax sync":
     let ethCall = proc() =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       reverts:
@@ -32,21 +32,21 @@ suite "Revert helpers":
 
   test "can use parameter syntax async":
     let ethCallAsync = proc() {.async.} =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       reverts (await ethCallAsync())
 
   test "can use parameter syntax sync":
     let ethCall = proc() =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       reverts ethCall()
 
   test "successfully checks revert reason async":
     let ethCallAsync = proc() {.async.} =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       revertsWith revertReason:
@@ -54,7 +54,7 @@ suite "Revert helpers":
 
   test "successfully checks revert reason sync":
     let ethCall = proc() =
-      raise newException(EthersError, $rpcResponse)
+      raise newException(JsonRpcProviderError, $rpcResponse)
 
     check:
       revertsWith revertReason:
@@ -68,13 +68,33 @@ suite "Revert helpers":
       doesNotRevert:
         ethCall()
 
-  test "only checks EthersErrors":
+  test "revert only checks JsonRpcProviderErrors":
     let ethCall = proc() =
-      raise newException(ValueError, $rpcResponse)
+      raise newException(ContractError, "test")
 
-    check:
-      doesNotRevert:
-        ethCall()
+    var success = false
+
+    try:
+      check:
+        reverts:
+          ethCall()
+    except ContractError:
+      success = true
+    check success
+
+  test "revertsWith only checks JsonRpcProviderErrors":
+    let ethCall = proc() =
+      raise newException(ContractError, "test")
+
+    var success = false
+
+    try:
+      check:
+        revertsWith revertReason:
+          ethCall()
+    except ContractError:
+      success = true
+    check success
 
   test "revertsWith is false when there is no revert":
     let ethCall = proc() = discard
@@ -83,17 +103,9 @@ suite "Revert helpers":
       doesNotRevertWith revertReason:
         ethCall()
 
-  test "revertsWith is false when not an EthersError":
-    let ethCall = proc() =
-      raise newException(ValueError, $rpcResponse)
-
-    check:
-      doesNotRevertWith revertReason:
-        ethCall()
-
   test "revertsWith is false when the revert reason doesn't match":
     let ethCall = proc() =
-      raise newException(EthersError, "other reason")
+      raise newException(JsonRpcProviderError, "other reason")
 
     check:
       doesNotRevertWith revertReason:
@@ -103,7 +115,7 @@ suite "Revert helpers":
     let nonStdMsg = fmt"Provider VM Exception: reverted with {revertReason}"
     let nonStdRpcResponse = %* { "message": nonStdMsg }
     let ethCall = proc() =
-      raise newException(EthersError, $nonStdRpcResponse)
+      raise newException(JsonRpcProviderError, $nonStdRpcResponse)
 
     check:
       revertsWith nonStdMsg:
@@ -115,7 +127,7 @@ type
 method revertsWith*(self: TestHelpers,
                     revertReason: string) {.base, contract, view.}
 
-suite "Revert helpers - current provider":
+suite "Testing helpers - current provider":
 
   var helpersContract: TestHelpers
   var provider: JsonRpcProvider
