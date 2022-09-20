@@ -149,7 +149,3 @@ suite "Testing helpers - current provider":
     check:
       revertsWith revertReason:
         await helpersContract.revertsWith(revertReason)
-
-
-
-
