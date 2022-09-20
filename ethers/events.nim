@@ -1,25 +1,10 @@
 import std/macros
-import std/typetraits
 import pkg/contractabi
 import ./basics
 import ./provider
 
 type
   Event* = object of RootObj
-  ValueType = uint8 | uint16 | uint32 | uint64 | UInt256 | UInt128 |
-              int8 | int16 | int32 | int64 | Int256 | Int128 |
-              bool | Address
-  SmallByteArray = array[ 1, byte] | array[ 2, byte] | array[ 3, byte] |
-                   array[ 4, byte] | array[ 5, byte] | array[ 6, byte] |
-                   array[ 7, byte] | array[ 8, byte] | array[ 9, byte] |
-                   array[10, byte] | array[11, byte] | array[12, byte] |
-                   array[13, byte] | array[14, byte] | array[15, byte] |
-                   array[16, byte] | array[17, byte] | array[18, byte] |
-                   array[19, byte] | array[20, byte] | array[21, byte] |
-                   array[22, byte] | array[23, byte] | array[24, byte] |
-                   array[25, byte] | array[26, byte] | array[27, byte] |
-                   array[28, byte] | array[29, byte] | array[30, byte] |
-                   array[31, byte] | array[32, byte]
 
 push: {.upraises: [].}
 
@@ -34,17 +19,22 @@ func decode*[E: Event](decoder: var AbiDecoder, _: type E): ?!E =
   decoder.finishTuple()
   success event
 
-func isSupported(T: type): bool =
-  var supported = false
-  # nim 1.2.x fails distinctBase checks on non-distinct types at compile time,
-  # so we must separate with `when`
-  when T is distinct:
-    supported = T.distinctBase is ValueType or
-                T.distinctBase is SmallByteArray
-  else:
-    supported = T is ValueType or
-                T is SmallByteArray
-  return supported
+func fitsInIndexedField(T: type): bool {.compileTime.} =
+  const supportedTypes = [
+    "uint8", "uint16", "uint32", "uint64", "uint256", "uint128",
+    "int8",  "int16",  "int32",  "int64",  "int256",  "int128",
+    "bool", "address",
+    "bytes1", "bytes2", "bytes3", "bytes4",
+    "bytes5", "bytes6", "bytes7", "bytes8",
+    "bytes9", "bytes10", "bytes11", "bytes12",
+    "bytes13", "bytes14", "bytes15", "bytes16",
+    "bytes17", "bytes18", "bytes19", "bytes20",
+    "bytes21", "bytes22", "bytes23", "bytes24",
+    "bytes25", "bytes26", "bytes27", "bytes28",
+    "bytes29", "bytes30", "bytes31", "bytes32"
+  ]
+
+  solidityType(T) in supportedTypes
 
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
   var event = ?Abidecoder.decode(data, E)
@@ -53,7 +43,7 @@ func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
     if field.hasCustomPragma(indexed):
       if i >= topics.len:
         return failure "indexed event parameter not found"
-      if typeof(field).isSupported:
+      when typeof(field).fitsInIndexedField:
         field = ?AbiDecoder.decode(@(topics[i]), typeof(field))
       inc i
   success event
