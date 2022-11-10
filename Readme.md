@@ -14,7 +14,7 @@ Use the [Nimble][2] package manager to add `ethers` to an existing
 project. Add the following to its .nimble file:
 
 ```nim
-requires "ethers >= 0.2.2 & < 0.3.0"
+requires "ethers >= 0.2.4 & < 0.3.0"
 ```
 
 Usage
