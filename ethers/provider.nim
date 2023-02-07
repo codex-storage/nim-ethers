@@ -41,6 +41,7 @@ type
     cumulativeGasUsed*: UInt256
     status*: TransactionStatus
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
+  AsyncLogHandler* = proc(log: Log): Future[void] {.gcsafe, upraises:[].}
   BlockHandler* = proc(blck: Block): Future[void] {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
   Block* = object
@@ -91,6 +92,12 @@ method getChainId*(provider: Provider): Future[UInt256] {.base.} =
 method subscribe*(provider: Provider,
                   filter: Filter,
                   callback: LogHandler):
+                 Future[Subscription] {.base.} =
+  doAssert false, "not implemented"
+
+method subscribe*(provider: Provider,
+                  filter: Filter,
+                  callback: AsyncLogHandler):
                  Future[Subscription] {.base.} =
   doAssert false, "not implemented"
 

@@ -163,6 +163,24 @@ suite "Contracts":
 
     check transfers == @[Transfer(receiver: accounts[0], value: 100.u256)]
 
+
+  test "supports async event handlers in subscriptions":
+    var transfers: seq[Transfer]
+
+    proc handleTransfer(transfer: Transfer) {.async.} =
+      await sleepAsync(1.milliseconds)
+      transfers.add(transfer)
+
+    let signer0 = provider.getSigner(accounts[0])
+
+    let subscription = await token.subscribe(Transfer, handleTransfer)
+    discard await token.connect(signer0).mint(accounts[0], 100.u256)
+    await subscription.unsubscribe()
+
+    check transfers == @[
+      Transfer(receiver: accounts[0], value: 100.u256)
+    ]
+
   test "can wait for contract interaction tx to be mined":
     # must not be awaited so we can get newHeads inside of .wait
     let futMined = provider.mineBlocks(10)

@@ -196,6 +196,15 @@ method subscribe*(provider: JsonRpcProvider,
   return await provider.subscribe("logs", filter.some, handler)
 
 method subscribe*(provider: JsonRpcProvider,
+                  filter: Filter,
+                  callback: AsyncLogHandler):
+                 Future[Subscription] {.async.} =
+  proc handler(id, arguments: JsonNode) {.async.} =
+    if log =? Log.fromJson(arguments["result"]).catch:
+      await callback(log)
+  return await provider.subscribe("logs", filter.some, handler)
+
+method subscribe*(provider: JsonRpcProvider,
                   callback: BlockHandler):
                  Future[Subscription] {.async.} =
   proc handler(id, arguments: JsonNode) {.async.} =

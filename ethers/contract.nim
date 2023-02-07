@@ -27,6 +27,7 @@ type
   ContractError* = object of EthersError
   Confirmable* = ?TransactionResponse
   EventHandler*[E: Event] = proc(event: E) {.gcsafe, upraises:[].}
+  AsyncEventHandler*[E: Event] = proc(event: E): Future[void] {.gcsafe, upraises:[].}
 
 func new*(ContractType: type Contract,
           address: Address,
@@ -213,5 +214,19 @@ proc subscribe*[E: Event](contract: Contract,
   proc logHandler(log: Log) {.upraises: [].} =
     if event =? E.decode(log.data, log.topics):
       handler(event)
+
+  contract.provider.subscribe(filter, logHandler)
+
+proc subscribe*[E: Event](contract: Contract,
+                          _: type E,
+                          handler: AsyncEventHandler[E]):
+                         Future[Subscription] =
+
+  let topic = topic($E, E.fieldTypes).toArray
+  let filter = Filter(address: contract.address, topics: @[topic])
+
+  proc logHandler(log: Log) {.async, upraises: [].} =
+    if event =? E.decode(log.data, log.topics):
+      await handler(event)
 
   contract.provider.subscribe(filter, logHandler)
