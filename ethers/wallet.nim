@@ -76,7 +76,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   else:
     raise newException(WalletError, "Transaction type not supported")
 
-proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[byte]] {.async.} =
+proc signTransaction*(wallet: Wallet, tx: Transaction.Transaction): Future[seq[byte]] {.async.} =
   if sender =? tx.sender and sender != wallet.address:
     raise newException(WalletError, "from address mismatch")
 
@@ -104,7 +104,7 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[b
 
   return rlp.encode(s)
 
-method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
+method sendTransaction*(wallet: Wallet, tx: Transaction.Transaction): Future[TransactionResponse] {.async.} =
   let rawTX = await signTransaction(wallet, tx)
   return await provider(wallet).sendTransaction(rawTX)
 
