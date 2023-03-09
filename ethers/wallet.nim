@@ -64,7 +64,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   let r = toRaw(s)
   let v = r[64]
 
-  tr.R = fromBytesBe(UInt256, r.toOpenArray(0, 31))
+  tr.R = fromBytesBE(UInt256, r.toOpenArray(0, 31))
   tr.S = fromBytesBE(UInt256, r.toOpenArray(32, 63))
 
   case tr.txType:
@@ -101,7 +101,7 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[b
   s.to = some EthAddress(tx.to)
   s.payload = tx.data
   signTransaction(s, wallet.privateKey)
- 
+
   return rlp.encode(s)
 
 method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
