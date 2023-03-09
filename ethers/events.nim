@@ -37,7 +37,7 @@ func fitsInIndexedField(T: type): bool {.compileTime.} =
   solidityType(T) in supportedTypes
 
 func decode*[E: Event](_: type E, data: seq[byte], topics: seq[Topic]): ?!E =
-  var event = ?Abidecoder.decode(data, E)
+  var event = ?AbiDecoder.decode(data, E)
   var i = 1
   for field in event.fields:
     if field.hasCustomPragma(indexed):

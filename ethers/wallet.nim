@@ -3,7 +3,7 @@ import eth/rlp
 import eth/common
 import eth/common/transaction as ct
 import ./provider
-import ./transaction
+import ./transaction as tx
 import ./signer
 
 export keys
@@ -64,7 +64,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   let r = toRaw(s)
   let v = r[64]
 
-  tr.R = fromBytesBe(UInt256, r.toOpenArray(0, 31))
+  tr.R = fromBytesBE(UInt256, r.toOpenArray(0, 31))
   tr.S = fromBytesBE(UInt256, r.toOpenArray(32, 63))
 
   case tr.txType:
@@ -76,7 +76,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   else:
     raise newException(WalletError, "Transaction type not supported")
 
-proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[byte]] {.async.} =
+proc signTransaction*(wallet: Wallet, tx: tx.Transaction): Future[seq[byte]] {.async.} =
   if sender =? tx.sender and sender != wallet.address:
     raise newException(WalletError, "from address mismatch")
 
@@ -101,10 +101,10 @@ proc signTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[seq[b
   s.to = some EthAddress(tx.to)
   s.payload = tx.data
   signTransaction(s, wallet.privateKey)
- 
+
   return rlp.encode(s)
 
-method sendTransaction*(wallet: Wallet, tx: transaction.Transaction): Future[TransactionResponse] {.async.} =
+method sendTransaction*(wallet: Wallet, tx: tx.Transaction): Future[TransactionResponse] {.async.} =
   let rawTX = await signTransaction(wallet, tx)
   return await provider(wallet).sendTransaction(rawTX)
 

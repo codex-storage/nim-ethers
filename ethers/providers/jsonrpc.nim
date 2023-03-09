@@ -129,7 +129,7 @@ method call*(provider: JsonRpcProvider,
 method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   convertError:
     let client = await provider.client
-    return await client.eth_gasprice()
+    return await client.eth_gasPrice()
 
 method getTransactionCount*(provider: JsonRpcProvider,
                             address: Address,
