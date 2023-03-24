@@ -143,6 +143,25 @@ await subscription.unsubscribe()
 Subscriptions are currently only supported when using a JSON RPC provider that
 is created with a websockets URL such as `ws://localhost:8545`.
 
+Utilities
+---------
+
+This library ships with some optional modules that provides convenience utilities for you such as:
+
+- `ethers/erc20` module provides you with ERC20 token implementation and its events
+
+Contribution
+------------
+
+If you want to run the tests, then before running the `nimble test`, you have to
+have installed NodeJS and then startup testing node:
+
+```shell
+$ cd testnode
+$ npm ci
+$ npm start
+```
+
 Thanks
 ------
 
