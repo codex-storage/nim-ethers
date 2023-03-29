@@ -153,8 +153,8 @@ This library ships with some optional modules that provides convenience utilitie
 Contribution
 ------------
 
-If you want to run the tests, then before running the `nimble test`, you have to
-have installed NodeJS and then startup testing node:
+If you want to run the tests, then before running `nimble test`, you have to
+have installed NodeJS and started a testing node:
 
 ```shell
 $ cd testnode
