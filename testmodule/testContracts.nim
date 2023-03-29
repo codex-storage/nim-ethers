@@ -3,25 +3,15 @@ import pkg/asynctest
 import pkg/questionable
 import pkg/stint
 import pkg/ethers
+import pkg/ethers/erc20
 import ./hardhat
 import ./miner
 import ./mocks
 
 type
 
-  Erc20* = ref object of Contract
-  TestToken = ref object of Erc20
+  TestToken = ref object of Erc20Token
 
-  Transfer = object of Event
-    sender {.indexed.}: Address
-    receiver {.indexed.}: Address
-    value: UInt256
-
-method name*(erc20: Erc20): string {.base, contract, view.}
-method totalSupply*(erc20: Erc20): UInt256 {.base, contract, view.}
-method balanceOf*(erc20: Erc20, account: Address): UInt256 {.base, contract, view.}
-method allowance*(erc20: Erc20, owner, spender: Address): UInt256 {.base, contract, view.}
-method transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.base, contract.}
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 
 suite "Contracts":
