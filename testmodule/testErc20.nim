@@ -12,7 +12,6 @@ type
   TestToken = ref object of Erc20Token
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
-method burn(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 
 suite "ERC20":
 
@@ -29,9 +28,6 @@ suite "ERC20":
     let deployment = readDeployment()
     testToken = TestToken.new(!deployment.address(TestToken), provider.getSigner())
     token = Erc20Token.new(!deployment.address(TestToken), provider.getSigner())
-
-    let signer1 = provider.getSigner(accounts[1])
-    token1 = Erc20Token.new(!deployment.address(TestToken), signer1)
 
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
@@ -60,12 +56,9 @@ suite "ERC20":
     check (await token.balanceOf(accounts[1])) == 50.u256
 
   test "approve tokens":
-    check (await token.balanceOf(accounts[0])) == 0.u256
-    check (await token.allowance(accounts[0], accounts[1])) == 0.u256
-
     discard await testToken.mint(accounts[0], 100.u256)
 
-    check (await token.totalSupply()) == 100.u256
+    check (await token.allowance(accounts[0], accounts[1])) == 0.u256
     check (await token.balanceOf(accounts[0])) == 100.u256
     check (await token.balanceOf(accounts[1])) == 0.u256
 
@@ -76,24 +69,28 @@ suite "ERC20":
     check (await token.balanceOf(accounts[1])) == 0.u256
 
   test "transferFrom tokens":
-    check (await token.balanceOf(accounts[0])) == 0.u256
-    check (await token.allowance(accounts[0], accounts[1])) == 0.u256
+    let senderAccount = accounts[0]
+    let receiverAccount = accounts[1]
+    let receiverAccountSigner = provider.getSigner(receiverAccount)
 
-    discard await testToken.mint(accounts[0], 100.u256)
+    check (await token.balanceOf(senderAccount)) == 0.u256
+    check (await token.allowance(senderAccount, receiverAccount)) == 0.u256
+
+    discard await testToken.mint(senderAccount, 100.u256)
 
     check (await token.totalSupply()) == 100.u256
-    check (await token.balanceOf(accounts[0])) == 100.u256
-    check (await token.balanceOf(accounts[1])) == 0.u256
+    check (await token.balanceOf(senderAccount)) == 100.u256
+    check (await token.balanceOf(receiverAccount)) == 0.u256
 
-    await token.approve(accounts[1], 50.u256)
+    await token.approve(receiverAccount, 50.u256)
 
-    check (await token.allowance(accounts[0], accounts[1])) == 50.u256
-    check (await token.balanceOf(accounts[0])) == 100.u256
-    check (await token.balanceOf(accounts[1])) == 0.u256
+    check (await token.allowance(senderAccount, receiverAccount)) == 50.u256
+    check (await token.balanceOf(senderAccount)) == 100.u256
+    check (await token.balanceOf(receiverAccount)) == 0.u256
 
-    await token1.transferFrom(accounts[0], accounts[1], 50.u256)
+    await token.connect(receiverAccountSigner).transferFrom(senderAccount, receiverAccount, 50.u256)
 
-    check (await token.balanceOf(accounts[0])) == 50.u256
-    check (await token.balanceOf(accounts[1])) == 50.u256
-    check (await token.allowance(accounts[0], accounts[1])) == 0.u256
+    check (await token.balanceOf(senderAccount)) == 50.u256
+    check (await token.balanceOf(receiverAccount)) == 50.u256
+    check (await token.allowance(senderAccount, receiverAccount)) == 0.u256
 
