@@ -27,7 +27,7 @@ method getGasPrice*(signer: Signer): Future[UInt256] {.base.} =
   signer.provider.getGasPrice()
 
 method getTransactionCount*(signer: Signer,
-                            blockTag = BlockTag.latest):
+                            blockTag = BlockTag.pending):
                            Future[UInt256] {.base, async.} =
   let address = await signer.getAddress()
   return await signer.provider.getTransactionCount(address, blockTag)
@@ -55,7 +55,7 @@ method populateTransaction*(signer: Signer,
   if transaction.sender.isNone:
     populated.sender = some(await signer.getAddress())
   if transaction.nonce.isNone:
-    populated.nonce = some(await signer.getTransactionCount(BlockTag.pending))
+    populated.nonce = some(await signer.getTransactionCount())
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):

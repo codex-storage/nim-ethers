@@ -133,7 +133,7 @@ method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
 
 method getTransactionCount*(provider: JsonRpcProvider,
                             address: Address,
-                            blockTag = BlockTag.latest):
+                            blockTag = BlockTag.pending):
                            Future[UInt256] {.async.} =
   convertError:
     let client = await provider.client

@@ -80,19 +80,17 @@ proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
 
 proc call(contract: Contract,
           function: string,
-          parameters: tuple,
-          blockTag = BlockTag.latest) {.async.} =
+          parameters: tuple) {.async.} =
   let transaction = createTransaction(contract, function, parameters)
-  discard await contract.provider.call(transaction, blockTag)
+  discard await contract.provider.call(transaction)
 
 proc call(contract: Contract,
           function: string,
           parameters: tuple,
           ReturnType: type,
-          returnMultiple: static bool,
-          blockTag = BlockTag.latest): Future[ReturnType] {.async.} =
+          returnMultiple: static bool): Future[ReturnType] {.async.} =
   let transaction = createTransaction(contract, function, parameters)
-  let response = await contract.provider.call(transaction, blockTag)
+  let response = await contract.provider.call(transaction)
   return decodeResponse(ReturnType, returnMultiple, response)
 
 proc send(contract: Contract,

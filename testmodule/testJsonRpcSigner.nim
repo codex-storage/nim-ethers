@@ -27,7 +27,7 @@ suite "JsonRpcSigner":
 
   test "can retrieve transaction count":
     let signer = provider.getSigner(accounts[9])
-    let count = await signer.getTransactionCount(BlockTag.pending)
+    let count = await signer.getTransactionCount()
     check count == 0.u256
 
   test "can estimate gas cost of a transaction":
@@ -51,7 +51,7 @@ suite "JsonRpcSigner":
     let populated = await signer.populateTransaction(transaction)
     check !populated.sender == await signer.getAddress()
     check !populated.gasPrice == await signer.getGasPrice()
-    check !populated.nonce == await signer.getTransactionCount(BlockTag.pending)
+    check !populated.nonce == await signer.getTransactionCount()
     check !populated.gasLimit == await signer.estimateGas(transaction)
     check !populated.chainId == await signer.getChainId()
 

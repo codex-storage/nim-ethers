@@ -59,7 +59,7 @@ method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base.} =
 
 method call*(provider: Provider,
              tx: Transaction,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.base.} =
+             blockTag = BlockTag.pending): Future[seq[byte]] {.base.} =
   doAssert false, "not implemented"
 
 method getGasPrice*(provider: Provider): Future[UInt256] {.base.} =
@@ -67,7 +67,7 @@ method getGasPrice*(provider: Provider): Future[UInt256] {.base.} =
 
 method getTransactionCount*(provider: Provider,
                             address: Address,
-                            blockTag = BlockTag.latest):
+                            blockTag = BlockTag.pending):
                            Future[UInt256] {.base.} =
   doAssert false, "not implemented"
 
