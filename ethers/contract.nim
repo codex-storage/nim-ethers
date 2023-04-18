@@ -16,13 +16,15 @@ type
     provider: Provider
     signer: ?Signer
     address: Address
-  TransactionOverrides* = object
+  TransactionOverrides* = ref object of RootObj
     nonce*: ?UInt256
     chainId*: ?UInt256
     gasPrice*: ?UInt256
     maxFee*: ?UInt256
     maxPriorityFee*: ?UInt256
     gasLimit*: ?UInt256
+  CallOverrides* = ref object of TransactionOverrides
+    blockTag*: ?BlockTag
 
   ContractError* = object of EthersError
   Confirmable* = ?TransactionResponse
@@ -56,7 +58,7 @@ template raiseContractError(message: string) =
 proc createTransaction(contract: Contract,
                        function: string,
                        parameters: tuple,
-                       overrides = TransactionOverrides.default): Transaction =
+                       overrides = TransactionOverrides()): Transaction =
   let selector = selector(function, typeof parameters).toArray
   let data = @selector & AbiEncoder.encode(parameters)
   Transaction(
@@ -78,27 +80,36 @@ proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
   else:
     return decodeResponse((T,), true, bytes)[0]
 
+proc call(provider: Provider,
+          transaction: Transaction,
+          overrides: TransactionOverrides): Future[seq[byte]] =
+  if overrides of CallOverrides and
+     blockTag =? CallOverrides(overrides).blockTag:
+    provider.call(transaction, blockTag)
+  else:
+    provider.call(transaction)
+
 proc call(contract: Contract,
           function: string,
           parameters: tuple,
-          blockTag = BlockTag.latest) {.async.} =
-  let transaction = createTransaction(contract, function, parameters)
-  discard await contract.provider.call(transaction, blockTag)
+          overrides = TransactionOverrides()) {.async.} =
+  let transaction = createTransaction(contract, function, parameters, overrides)
+  discard await contract.provider.call(transaction, overrides)
 
 proc call(contract: Contract,
           function: string,
           parameters: tuple,
           ReturnType: type,
           returnMultiple: static bool,
-          blockTag = BlockTag.latest): Future[ReturnType] {.async.} =
-  let transaction = createTransaction(contract, function, parameters)
-  let response = await contract.provider.call(transaction, blockTag)
+          overrides = TransactionOverrides()): Future[ReturnType] {.async.} =
+  let transaction = createTransaction(contract, function, parameters, overrides)
+  let response = await contract.provider.call(transaction, overrides)
   return decodeResponse(ReturnType, returnMultiple, response)
 
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = TransactionOverrides.default):
+          overrides = TransactionOverrides()):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
@@ -136,7 +147,7 @@ func addOverrides(procedure: var NimNode) =
     newIdentDefs(
       ident("overrides"),
       newEmptyNode(),
-      quote do: TransactionOverrides.default
+      quote do: TransactionOverrides()
     )
   )
 
@@ -152,11 +163,11 @@ func addContractCall(procedure: var NimNode) =
   func call: NimNode =
     if returnType.kind == nnkEmpty:
       quote:
-        await call(`contract`, `function`, `parameters`)
+        await call(`contract`, `function`, `parameters`, overrides)
     else:
       quote:
         return await call(
-          `contract`, `function`, `parameters`, `returnType`, `returnMultiple`)
+          `contract`, `function`, `parameters`, `returnType`, `returnMultiple`, overrides)
 
   func send: NimNode =
     if returnType.kind == nnkEmpty:

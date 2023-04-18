@@ -116,6 +116,18 @@ suite "Contracts":
     check signer.transactions[0].gasPrice == overrides.gasPrice
     check signer.transactions[0].gasLimit == overrides.gasLimit
 
+  test "can call functions for different block heights":
+    let block1 = await provider.getBlockNumber()
+    let signer = provider.getSigner(accounts[0])
+    discard await token.connect(signer).mint(accounts[0], 100.u256)
+    let block2 = await provider.getBlockNumber()
+
+    let beforeMint = CallOverrides(blockTag: some BlockTag.init(block1))
+    let afterMint = CallOverrides(blockTag: some BlockTag.init(block2))
+
+    check (await token.balanceOf(accounts[0], beforeMint)) == 0
+    check (await token.balanceOf(accounts[0], afterMint)) == 100
+
   test "receives events when subscribed":
     var transfers: seq[Transfer]
 
