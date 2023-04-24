@@ -127,6 +127,20 @@ suite "JsonRpcProvider":
     check blk.number.isSome
     check blk.number.get.isZero
 
+  test "Conversion: missing block hash in Block isNone":
+
+    var blkJson = %*{
+      "subscription": "0x20",
+      "result":{
+        "number": "0x1",
+        "hash": newJNull(),
+        "timestamp": "0x6285c293"
+      }
+    }
+
+    var blk = Block.fromJson(blkJson["result"])
+    check blk.hash.isNone
+
   test "Conversion: missing block number in TransactionReceipt isNone":
 
     var txReceiptJson = %*{

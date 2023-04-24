@@ -46,7 +46,7 @@ type
   Block* = object
     number*: ?UInt256
     timestamp*: UInt256
-    hash*: array[32, byte]
+    hash*: ?array[32, byte]
 
 const EthersDefaultConfirmations* {.intdefine.} = 12
 const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
