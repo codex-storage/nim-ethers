@@ -17,4 +17,8 @@ contract TestToken is ERC20 {
   function burn(address holder, uint amount) public {
     _burn(holder, amount);
   }
+
+  function myBalance() public view returns (uint256)  {
+    return balanceOf(msg.sender);
+  }
 }

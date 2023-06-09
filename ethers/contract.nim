@@ -93,7 +93,11 @@ proc call(contract: Contract,
           function: string,
           parameters: tuple,
           overrides = TransactionOverrides()) {.async.} =
-  let transaction = createTransaction(contract, function, parameters, overrides)
+  var transaction = createTransaction(contract, function, parameters, overrides)
+
+  if signer =? contract.signer and transaction.sender.isNone:
+    transaction.sender = some(await signer.getAddress())
+
   discard await contract.provider.call(transaction, overrides)
 
 proc call(contract: Contract,
@@ -102,7 +106,11 @@ proc call(contract: Contract,
           ReturnType: type,
           returnMultiple: static bool,
           overrides = TransactionOverrides()): Future[ReturnType] {.async.} =
-  let transaction = createTransaction(contract, function, parameters, overrides)
+  var transaction = createTransaction(contract, function, parameters, overrides)
+
+  if signer =? contract.signer and transaction.sender.isNone:
+    transaction.sender = some(await signer.getAddress())
+
   let response = await contract.provider.call(transaction, overrides)
   return decodeResponse(ReturnType, returnMultiple, response)
 

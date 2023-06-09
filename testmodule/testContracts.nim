@@ -13,6 +13,7 @@ type
   TestToken = ref object of Erc20Token
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
+method myBalance(token: TestToken): UInt256 {.contract, view.}
 
 suite "Contracts":
 
@@ -42,6 +43,13 @@ suite "Contracts":
     discard await token.mint(accounts[1], 100.u256)
     check (await token.totalSupply()) == 100.u256
     check (await token.balanceOf(accounts[1])) == 100.u256
+
+  test "can call constant functions with a signer and the account is used for the call":
+    let signer0 = provider.getSigner(accounts[0])
+    let signer1 = provider.getSigner(accounts[1])
+    discard await token.connect(signer0).mint(accounts[1], 100.u256)
+    check (await token.connect(signer0).myBalance()) == 0.u256
+    check (await token.connect(signer1).myBalance()) == 100.u256
 
   test "can call non-constant functions without a signer":
     discard await token.mint(accounts[1], 100.u256)
