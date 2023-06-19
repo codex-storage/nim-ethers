@@ -2,6 +2,7 @@ import std/json
 import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
+import pkg/ethers/providers/jsonrpc/conversions
 import pkg/stew/byteutils
 import ./examples
 import ./miner
