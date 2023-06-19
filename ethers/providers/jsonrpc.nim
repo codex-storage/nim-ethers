@@ -9,6 +9,7 @@ import ../signer
 import ./jsonrpc/rpccalls
 import ./jsonrpc/conversions
 
+export json
 export basics
 export provider
 
