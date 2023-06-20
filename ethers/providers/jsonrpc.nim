@@ -50,14 +50,17 @@ template convertError(body) =
 
 const defaultUrl = "http://localhost:8545"
 
+proc jsonHeaders: seq[(string, string)] =
+  @[("Content-Type", "application/json")]
+
 proc connect(_: type RpcClient, url: string): Future[RpcClient] {.async.} =
   case parseUri(url).scheme
   of "ws", "wss":
-    let client = newRpcWebSocketClient()
+    let client = newRpcWebSocketClient(getHeaders = jsonHeaders)
     await client.connect(url)
     return client
   else:
-    let client = newRpcHttpClient()
+    let client = newRpcHttpClient(getHeaders = jsonHeaders)
     await client.connect(url)
     return client
 
