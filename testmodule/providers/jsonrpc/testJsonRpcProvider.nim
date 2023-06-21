@@ -4,8 +4,8 @@ import pkg/chronos
 import pkg/ethers
 import pkg/ethers/providers/jsonrpc/conversions
 import pkg/stew/byteutils
-import ./examples
-import ./miner
+import ../../examples
+import ../../miner
 
 suite "JsonRpcProvider":
 

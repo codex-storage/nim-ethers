@@ -1,5 +1,4 @@
-import ./testJsonRpcProvider
-import ./testJsonRpcSigner
+import ./testProviders
 import ./testContracts
 import ./testReturns
 import ./testEnums

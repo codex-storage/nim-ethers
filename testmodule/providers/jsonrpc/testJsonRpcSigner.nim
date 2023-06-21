@@ -1,7 +1,7 @@
 import pkg/asynctest
 import pkg/ethers
 import pkg/stew/byteutils
-import ./examples
+import ../../examples
 
 suite "JsonRpcSigner":
 
