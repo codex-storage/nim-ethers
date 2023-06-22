@@ -3,7 +3,7 @@ author = "Nim Ethers Authors"
 description = "Tests for Nim Ethers library"
 license = "MIT"
 
-requires "asynctest >= 0.3.2 & < 0.4.0"
+requires "asynctest >= 0.4.0 & < 0.5.0"
 requires "questionable >= 0.10.3 & < 0.11.0"
 
 task test, "Run the test suite":
