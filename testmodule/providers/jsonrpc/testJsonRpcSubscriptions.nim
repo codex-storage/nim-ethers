@@ -24,10 +24,23 @@ template subscriptionTests(subscriptions, client) =
       latestBlock = blck
     let subscription = await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())
-    check eventually(latestBlock.number.isSome)
+    check eventually latestBlock.number.isSome
     check latestBlock.hash.isSome
     check latestBlock.timestamp > 0.u256
     await subscription.unsubscribe()
+
+  test "stops listening to new blocks when unsubscribed":
+    var count = 0
+    proc callback(blck: Block) {.async.} =
+      inc count
+    let subscription = await subscriptions.subscribeBlocks(callback)
+    discard await client.call("evm_mine", newJArray())
+    check eventually count > 0
+    await subscription.unsubscribe()
+    let endcount = count
+    discard await client.call("evm_mine", newJArray())
+    await sleepAsync(100.millis)
+    check count == endcount
 
 suite "Web socket subscriptions":
 
