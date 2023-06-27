@@ -99,7 +99,8 @@ type
   PollingSubscriptions = ref object of JsonRpcSubscriptions
 
 proc new*(_: type JsonRpcSubscriptions,
-          client: RpcHttpClient): JsonRpcSubscriptions =
+          client: RpcHttpClient,
+          pollingInterval = 4.seconds): JsonRpcSubscriptions =
 
   let subscriptions = PollingSubscriptions(client: client)
 
@@ -113,7 +114,7 @@ proc new*(_: type JsonRpcSubscriptions,
       while true:
         for id in toSeq subscriptions.callbacks.keys:
           await poll(id)
-        await sleepAsync(1.seconds)
+        await sleepAsync(pollingInterval)
     except CancelledError:
       raise
 

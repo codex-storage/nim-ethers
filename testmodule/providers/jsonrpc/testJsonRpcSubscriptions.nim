@@ -49,6 +49,7 @@ suite "HTTP polling subscriptions":
   setup:
     client = newRpcHttpClient()
     await client.connect("http://localhost:8545")
-    subscriptions = JsonRpcSubscriptions.new(client)
+    subscriptions = JsonRpcSubscriptions.new(client,
+                                             pollingInterval = 100.millis)
 
   subscriptionTests(subscriptions, client)
