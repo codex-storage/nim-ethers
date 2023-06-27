@@ -42,6 +42,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
     test "subscribes to new blocks":
       let oldBlock = !await provider.getBlock(BlockTag.latest)
+      discard await provider.send("evm_mine")
       var newBlock: Block
       let blockHandler = proc(blck: Block) {.async.} = newBlock = blck
       let subscription = await provider.subscribe(blockHandler)
