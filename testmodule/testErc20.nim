@@ -33,6 +33,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
     teardown:
       discard await provider.send("evm_revert", @[snapshot])
+      await provider.close()
 
     test "retrieves basic information":
       check (await token.name()) == "TestToken"

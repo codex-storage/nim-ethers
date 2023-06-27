@@ -12,6 +12,9 @@ suite "JsonRpcSigner":
     provider = JsonRpcProvider.new()
     accounts = await provider.listAccounts()
 
+  teardown:
+    await provider.close()
+
   test "is connected to the first account of the provider by default":
     let signer = provider.getSigner()
     check (await signer.getAddress()) == accounts[0]

@@ -88,6 +88,7 @@ suite "Testing helpers - provider":
 
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
+    await provider.close()
 
   test "revert works with provider":
     check await helpersContract.revertsWith(revertReason).reverts(revertReason)
