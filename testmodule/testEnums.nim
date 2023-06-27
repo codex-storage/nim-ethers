@@ -15,7 +15,7 @@ suite "Contract enum parameters and return values":
   var snapshot: JsonNode
 
   setup:
-    provider = JsonRpcProvider.new("ws://localhost:8545")
+    provider = JsonRpcProvider.new()
     snapshot = await provider.send("evm_snapshot")
     let deployment = readDeployment()
     contract = TestEnums.new(!deployment.address(TestEnums), provider)
