@@ -22,6 +22,7 @@ suite "Contract enum parameters and return values":
 
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
+    await provider.close()
 
   test "handles enum parameter and return value":
     proc returnValue(contract: TestEnums,

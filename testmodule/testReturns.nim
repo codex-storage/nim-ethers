@@ -21,6 +21,7 @@ suite "Contract return values":
 
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
+    await provider.close()
 
   test "handles static size structs":
     proc getStatic(contract: TestReturns): Static {.contract, pure.}

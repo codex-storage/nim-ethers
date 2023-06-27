@@ -208,3 +208,6 @@ proc confirm*(tx: Future[?TransactionResponse],
     )
 
   return await txResp.confirm(wantedConfirms, timeoutInBlocks)
+
+method close*(provider: Provider) {.async, base.} =
+  discard

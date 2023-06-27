@@ -90,6 +90,12 @@ await writableToken.transfer(accounts[7], 42.u256)
 
 Which transfers 42 tokens from account 3 to account 7
 
+And lastly, don't forget to close the provider when you're done:
+
+```
+await provider.close()
+```
+
 Events
 ------
 

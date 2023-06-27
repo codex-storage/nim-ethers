@@ -177,6 +177,13 @@ method subscribe*(provider: JsonRpcProvider,
     let subscriptions = await provider.subscriptions
     return await subscriptions.subscribeBlocks(onBlock)
 
+method close*(provider: JsonRpcProvider) {.async.} =
+  convertError:
+    let client = await provider.client
+    let subscriptions = await provider.subscriptions
+    await subscriptions.close()
+    await client.close()
+
 # Signer
 
 method provider*(signer: JsonRpcSigner): Provider =

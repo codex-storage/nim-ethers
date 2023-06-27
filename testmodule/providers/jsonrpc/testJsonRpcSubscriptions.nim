@@ -37,10 +37,23 @@ template subscriptionTests(subscriptions, client) =
     discard await client.call("evm_mine", newJArray())
     check eventually count > 0
     await subscription.unsubscribe()
-    let endcount = count
+    count = 0
     discard await client.call("evm_mine", newJArray())
     await sleepAsync(100.millis)
-    check count == endcount
+    check count == 0
+
+  test "stops listening to new blocks when provider is closed":
+    var count = 0
+    proc callback(blck: Block) {.async.} =
+      inc count
+    let subscription = await subscriptions.subscribeBlocks(callback)
+    discard await client.call("evm_mine", newJArray())
+    check eventually count > 0
+    await subscriptions.close()
+    count = 0
+    discard await client.call("evm_mine", newJArray())
+    await sleepAsync(100.millis)
+    check count == 0
 
 suite "Web socket subscriptions":
 
@@ -51,6 +64,10 @@ suite "Web socket subscriptions":
     client = newRpcWebSocketClient()
     await client.connect("ws://localhost:8545")
     subscriptions = JsonRpcSubscriptions.new(client)
+
+  teardown:
+    await subscriptions.close()
+    await client.close()
 
   subscriptionTests(subscriptions, client)
 
@@ -64,5 +81,9 @@ suite "HTTP polling subscriptions":
     await client.connect("http://localhost:8545")
     subscriptions = JsonRpcSubscriptions.new(client,
                                              pollingInterval = 100.millis)
+
+  teardown:
+    await subscriptions.close()
+    await client.close()
 
   subscriptionTests(subscriptions, client)

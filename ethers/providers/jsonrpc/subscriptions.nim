@@ -35,6 +35,11 @@ method unsubscribe(subscriptions: JsonRpcSubscriptions,
                   {.async, base.} =
   raiseAssert "not implemented"
 
+method close*(subscriptions: JsonRpcSubscriptions) {.async.} =
+  let ids = toSeq subscriptions.callbacks.keys
+  for id in ids:
+    await subscriptions.unsubscribe(id)
+
 method unsubscribe(subscription: JsonRpcSubscription) {.async.} =
   let subscriptions = subscription.subscriptions
   let id = subscription.id
