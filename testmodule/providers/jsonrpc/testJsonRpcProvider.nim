@@ -14,7 +14,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
     var provider: JsonRpcProvider
 
     setup:
-      provider = JsonRpcProvider.new(url)
+      provider = JsonRpcProvider.new(url, pollingInterval = 100.millis)
 
     test "can be instantiated with a default URL":
       discard JsonRpcProvider.new()

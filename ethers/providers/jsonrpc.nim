@@ -47,11 +47,14 @@ template convertError(body) =
 # Provider
 
 const defaultUrl = "http://localhost:8545"
+const defaultPollingInterval = 4.seconds
 
 proc jsonHeaders: seq[(string, string)] =
   @[("Content-Type", "application/json")]
 
-proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
+proc new*(_: type JsonRpcProvider,
+          url=defaultUrl,
+          pollingInterval=defaultPollingInterval): JsonRpcProvider =
   var initialized: Future[void]
   var client: RpcClient
   var subscriptions: JsonRpcSubscriptions
@@ -67,7 +70,8 @@ proc new*(_: type JsonRpcProvider, url=defaultUrl): JsonRpcProvider =
       let http = newRpcHttpClient(getHeaders = jsonHeaders)
       await http.connect(url)
       client = http
-      subscriptions = JsonRpcSubscriptions.new(http)
+      subscriptions = JsonRpcSubscriptions.new(http,
+                                               pollingInterval = pollingInterval)
 
   proc awaitClient: Future[RpcClient] {.async.} =
     await initialized
