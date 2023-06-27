@@ -34,7 +34,9 @@ method unsubscribe(subscriptions: JsonRpcSubscriptions,
   raiseAssert "not implemented"
 
 method unsubscribe(subscription: JsonRpcSubscription) {.async.} =
-  await subscription.subscriptions.unsubscribe(subscription.id)
+  let subscriptions = subscription.subscriptions
+  let id = subscription.id
+  await subscriptions.unsubscribe(id)
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback =
@@ -51,10 +53,20 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
 type
   WebSocketSubscriptions = ref object of JsonRpcSubscriptions
 
+proc new*(_: type JsonRpcSubscriptions,
+          client: RpcWebSocketClient): JsonRpcSubscriptions =
+  let subscriptions = WebSocketSubscriptions(client: client)
+  proc subscriptionHandler(arguments: JsonNode) {.upraises:[].} =
+    if id =? arguments["subscription"].catch and
+       callback =? subscriptions.getCallback(id):
+      callback(id, arguments)
+  client.setMethodHandler("eth_subscription", subscriptionHandler)
+  subscriptions
+
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
-                       Future[JsonRpcSubscription]
-                       {.async.} =
+                      Future[JsonRpcSubscription]
+                      {.async.} =
   proc callback(id, arguments: JsonNode) =
     if blck =? Block.fromJson(arguments["result"]).catch:
       asyncSpawn onBlock(blck)
@@ -79,16 +91,6 @@ method unsubscribe(subscriptions: WebSocketSubscriptions,
                   {.async.} =
   subscriptions.callbacks.del(id)
   discard await subscriptions.client.eth_unsubscribe(id)
-
-proc new*(_: type JsonRpcSubscriptions,
-          client: RpcWebSocketClient): JsonRpcSubscriptions =
-  let subscriptions = WebSocketSubscriptions(client: client)
-  proc subscriptionHandler(arguments: JsonNode) {.upraises:[].} =
-    if id =? arguments["subscription"].catch and
-       callback =? subscriptions.getCallback(id):
-      callback(id, arguments)
-  client.setMethodHandler("eth_subscription", subscriptionHandler)
-  subscriptions
 
 # Polling
 
