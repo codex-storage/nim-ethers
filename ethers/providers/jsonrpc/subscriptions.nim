@@ -35,7 +35,7 @@ method unsubscribe(subscriptions: JsonRpcSubscriptions,
                   {.async, base.} =
   raiseAssert "not implemented"
 
-method close*(subscriptions: JsonRpcSubscriptions) {.async.} =
+method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
     await subscriptions.unsubscribe(id)
@@ -103,6 +103,7 @@ method unsubscribe(subscriptions: WebSocketSubscriptions,
 
 type
   PollingSubscriptions = ref object of JsonRpcSubscriptions
+    polling: Future[void]
 
 proc new*(_: type JsonRpcSubscriptions,
           client: RpcHttpClient,
@@ -127,9 +128,12 @@ proc new*(_: type JsonRpcSubscriptions,
         await poll(id)
       await sleepAsync(pollingInterval)
 
-  asyncSpawn poll()
-
+  subscriptions.polling = poll()
   subscriptions
+
+method close*(subscriptions: PollingSubscriptions) {.async.} =
+  await subscriptions.polling.cancelAndWait()
+  await procCall JsonRpcSubscriptions(subscriptions).close()
 
 method subscribeBlocks(subscriptions: PollingSubscriptions,
                        onBlock: BlockHandler):
