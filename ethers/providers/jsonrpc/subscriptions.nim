@@ -132,8 +132,11 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
                       {.async.} =
 
   proc getBlock(hash: BlockHash) {.async.} =
-    if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
-      await onBlock(blck)
+    try:
+      if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
+        await onBlock(blck)
+    except CatchableError:
+      discard
 
   proc callback(id, change: JsonNode) =
     if hash =? BlockHash.fromJson(change).catch:
