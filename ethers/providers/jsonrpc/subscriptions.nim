@@ -1,4 +1,5 @@
 import std/tables
+import std/sequtils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
 import ../../basics
@@ -97,6 +98,48 @@ method unsubscribe(subscriptions: WebSocketSubscriptions,
 type
   PollingSubscriptions = ref object of JsonRpcSubscriptions
 
-func new*(_: type JsonRpcSubscriptions,
+proc new*(_: type JsonRpcSubscriptions,
           client: RpcHttpClient): JsonRpcSubscriptions =
-  PollingSubscriptions(client: client)
+
+  let subscriptions = PollingSubscriptions(client: client)
+
+  proc poll(id: JsonNode) {.async.} =
+    for change in await subscriptions.client.eth_getFilterChanges(id):
+      if callback =? subscriptions.getCallback(id):
+        callback(id, change)
+
+  proc poll {.async.} =
+    try:
+      while true:
+        for id in toSeq subscriptions.callbacks.keys:
+          await poll(id)
+        await sleepAsync(1.seconds)
+    except CancelledError:
+      raise
+
+  asyncSpawn poll()
+
+  subscriptions
+
+method subscribeBlocks(subscriptions: PollingSubscriptions,
+                       onBlock: BlockHandler):
+                      Future[JsonRpcSubscription]
+                      {.async.} =
+
+  proc getBlock(hash: BlockHash) {.async.} =
+    if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
+      await onBlock(blck)
+
+  proc callback(id, change: JsonNode) =
+    if hash =? BlockHash.fromJson(change).catch:
+      asyncSpawn getBlock(hash)
+
+  let id = await subscriptions.client.eth_newBlockFilter()
+  subscriptions.callbacks[id] = callback
+  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+
+method unsubscribe(subscriptions: PollingSubscriptions,
+                   id: JsonNode)
+                  {.async.} =
+  subscriptions.callbacks.del(id)
+  discard await subscriptions.client.eth_uninstallFilter(id)

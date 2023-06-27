@@ -36,3 +36,24 @@ suite "Web socket subscriptions":
     check latestBlock.hash.isSome
     check latestBlock.timestamp > 0.u256
     await subscription.unsubscribe()
+
+suite "HTTP polling subscriptions":
+
+  var subscriptions: JsonRpcSubscriptions
+  var client: RpcHttpClient
+
+  setup:
+    client = newRpcHttpClient()
+    await client.connect("http://localhost:8545")
+    subscriptions = JsonRpcSubscriptions.new(client)
+
+  test "subscribes to new blocks":
+    var latestBlock: Block
+    proc callback(blck: Block) {.async.} =
+      latestBlock = blck
+    let subscription = await subscriptions.subscribeBlocks(callback)
+    discard await client.call("evm_mine", newJArray())
+    check eventually(latestBlock.number.isSome)
+    check latestBlock.hash.isSome
+    check latestBlock.timestamp > 0.u256
+    await subscription.unsubscribe()
