@@ -105,8 +105,14 @@ proc new*(_: type JsonRpcSubscriptions,
 
   let subscriptions = PollingSubscriptions(client: client)
 
+  proc getChanges(id: JsonNode): Future[JsonNode] {.async.} =
+    try:
+      return await subscriptions.client.eth_getFilterChanges(id)
+    except CatchableError:
+      return newJArray()
+
   proc poll(id: JsonNode) {.async.} =
-    for change in await subscriptions.client.eth_getFilterChanges(id):
+    for change in await getChanges(id):
       if callback =? subscriptions.getCallback(id):
         callback(id, change)
 
