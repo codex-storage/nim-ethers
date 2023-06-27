@@ -16,15 +16,7 @@ suite "JsonRpcSubscriptions":
     let subscriptions = JsonRpcSubscriptions.new(client)
     check not isNil subscriptions
 
-suite "Web socket subscriptions":
-
-  var subscriptions: JsonRpcSubscriptions
-  var client: RpcWebSocketClient
-
-  setup:
-    client = newRpcWebSocketClient()
-    await client.connect("ws://localhost:8545")
-    subscriptions = JsonRpcSubscriptions.new(client)
+template subscriptionTests(subscriptions, client) =
 
   test "subscribes to new blocks":
     var latestBlock: Block
@@ -36,6 +28,18 @@ suite "Web socket subscriptions":
     check latestBlock.hash.isSome
     check latestBlock.timestamp > 0.u256
     await subscription.unsubscribe()
+
+suite "Web socket subscriptions":
+
+  var subscriptions: JsonRpcSubscriptions
+  var client: RpcWebSocketClient
+
+  setup:
+    client = newRpcWebSocketClient()
+    await client.connect("ws://localhost:8545")
+    subscriptions = JsonRpcSubscriptions.new(client)
+
+  subscriptionTests(subscriptions, client)
 
 suite "HTTP polling subscriptions":
 
@@ -47,13 +51,4 @@ suite "HTTP polling subscriptions":
     await client.connect("http://localhost:8545")
     subscriptions = JsonRpcSubscriptions.new(client)
 
-  test "subscribes to new blocks":
-    var latestBlock: Block
-    proc callback(blck: Block) {.async.} =
-      latestBlock = blck
-    let subscription = await subscriptions.subscribeBlocks(callback)
-    discard await client.call("evm_mine", newJArray())
-    check eventually(latestBlock.number.isSome)
-    check latestBlock.hash.isSome
-    check latestBlock.timestamp > 0.u256
-    await subscription.unsubscribe()
+  subscriptionTests(subscriptions, client)
