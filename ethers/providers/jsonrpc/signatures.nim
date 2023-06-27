@@ -16,5 +16,6 @@ proc eth_subscribe(name: string, filter: Filter): JsonNode
 proc eth_subscribe(name: string): JsonNode
 proc eth_unsubscribe(id: JsonNode): bool
 proc eth_newBlockFilter(): JsonNode
+proc eth_newFilter(filter: Filter): JsonNode
 proc eth_getFilterChanges(id: JsonNode): JsonNode
 proc eth_uninstallFilter(id: JsonNode): bool

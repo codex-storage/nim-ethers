@@ -146,6 +146,20 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
   subscriptions.callbacks[id] = callback
   return JsonRpcSubscription(subscriptions: subscriptions, id: id)
 
+method subscribeLogs(subscriptions: PollingSubscriptions,
+                     filter: Filter,
+                     onLog: LogHandler):
+                    Future[JsonRpcSubscription]
+                    {.async.} =
+
+  proc callback(id, change: JsonNode) =
+    if log =? Log.fromJson(change).catch:
+      onLog(log)
+
+  let id = await subscriptions.client.eth_newFilter(filter)
+  subscriptions.callbacks[id] = callback
+  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+
 method unsubscribe(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
