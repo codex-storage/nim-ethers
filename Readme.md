@@ -140,9 +140,6 @@ When you're no longer interested in these events, you can unsubscribe:
 await subscription.unsubscribe()
 ```
 
-Subscriptions are currently only supported when using a JSON RPC provider that
-is created with a websockets URL such as `ws://localhost:8545`.
-
 Utilities
 ---------
 
