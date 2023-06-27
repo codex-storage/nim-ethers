@@ -6,6 +6,7 @@ import ../../basics
 import ../../provider
 import ./rpccalls
 import ./conversions
+import ./looping
 
 type
   JsonRpcSubscriptions* = ref object of RootObj
@@ -110,13 +111,10 @@ proc new*(_: type JsonRpcSubscriptions,
         callback(id, change)
 
   proc poll {.async.} =
-    try:
-      while true:
-        for id in toSeq subscriptions.callbacks.keys:
-          await poll(id)
-        await sleepAsync(pollingInterval)
-    except CancelledError:
-      raise
+    untilCancelled:
+      for id in toSeq subscriptions.callbacks.keys:
+        await poll(id)
+      await sleepAsync(pollingInterval)
 
   asyncSpawn poll()
 
