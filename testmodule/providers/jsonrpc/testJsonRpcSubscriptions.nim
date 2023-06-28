@@ -27,7 +27,7 @@ template subscriptionTests(subscriptions, client) =
     check eventually latestBlock.number.isSome
     check latestBlock.hash.isSome
     check latestBlock.timestamp > 0.u256
-    await subscription.unsubscribe()
+    await subscriptions.unsubscribe(subscription)
 
   test "stops listening to new blocks when unsubscribed":
     var count = 0
@@ -36,7 +36,7 @@ template subscriptionTests(subscriptions, client) =
     let subscription = await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())
     check eventually count > 0
-    await subscription.unsubscribe()
+    await subscriptions.unsubscribe(subscription)
     count = 0
     discard await client.call("evm_mine", newJArray())
     await sleepAsync(100.millis)
