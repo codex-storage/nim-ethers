@@ -24,7 +24,9 @@ type
     provider: JsonRpcProvider
     address: ?Address
   JsonRpcProviderError* = object of ProviderError
-  SubscriptionHandler = proc(id, arguments: JsonNode): Future[void] {.gcsafe, upraises:[].}
+  JsonRpcSubscription* = ref object of Subscription
+    subscriptions: JsonRpcSubscriptions
+    id: JsonNode
 
 proc raiseProviderError(message: string) {.upraises: [JsonRpcProviderError].} =
   var message = message
@@ -74,12 +76,14 @@ proc new*(_: type JsonRpcProvider,
                                                pollingInterval = pollingInterval)
 
   proc awaitClient: Future[RpcClient] {.async.} =
-    await initialized
-    return client
+    convertError:
+      await initialized
+      return client
 
   proc awaitSubscriptions: Future[JsonRpcSubscriptions] {.async.} =
-    await initialized
-    return subscriptions
+    convertError:
+      await initialized
+      return subscriptions
 
   initialized = initialize()
   JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
@@ -168,14 +172,22 @@ method subscribe*(provider: JsonRpcProvider,
                  Future[Subscription] {.async.} =
   convertError:
     let subscriptions = await provider.subscriptions
-    return await subscriptions.subscribeLogs(filter, onLog)
+    let id = await subscriptions.subscribeLogs(filter, onLog)
+    return JsonRpcSubscription(subscriptions: subscriptions, id: id)
 
 method subscribe*(provider: JsonRpcProvider,
                   onBlock: BlockHandler):
                  Future[Subscription] {.async.} =
   convertError:
     let subscriptions = await provider.subscriptions
-    return await subscriptions.subscribeBlocks(onBlock)
+    let id = await subscriptions.subscribeBlocks(onBlock)
+    return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+
+method unsubscribe(subscription: JsonRpcSubscription) {.async.} =
+  convertError:
+    let subscriptions = subscription.subscriptions
+    let id = subscription.id
+    await subscriptions.unsubscribe(id)
 
 method close*(provider: JsonRpcProvider) {.async.} =
   convertError:

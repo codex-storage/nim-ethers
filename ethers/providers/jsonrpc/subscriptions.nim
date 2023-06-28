@@ -12,38 +12,30 @@ type
   JsonRpcSubscriptions* = ref object of RootObj
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
-  JsonRpcSubscription = ref object of Subscription
-    subscriptions: JsonRpcSubscriptions
-    id: JsonNode
   SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, upraises:[].}
 
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
-                       Future[JsonRpcSubscription]
+                       Future[JsonNode]
                        {.async, base.} =
   raiseAssert "not implemented"
 
 method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
                       filter: Filter,
                       onLog: LogHandler):
-                     Future[JsonRpcSubscription]
+                     Future[JsonNode]
                      {.async, base.} =
   raiseAssert "not implemented"
 
-method unsubscribe(subscriptions: JsonRpcSubscriptions,
-                   id: JsonNode)
-                  {.async, base.} =
+method unsubscribe*(subscriptions: JsonRpcSubscriptions,
+                    id: JsonNode)
+                   {.async, base.} =
   raiseAssert "not implemented"
 
 method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
     await subscriptions.unsubscribe(id)
-
-method unsubscribe(subscription: JsonRpcSubscription) {.async.} =
-  let subscriptions = subscription.subscriptions
-  let id = subscription.id
-  await subscriptions.unsubscribe(id)
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback =
@@ -72,26 +64,26 @@ proc new*(_: type JsonRpcSubscriptions,
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
-                      Future[JsonRpcSubscription]
+                      Future[JsonNode]
                       {.async.} =
   proc callback(id, arguments: JsonNode) =
     if blck =? Block.fromJson(arguments["result"]).catch:
       asyncSpawn onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
-  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+  return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      filter: Filter,
                      onLog: LogHandler):
-                    Future[JsonRpcSubscription]
+                    Future[JsonNode]
                     {.async.} =
   proc callback(id, arguments: JsonNode) =
     if log =? Log.fromJson(arguments["result"]).catch:
       onLog(log)
   let id = await subscriptions.client.eth_subscribe("logs", filter)
   subscriptions.callbacks[id] = callback
-  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+  return id
 
 method unsubscribe(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
@@ -137,7 +129,7 @@ method close*(subscriptions: PollingSubscriptions) {.async.} =
 
 method subscribeBlocks(subscriptions: PollingSubscriptions,
                        onBlock: BlockHandler):
-                      Future[JsonRpcSubscription]
+                      Future[JsonNode]
                       {.async.} =
 
   proc getBlock(hash: BlockHash) {.async.} =
@@ -153,12 +145,12 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
 
   let id = await subscriptions.client.eth_newBlockFilter()
   subscriptions.callbacks[id] = callback
-  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+  return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
                      filter: Filter,
                      onLog: LogHandler):
-                    Future[JsonRpcSubscription]
+                    Future[JsonNode]
                     {.async.} =
 
   proc callback(id, change: JsonNode) =
@@ -167,7 +159,7 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback
-  return JsonRpcSubscription(subscriptions: subscriptions, id: id)
+  return id
 
 method unsubscribe(subscriptions: PollingSubscriptions,
                    id: JsonNode)
