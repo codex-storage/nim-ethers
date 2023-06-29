@@ -48,7 +48,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let oldBlock = !await provider.getBlock(BlockTag.latest)
       discard await provider.send("evm_mine")
       var newBlock: Block
-      let blockHandler = proc(blck: Block) {.async.} = newBlock = blck
+      let blockHandler = proc(blck: Block) = newBlock = blck
       let subscription = await provider.subscribe(blockHandler)
       discard await provider.send("evm_mine")
       check eventually newBlock.number.isSome
@@ -67,48 +67,23 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check UInt256.fromHex("0x" & txResp.hash.toHex) > 0
 
     test "can wait for a transaction to be confirmed":
-      let signer = provider.getSigner()
-      let transaction = Transaction.example
-      let populated = await signer.populateTransaction(transaction)
+      for confirmations in 0..3:
+        let signer = provider.getSigner()
+        let transaction = Transaction.example
+        let populated = await signer.populateTransaction(transaction)
+        let confirming = signer.sendTransaction(populated).confirm(confirmations)
+        await sleepAsync(100.millis) # wait for tx to be mined
+        await provider.mineBlocks(confirmations - 1)
+        let receipt = await confirming
+        check receipt.blockNumber.isSome
 
-      # must not be awaited so we can get newHeads inside of .wait
-      let futMined = provider.mineBlocks(5)
-
-      let receipt = await signer.sendTransaction(populated).confirm(3)
-      let endBlock = await provider.getBlockNumber()
-
-      check receipt.blockNumber.isSome # was eventually mined
-
-      # >= 3 because more blocks may have been mined by the time the
-      # check in `.wait` was done.
-      # +1 for the block the tx was mined in
-      check (endBlock - !receipt.blockNumber) + 1 >= 3
-
-      await futMined
-
-    test "waiting for block to be mined times out":
-
-      # must not be awaited so we can get newHeads inside of .wait
-      let futMined = provider.mineBlocks(7)
-
-      let startBlock = await provider.getBlockNumber()
-      let response = TransactionResponse(hash: TransactionHash.example,
-                                        provider: provider)
-      try:
-        discard await response.confirm(wantedConfirms = 2,
-                                      timeoutInBlocks = 5)
-
-        await futMined
-      except EthersError as e:
-        check e.msg == "Transaction was not mined in 5 blocks"
-
-        let endBlock = await provider.getBlockNumber()
-
-        # >= 5 because more blocks may have been mined by the time the
-        # check in `.wait` was done.
-        # +1 for including the start block
-        check (endBlock - startBlock) + 1 >= 5 # +1 including start block
-        if not futMined.completed and not futMined.finished: await futMined
+    test "confirmation times out":
+      let hash = TransactionHash.example
+      let tx = TransactionResponse(provider: provider, hash: hash)
+      let confirming = tx.confirm(confirmations = 2, timeout = 5)
+      await provider.mineBlocks(5)
+      expect EthersError:
+        discard await confirming
 
     test "Conversion: missing block number in Block isNone":
 
@@ -207,58 +182,6 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       var txReceipt = TransactionReceipt.fromJson(txReceiptJson)
       check txReceipt.blockHash.isNone
 
-    test "confirmations calculated correctly":
-      # when receipt block number is higher than current block number,
-      # should return 0
-      check confirmations(2.u256, 1.u256) == 0.u256
-
-      # Same receipt and current block counts as one confirmation
-      check confirmations(1.u256, 1.u256) == 1.u256
-
-      check confirmations(1.u256, 2.u256) == 2.u256
-
-    test "checks if transation has been mined correctly":
-
-      var receipt: TransactionReceipt
-      var currentBlock = 1.u256
-      var wantedConfirms = 1
-      let blockHash = hexToByteArray[32](
-        "0x7b00154e06fe4f27a87208eba220efb4dbc52f7429549a39a17bba2e0d98b960"
-      ).some
-
-      # missing blockHash
-      receipt = TransactionReceipt(
-        blockNumber: 1.u256.some
-      )
-      check not receipt.hasBeenMined(currentBlock, wantedConfirms)
-
-      # missing block number
-      receipt = TransactionReceipt(
-        blockHash: blockHash
-      )
-      check not receipt.hasBeenMined(currentBlock, wantedConfirms)
-
-      # block number is 0
-      receipt = TransactionReceipt(
-        blockNumber: 0.u256.some
-      )
-      check not receipt.hasBeenMined(currentBlock, wantedConfirms)
-
-      # not enough confirms
-      receipt = TransactionReceipt(
-        blockNumber: 1.u256.some
-      )
-      check not receipt.hasBeenMined(currentBlock, wantedConfirms)
-
-      # success
-      receipt = TransactionReceipt(
-        blockNumber: 1.u256.some,
-        blockHash: blockHash
-      )
-      currentBlock = int.high.u256
-      wantedConfirms = int.high
-      check receipt.hasBeenMined(currentBlock, wantedConfirms)
-
     test "raises JsonRpcProviderError when something goes wrong":
       let provider = JsonRpcProvider.new("http://invalid.")
       expect JsonRpcProviderError:
@@ -270,6 +193,6 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       expect JsonRpcProviderError:
         discard await provider.getBlock(BlockTag.latest)
       expect JsonRpcProviderError:
-        discard await provider.subscribe(proc(_: Block) {.async.} = discard)
+        discard await provider.subscribe(proc(_: Block) = discard)
       expect JsonRpcProviderError:
         discard await provider.getSigner().sendTransaction(Transaction.example)

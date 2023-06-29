@@ -20,7 +20,7 @@ template subscriptionTests(subscriptions, client) =
 
   test "subscribes to new blocks":
     var latestBlock: Block
-    proc callback(blck: Block) {.async.} =
+    proc callback(blck: Block) =
       latestBlock = blck
     let subscription = await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())
@@ -31,7 +31,7 @@ template subscriptionTests(subscriptions, client) =
 
   test "stops listening to new blocks when unsubscribed":
     var count = 0
-    proc callback(blck: Block) {.async.} =
+    proc callback(blck: Block) =
       inc count
     let subscription = await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())
@@ -44,7 +44,7 @@ template subscriptionTests(subscriptions, client) =
 
   test "stops listening to new blocks when provider is closed":
     var count = 0
-    proc callback(blck: Block) {.async.} =
+    proc callback(blck: Block) =
       inc count
     let subscription = await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())

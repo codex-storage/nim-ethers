@@ -41,7 +41,7 @@ type
     cumulativeGasUsed*: UInt256
     status*: TransactionStatus
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
-  BlockHandler* = proc(blck: Block): Future[void] {.gcsafe, upraises:[].}
+  BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
   Block* = object
     number*: ?UInt256
@@ -102,98 +102,65 @@ method subscribe*(provider: Provider,
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
 
-# Removed from `confirm` closure and exported so it can be tested.
-# Likely there is a better way
-func confirmations*(receiptBlk, atBlk: UInt256): UInt256 =
-  ## Calculates the number of confirmations between two blocks
-  if atBlk < receiptBlk:
-    return 0.u256
-  else:
-    return (atBlk - receiptBlk) + 1 # add 1 for current block
-
-# Removed from `confirm` closure and exported so it can be tested.
-# Likely there is a better way
-func hasBeenMined*(receipt: TransactionReceipt,
-                  atBlock: UInt256,
-                  wantedConfirms: int): bool =
-  ## Returns true if the transaction receipt has been returned from the node
-  ## with a valid block number and block hash and the specified number of
-  ## blocks have passed since the tx was mined (confirmations)
-
-  if number =? receipt.blockNumber and
-     number > 0 and
-    # from ethers.js: "geth-etc" returns receipts before they are ready
-    receipt.blockHash.isSome:
-
-    return number.confirmations(atBlock) >= wantedConfirms.u256
-
-  return false
-
 proc confirm*(tx: TransactionResponse,
-             wantedConfirms: Positive = EthersDefaultConfirmations,
-             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
-            Future[TransactionReceipt]
-            {.async, upraises: [EthersError].} = # raises for clarity
+              confirmations = EthersDefaultConfirmations,
+              timeout = EthersReceiptTimeoutBlks):
+             Future[TransactionReceipt]
+             {.async, upraises: [EthersError].} =
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise an error if too many
   ## blocks have passed without the tx having been mined.
 
-  var subscription: Subscription
-  let
-    provider = tx.provider
-    retFut = newFuture[TransactionReceipt]("wait")
+  var blockNumber: UInt256
+  let blockEvent = newAsyncEvent()
 
-  # used to check for block timeouts
-  let startBlock = await provider.getBlockNumber()
+  proc onBlockNumber(number: UInt256) =
+    blockNumber = number
+    blockEvent.fire()
 
-  proc newBlock(blk: Block) {.async.} =
-    ## subscription callback, called every time a new block event is sent from
-    ## the node
+  proc onBlock(blck: Block) =
+    if number =? blck.number:
+      onBlockNumber(number)
 
-    # if ethereum node doesn't include blockNumber in the event
-    without blkNum =? blk.number:
-      return
+  onBlockNumber(await tx.provider.getBlockNumber())
+  let subscription = await tx.provider.subscribe(onBlock)
 
-    if receipt =? (await provider.getTransactionReceipt(tx.hash)) and
-       receipt.hasBeenMined(blkNum, wantedConfirms):
-      # fire and forget
-      discard subscription.unsubscribe()
-      if not retFut.finished:
-        retFut.complete(receipt)
+  let finish = blockNumber + timeout.u256
+  var receipt: ?TransactionReceipt
 
-    elif timeoutInBlocks > 0:
-      let blocksPassed = (blkNum - startBlock) + 1
-      if blocksPassed >= timeoutInBlocks.u256:
-        discard subscription.unsubscribe()
-        if not retFut.finished:
-          let message =
-            "Transaction was not mined in " & $timeoutInBlocks & " blocks"
-          retFut.fail(newException(EthersError, message))
+  while true:
+    await blockEvent.wait()
+    blockEvent.clear()
 
-  # If our tx is already mined, return the receipt. Otherwise, check each
-  # new block to see if the tx has been mined
-  if receipt =? (await provider.getTransactionReceipt(tx.hash)) and
-     receipt.hasBeenMined(startBlock, wantedConfirms):
-    return receipt
-  else:
-    subscription = await provider.subscribe(newBlock)
-    return (await retFut)
+    if blockNumber >= finish:
+      await subscription.unsubscribe()
+      raise newException(EthersError, "tx not mined before timeout")
+
+    if receipt.?blockNumber.isNone:
+      receipt = await tx.provider.getTransactionReceipt(tx.hash)
+
+    without receipt =? receipt and txBlockNumber =? receipt.blockNumber:
+      continue
+
+    if txBlockNumber + confirmations.u256 <= blockNumber + 1:
+      await subscription.unsubscribe()
+      return receipt
 
 proc confirm*(tx: Future[TransactionResponse],
-             wantedConfirms: Positive = EthersDefaultConfirmations,
-             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
+             confirmations: int = EthersDefaultConfirmations,
+             timeout: int = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a sendTransaction
   ## call, eg:
   ## `await signer.sendTransaction(populated).confirm(3)`
 
   let txResp = await tx
-  return await txResp.confirm(wantedConfirms, timeoutInBlocks)
+  return await txResp.confirm(confirmations, timeout)
 
 proc confirm*(tx: Future[?TransactionResponse],
-             wantedConfirms: Positive = EthersDefaultConfirmations,
-             timeoutInBlocks: Natural = EthersReceiptTimeoutBlks):
+             confirmations: int = EthersDefaultConfirmations,
+             timeout: int = EthersReceiptTimeoutBlks):
             Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a contract
   ## transaction, eg:
@@ -207,7 +174,7 @@ proc confirm*(tx: Future[?TransactionResponse],
       "Transaction hash required. Possibly was a call instead of a send?"
     )
 
-  return await txResp.confirm(wantedConfirms, timeoutInBlocks)
+  return await txResp.confirm(confirmations, timeout)
 
 method close*(provider: Provider) {.async, base.} =
   discard
