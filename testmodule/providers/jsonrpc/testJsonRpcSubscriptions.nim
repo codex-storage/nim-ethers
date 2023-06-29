@@ -46,7 +46,7 @@ template subscriptionTests(subscriptions, client) =
     var count = 0
     proc callback(blck: Block) =
       inc count
-    let subscription = await subscriptions.subscribeBlocks(callback)
+    discard await subscriptions.subscribeBlocks(callback)
     discard await client.call("evm_mine", newJArray())
     check eventually count > 0
     await subscriptions.close()
