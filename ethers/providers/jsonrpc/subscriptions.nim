@@ -68,7 +68,7 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                       {.async.} =
   proc callback(id, arguments: JsonNode) =
     if blck =? Block.fromJson(arguments["result"]).catch:
-      asyncSpawn onBlock(blck)
+      onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
   return id
@@ -135,7 +135,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
   proc getBlock(hash: BlockHash) {.async.} =
     try:
       if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
-        await onBlock(blck)
+        onBlock(blck)
     except CatchableError:
       discard
 
