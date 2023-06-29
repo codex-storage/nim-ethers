@@ -13,7 +13,7 @@ type
   TestToken = ref object of Erc20Token
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
-method myBalance(token: TestToken): UInt256 {.contract, view.}
+method myBalance(token: TestToken): UInt256 {.base, contract, view.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
 

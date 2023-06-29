@@ -5,8 +5,6 @@ import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20
 import ./hardhat
-import ./miner
-import ./mocks
 
 type
   TestToken = ref object of Erc20Token
@@ -17,7 +15,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
   suite "ERC20 (" & url & ")":
 
-    var token, token1: Erc20Token
+    var token: Erc20Token
     var testToken: TestToken
     var provider: JsonRpcProvider
     var snapshot: JsonNode
