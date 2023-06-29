@@ -234,3 +234,21 @@ proc subscribe*[E: Event](contract: Contract,
       handler(event)
 
   contract.provider.subscribe(filter, logHandler)
+
+proc confirm*(tx: Future[?TransactionResponse],
+              confirmations: int = EthersDefaultConfirmations,
+              timeout: int = EthersReceiptTimeoutBlks):
+             Future[TransactionReceipt] {.async.} =
+  ## Convenience method that allows confirm to be chained to a contract
+  ## transaction, eg:
+  ## `await token.connect(signer0)
+  ##          .mint(accounts[1], 100.u256)
+  ##          .confirm(3)`
+
+  without response =? (await tx):
+    raise newException(
+      EthersError,
+      "Transaction hash required. Possibly was a call instead of a send?"
+    )
+
+  return await response.confirm(confirmations, timeout)

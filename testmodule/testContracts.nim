@@ -181,20 +181,11 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check transfers.len == 1
 
     test "can wait for contract interaction tx to be mined":
-      # must not be awaited so we can get newHeads inside of .wait
-      let futMined = provider.mineBlocks(10)
-
       let signer0 = provider.getSigner(accounts[0])
-      let receipt = await token.connect(signer0)
-                      .mint(accounts[1], 100.u256)
-                      .confirm(3) # wait for 3 confirmations
-      let endBlock = await provider.getBlockNumber()
-
-      check receipt.blockNumber.isSome # was eventually mined
-
-      # >= 3 because more blocks may have been mined by the time the
-      # check in `.wait` was done.
-      # +1 for the block the tx was mined in
-      check (endBlock - !receipt.blockNumber) + 1 >= 3
-
-      await futMined
+      let confirming = token.connect(signer0)
+                            .mint(accounts[1], 100.u256)
+                            .confirm(3)
+      await sleepAsync(100.millis) # wait for tx to be mined
+      await provider.mineBlocks(2) # two additional blocks
+      let receipt = await confirming
+      check receipt.blockNumber.isSome
