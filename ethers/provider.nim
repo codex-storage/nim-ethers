@@ -158,23 +158,5 @@ proc confirm*(tx: Future[TransactionResponse],
   let txResp = await tx
   return await txResp.confirm(confirmations, timeout)
 
-proc confirm*(tx: Future[?TransactionResponse],
-             confirmations: int = EthersDefaultConfirmations,
-             timeout: int = EthersReceiptTimeoutBlks):
-            Future[TransactionReceipt] {.async.} =
-  ## Convenience method that allows wait to be chained to a contract
-  ## transaction, eg:
-  ## `await token.connect(signer0)
-  ##          .mint(accounts[1], 100.u256)
-  ##          .confirm(3)`
-
-  without txResp =? (await tx):
-    raise newException(
-      EthersError,
-      "Transaction hash required. Possibly was a call instead of a send?"
-    )
-
-  return await txResp.confirm(confirmations, timeout)
-
 method close*(provider: Provider) {.async, base.} =
   discard
