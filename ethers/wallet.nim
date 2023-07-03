@@ -97,6 +97,7 @@ proc signTransaction*(wallet: Wallet, tx: tx.Transaction): Future[seq[byte]] {.a
 
   s.chainId = ChainId(chainId.truncate(uint64))
   s.gasLimit = GasInt(gasLimit.truncate(uint64))
+  s.value = tx.value
   s.nonce = nonce.truncate(uint64)
   s.to = some EthAddress(tx.to)
   s.payload = tx.data
