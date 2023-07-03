@@ -58,6 +58,10 @@ method getAddress(wallet: Wallet): Future[Address] {.async.} =
   return wallet.address
 
 proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
+  # Temporary V value, used to signal to the hashing function the
+  # chain id that we'd like to use for an EIP-155 signature
+  tr.V = int64(uint64(tr.chainId)) * 2 + 35
+
   let h = tr.txHashNoSignature
   let s = sign(pk, SkMessage(h.data))
 
@@ -69,8 +73,7 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
 
   case tr.txType:
   of TxLegacy:
-    #tr.V = int64(v) + int64(tr.chainId)*2 + 35  #TODO does not work, not sure why. Sending the tx results in error of too little funds. Maybe something wrong with signature and a wrong sender gets encoded?
-    tr.V = int64(v) + 27
+    tr.V = int64(v) + int64(uint64(tr.chainId))*2 + 35
   of TxEip1559:
     tr.V = int64(v)
   else:

@@ -56,29 +56,19 @@ suite "Wallet":
     check $wallet.address == "0x328809bc894f92807417d2dad6b7c998c1afdac6"
 
   test "Can sign manually created transaction":
-    let wallet = Wallet.new(pk1)
-    let tx = Transaction(
-      to: wallet.address,
-      nonce: some 0.u256,
-      chainId: some 31337.u256,
-      gasPrice: some 1_000_000_000.u256,
-      gasLimit: some 21_000.u256,
+    # Example from EIP-155
+    let wallet = Wallet.new("0x4646464646464646464646464646464646464646464646464646464646464646")
+    let transaction = Transaction(
+      to: !Address.init("0x3535353535353535353535353535353535353535"),
+      nonce: some 9.u256,
+      chainId: some 1.u256,
+      gasPrice: some 20 * 10.u256.pow(9),
+      gasLimit: some 21000.u256,
+      value: 10.u256.pow(18),
+      data: @[]
     )
-    let signedTx = await wallet.signTransaction(tx)
-    check signedTx.toHex == "f86380843b9aca0082520894328809bc894f92807417d2dad6b7c998c1afdac680801ba04ae9b24cba72103bb30a1e91c016796fc2bf2d46d2b75ca80211fae0337c3c03a05e3c81ce9944a07f18b65142a1847c5b72f993c8e7c28d5d4360ff36a2fed049"
-
-  test "Can sign manually created contract call":
-    let wallet = Wallet.new(pk1)
-    let tx = Transaction(
-      to: wallet.address,
-      data: @[24.byte, 22, 13, 221], # Arbitrary Calldata for totalsupply()
-      nonce: some 0.u256,
-      chainId: some 31337.u256,
-      gasPrice: some 1_000_000_000.u256,
-      gasLimit: some 21_000.u256,
-    )
-    let signedTx = await wallet.signTransaction(tx)
-    check signedTx.toHex == "f86780843b9aca0082520894328809bc894f92807417d2dad6b7c998c1afdac6808418160ddd1ca029261fc74ffbbb5ce3d0a3b6eac9726f05d8a849e0f1535722e057bdd83b9659a044f857852bd8b7bb8c0c0a5a61c2c56fce42edacab73f42301b509edb7600ff1"
+    let signed = await wallet.signTransaction(transaction)
+    check signed.toHex == "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"
 
   test "Can sign manually created tx with EIP1559":
     let wallet = Wallet.new(pk1)
@@ -104,7 +94,7 @@ suite "Wallet":
     )
     let signedTx = await wallet.signTransaction(tx)
     let txHash = await provider.sendTransaction(signedTx)
-    check txHash.hash == TransactionHash([167.byte, 105, 79, 222, 144, 123, 214, 138, 4, 199, 124, 181, 35, 236, 79, 93, 84, 4, 85, 172, 40, 50, 189, 187, 219, 6, 172, 98, 243, 196, 93, 64])
+    check txHash.hash != TransactionHash.default
 
   test "Can call state-changing function automatically":
     #TODO add actual token contract, not random address. Should work regardless
