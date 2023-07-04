@@ -46,17 +46,17 @@ method allowance*(token: Erc20Token,
 
 method transfer*(token: Erc20Token,
                  recipient: Address,
-                 amount: UInt256) {.base, contract.}
+                 amount: UInt256): ?TransactionResponse {.base, contract.}
   ## Moves `amount` tokens from the caller's account to `recipient`.
 
 method approve*(token: Erc20Token,
                 spender: Address,
-                amount: UInt256) {.base, contract.}
+                amount: UInt256): ?TransactionResponse {.base, contract.}
   ## Sets `amount` as the allowance of `spender` over the caller's tokens.
 
 method transferFrom*(token: Erc20Token,
                      spender: Address,
                      recipient: Address,
-                     amount: UInt256) {.base, contract.}
+                     amount: UInt256): ?TransactionResponse {.base, contract.}
   ## Moves `amount` tokens from `from` to `to` using the allowance
   ## mechanism. `amount` is then deducted from the caller's allowance.
