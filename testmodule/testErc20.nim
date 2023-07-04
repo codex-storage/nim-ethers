@@ -51,7 +51,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check (await token.balanceOf(accounts[0])) == 100.u256
       check (await token.balanceOf(accounts[1])) == 0.u256
 
-      await token.transfer(accounts[1], 50.u256)
+      discard await token.transfer(accounts[1], 50.u256)
 
       check (await token.balanceOf(accounts[0])) == 50.u256
       check (await token.balanceOf(accounts[1])) == 50.u256
@@ -63,7 +63,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check (await token.balanceOf(accounts[0])) == 100.u256
       check (await token.balanceOf(accounts[1])) == 0.u256
 
-      await token.approve(accounts[1], 50.u256)
+      discard await token.approve(accounts[1], 50.u256)
 
       check (await token.allowance(accounts[0], accounts[1])) == 50.u256
       check (await token.balanceOf(accounts[0])) == 100.u256
@@ -83,13 +83,13 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check (await token.balanceOf(senderAccount)) == 100.u256
       check (await token.balanceOf(receiverAccount)) == 0.u256
 
-      await token.approve(receiverAccount, 50.u256)
+      discard await token.approve(receiverAccount, 50.u256)
 
       check (await token.allowance(senderAccount, receiverAccount)) == 50.u256
       check (await token.balanceOf(senderAccount)) == 100.u256
       check (await token.balanceOf(receiverAccount)) == 0.u256
 
-      await token.connect(receiverAccountSigner).transferFrom(senderAccount, receiverAccount, 50.u256)
+      discard await token.connect(receiverAccountSigner).transferFrom(senderAccount, receiverAccount, 50.u256)
 
       check (await token.balanceOf(senderAccount)) == 50.u256
       check (await token.balanceOf(receiverAccount)) == 50.u256

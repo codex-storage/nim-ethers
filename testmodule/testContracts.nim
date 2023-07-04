@@ -9,7 +9,6 @@ import ./miner
 import ./mocks
 
 type
-
   TestToken = ref object of Erc20Token
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
@@ -108,8 +107,8 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])
       discard await token.connect(signer0).mint(accounts[0], 100.u256)
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
-      await token.connect(signer1).transfer(accounts[2], 25.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
+      discard await token.connect(signer1).transfer(accounts[2], 25.u256)
       check (await token.connect(provider).balanceOf(accounts[0])) == 50.u256
       check (await token.connect(provider).balanceOf(accounts[1])) == 25.u256
       check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256
@@ -150,8 +149,8 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
       let subscription = await token.subscribe(Transfer, handleTransfer)
       discard await token.connect(signer0).mint(accounts[0], 100.u256)
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
-      await token.connect(signer1).transfer(accounts[2], 25.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
+      discard await token.connect(signer1).transfer(accounts[2], 25.u256)
 
       check eventually transfers == @[
         Transfer(receiver: accounts[0], value: 100.u256),
@@ -175,7 +174,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check eventually transfers.len == 1
       await subscription.unsubscribe()
 
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
       await sleepAsync(100.millis)
 
       check transfers.len == 1
