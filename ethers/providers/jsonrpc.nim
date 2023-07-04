@@ -138,11 +138,18 @@ method getTransactionCount*(provider: JsonRpcProvider,
     return await client.eth_getTransactionCount(address, blockTag)
 
 method getTransactionReceipt*(provider: JsonRpcProvider,
-                            txHash: TransactionHash):
-                           Future[?TransactionReceipt] {.async.} =
+                              txHash: TransactionHash):
+                             Future[?TransactionReceipt] {.async.} =
   convertError:
     let client = await provider.client
     return await client.eth_getTransactionReceipt(txHash)
+
+method getLogs*(provider: JsonRpcProvider,
+                filter: Filter):
+               Future[?seq[Log]] {.async.} =
+  convertError:
+    let client = await provider.client
+    return await client.eth_getLogs(filter)
 
 method estimateGas*(provider: JsonRpcProvider,
                     transaction: Transaction): Future[UInt256] {.async.} =

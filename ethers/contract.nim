@@ -227,7 +227,7 @@ proc subscribe*[E: Event](contract: Contract,
                          Future[Subscription] =
 
   let topic = topic($E, E.fieldTypes).toArray
-  let filter = Filter(address: contract.address, topics: @[topic])
+  let filter = EventFilter(address: contract.address, topics: @[topic])
 
   proc logHandler(log: Log) {.upraises: [].} =
     if event =? E.decode(log.data, log.topics):
@@ -252,3 +252,26 @@ proc confirm*(tx: Future[?TransactionResponse],
     )
 
   return await response.confirm(confirmations, timeout)
+
+proc queryFilter*[E: Event](contract: Contract,
+                            _: type E,
+                            fromBlock: BlockTag | UInt256,
+                            toBlock: BlockTag,
+                            handler: EventHandler[E]):
+                            Future[seq[E]] =
+
+  let topic = topic($E, E.fieldTypes).toArray
+  let filter = Filter(address: contract.address,
+                      topics: @[topic],
+                      fromBlock: fromBlock,
+                      toBlock: toBlock)
+
+  var events: seq[E] = @[]
+  proc logHandler(log: Log) {.upraises: [].} =
+    if event =? E.decode(log.data, log.topics):
+      events.add event
+      # handler(event)
+
+  let logs = contract.provider.getLogs(filter)
+  echo ">>> [contract.queryFilter] returned logs: ", logs
+  return logs
