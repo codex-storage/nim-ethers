@@ -5,8 +5,10 @@ import eth/common/transaction as ct
 import ./provider
 import ./transaction as tx
 import ./signer
+import ./wallet/error
 
 export keys
+export WalletError
 
 var rng {.threadvar.}: ref HmacDrbgContext
 
@@ -17,7 +19,6 @@ proc getRng: ref HmacDrbgContext =
 
 type SignableTransaction = common.Transaction
 
-type WalletError* = object of EthersError
 type Wallet* = ref object of Signer
   privateKey*: PrivateKey
   publicKey*: PublicKey
@@ -51,7 +52,7 @@ proc createRandom*(_: type Wallet, provider: Provider): Wallet =
 
 method provider*(wallet: Wallet): Provider =
   without provider =? wallet.provider:
-    raise newException(WalletError, "Wallet has no provider")
+    raiseWalletError "Wallet has no provider"
   provider
 
 method getAddress(wallet: Wallet): Future[Address] {.async.} =
@@ -77,14 +78,14 @@ proc signTransaction(tr: var SignableTransaction, pk: PrivateKey) =
   of TxEip1559:
     tr.V = int64(v)
   else:
-    raise newException(WalletError, "Transaction type not supported")
+    raiseWalletError "Transaction type not supported"
 
 proc signTransaction*(wallet: Wallet, tx: tx.Transaction): Future[seq[byte]] {.async.} =
   if sender =? tx.sender and sender != wallet.address:
-    raise newException(WalletError, "from address mismatch")
+    raiseWalletError "from address mismatch"
 
   without nonce =? tx.nonce and chainId =? tx.chainId and gasLimit =? tx.gasLimit:
-    raise newException(WalletError, "Transaction is properly populated")
+    raiseWalletError "Transaction is not properly populated"
 
   var s: SignableTransaction
 
@@ -96,7 +97,7 @@ proc signTransaction*(wallet: Wallet, tx: tx.Transaction): Future[seq[byte]] {.a
     s.txType = TxLegacy
     s.gasPrice = GasInt(gasPrice.truncate(uint64))
   else:
-    raise newException(WalletError, "Transaction is properly populated")
+    raiseWalletError "Transaction is not properly populated"
 
   s.chainId = ChainId(chainId.truncate(uint64))
   s.gasLimit = GasInt(gasLimit.truncate(uint64))
