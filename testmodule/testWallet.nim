@@ -27,6 +27,7 @@ suite "Wallet":
 
   test "Can create Wallet with private key":
     discard Wallet.new(pk1)
+    discard Wallet.new(PrivateKey.fromHex(pk1).value)
 
   test "Private key can start with 0x":
     discard Wallet.new("0x" & pk1)
@@ -34,6 +35,7 @@ suite "Wallet":
   test "Can create Wallet with provider":
     let provider = JsonRpcProvider.new()
     discard Wallet.new(pk1, provider)
+    discard Wallet.new(PrivateKey.fromHex(pk1).value)
 
   test "Can connect Wallet to provider":
     let wallet = Wallet.new(pk1)

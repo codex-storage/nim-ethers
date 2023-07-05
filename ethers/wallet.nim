@@ -21,17 +21,18 @@ type Wallet* = ref object of Signer
   address*: Address
   provider*: ?Provider
 
-proc new*(_: type Wallet, pk: string, provider: Provider): Wallet =
-  result = Wallet()
-  result.privateKey = PrivateKey.fromHex(pk).value
-  result.publicKey = result.privateKey.toPublicKey()
-  result.address = Address.init(result.publicKey.toCanonicalAddress())
-  result.provider = some provider
-proc new*(_: type Wallet, pk: string): Wallet =
-  result = Wallet()
-  result.privateKey = PrivateKey.fromHex(pk).value
-  result.publicKey = result.privateKey.toPublicKey()
-  result.address = Address.init(result.publicKey.toCanonicalAddress())
+proc new*(_: type Wallet, privateKey: PrivateKey): Wallet =
+  let publicKey = privateKey.toPublicKey()
+  let address = Address.init(publicKey.toCanonicalAddress())
+  Wallet(privateKey: privateKey, publicKey: publicKey, address: address)
+proc new*(_: type Wallet, privateKey: PrivateKey, provider: Provider): Wallet =
+  let wallet = Wallet.new(privateKey)
+  wallet.provider = some provider
+  wallet
+proc new*(_: type Wallet, privateKey: string): Wallet =
+  Wallet.new(PrivateKey.fromHex(privateKey).value)
+proc new*(_: type Wallet, privateKey: string, provider: Provider): Wallet =
+  Wallet.new(PrivateKey.fromHex(privateKey).value, provider)
 proc connect*(wallet: Wallet, provider: Provider) =
   wallet.provider = some provider
 proc createRandom*(_: type Wallet): Wallet =
