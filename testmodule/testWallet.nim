@@ -9,11 +9,6 @@ type Erc20* = ref object of Contract
 proc transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.contract.}
 
 suite "Wallet":
-
-  #TODO add more tests. I am not sure if I am testing everything currently
-  #TODO take close look at current signing tests. I am not 100% sure they are correct and work
-  #TODO add setup/teardown if required. Currently doing all nonces manually
-
   var provider: JsonRpcProvider
   var snapshot: JsonNode
 
