@@ -12,14 +12,19 @@ type
   Provider* = ref object of RootObj
   ProviderError* = object of EthersError
   Subscription* = ref object of RootObj
-  EventFilter* = object of RootObj
+  EventFilter* = ref object of RootObj
     address*: Address
     topics*: seq[Topic]
-  Filter* = object of EventFilter
-    fromBlock: BlockTag
-    toBlock: BlockTag
+  Filter* = ref object of EventFilter
+    fromBlock*: BlockTag
+    toBlock*: BlockTag
+  FilterByBlockHash* = ref object of EventFilter
+    blockHash*: BlockHash
   Log* = object
+    blockNumber*: UInt256
     data*: seq[byte]
+    logIndex*: UInt256
+    removed*: bool
     topics*: seq[Topic]
   TransactionHash* = array[32, byte]
   BlockHash* = array[32, byte]
@@ -85,7 +90,7 @@ method sendTransaction*(provider: Provider,
   doAssert false, "not implemented"
 
 method getLogs*(provider: Provider,
-                filter: Filter): Future[seq[Log]] {.base.} =
+                filter: EventFilter): Future[seq[Log]] {.base.} =
   doAssert false, "not implemented"
 
 method estimateGas*(provider: Provider,

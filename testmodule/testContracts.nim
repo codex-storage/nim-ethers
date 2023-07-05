@@ -189,24 +189,52 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let receipt = await confirming
       check receipt.blockNumber.isSome
 
-    test "can query past logs":
-      var transfers: seq[Transfer]
-
-      proc handleTransfer(transfer: Transfer) =
-        transfers.add(transfer)
+    test "can query last block log":
 
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])
 
-      let subscription = await token.subscribe(Transfer, handleTransfer)
       discard await token.connect(signer0).mint(accounts[0], 100.u256)
       await token.connect(signer0).transfer(accounts[1], 50.u256)
       await token.connect(signer1).transfer(accounts[2], 25.u256)
 
-      check eventually transfers == @[
+      let logs = await token.queryFilter(Transfer)
+
+      check eventually logs == @[
+        Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
+      ]
+
+    test "can query past logs by specifying from and to blocks":
+
+      let signer0 = provider.getSigner(accounts[0])
+      let signer1 = provider.getSigner(accounts[1])
+
+      discard await token.connect(signer0).mint(accounts[0], 100.u256)
+      await token.connect(signer0).transfer(accounts[1], 50.u256)
+      await token.connect(signer1).transfer(accounts[2], 25.u256)
+
+      let currentBlock = await provider.getBlockNumber()
+      let logs = await token.queryFilter(Transfer,
+                                         BlockTag.init(currentBlock - 3),
+                                         BlockTag.latest)
+
+      check eventually logs == @[
         Transfer(receiver: accounts[0], value: 100.u256),
         Transfer(sender: accounts[0], receiver: accounts[1], value: 50.u256),
         Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
       ]
 
-      await subscription.unsubscribe()
+    test "can query past logs by specifying a block hash":
+
+      let signer0 = provider.getSigner(accounts[0])
+
+      let receipt = await token.connect(signer0)
+                               .mint(accounts[0], 100.u256)
+                               .confirm(1)
+      await token.connect(signer0).transfer(accounts[1], 50.u256)
+
+      let logs = await token.queryFilter(Transfer, !receipt.blockHash)
+
+      check eventually logs == @[
+        Transfer(receiver: accounts[0], value: 100.u256)
+      ]

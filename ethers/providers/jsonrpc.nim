@@ -145,11 +145,23 @@ method getTransactionReceipt*(provider: JsonRpcProvider,
     return await client.eth_getTransactionReceipt(txHash)
 
 method getLogs*(provider: JsonRpcProvider,
-                filter: Filter):
-               Future[?seq[Log]] {.async.} =
+                filter: EventFilter):
+               Future[seq[Log]] {.async.} =
   convertError:
     let client = await provider.client
-    return await client.eth_getLogs(filter)
+    let logsJson = if filter of Filter:
+                    await client.eth_getLogs(Filter(filter))
+                   elif filter of FilterByBlockHash:
+                    await client.eth_getLogs(FilterByBlockHash(filter))
+                   else:
+                    await client.eth_getLogs(filter)
+
+    var logs: seq[Log] = @[]
+    for logJson in logsJson.getElems:
+      if log =? Log.fromJson(logJson).catch:
+        logs.add log
+
+    return logs
 
 method estimateGas*(provider: JsonRpcProvider,
                     transaction: Transaction): Future[UInt256] {.async.} =
@@ -174,7 +186,7 @@ method sendTransaction*(provider: JsonRpcProvider, rawTransaction: seq[byte]): F
     return TransactionResponse(hash: hash, provider: provider)
 
 method subscribe*(provider: JsonRpcProvider,
-                  filter: Filter,
+                  filter: EventFilter,
                   onLog: LogHandler):
                  Future[Subscription] {.async.} =
   convertError:

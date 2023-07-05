@@ -1,4 +1,6 @@
+import std/json
 import std/macros
+import std/sequtils
 import pkg/chronos
 import pkg/contractabi
 import ./basics
@@ -253,12 +255,48 @@ proc confirm*(tx: Future[?TransactionResponse],
 
   return await response.confirm(confirmations, timeout)
 
+proc queryFilter[E: Event](contract: Contract,
+                            _: type E,
+                            filter: EventFilter):
+                           Future[seq[E]] {.async.} =
+
+  var logs = await contract.provider.getLogs(filter)
+  logs.keepItIf(not it.removed)
+
+  var events: seq[E] = @[]
+  for log in logs:
+    if event =? E.decode(log.data, log.topics):
+      events.add event
+
+  return events
+
+proc queryFilter*[E: Event](contract: Contract,
+                            _: type E):
+                           Future[seq[E]] =
+
+  let topic = topic($E, E.fieldTypes).toArray
+  let filter = EventFilter(address: contract.address,
+                           topics: @[topic])
+
+  contract.queryFilter(E, filter)
+
 proc queryFilter*[E: Event](contract: Contract,
                             _: type E,
-                            fromBlock: BlockTag | UInt256,
-                            toBlock: BlockTag,
-                            handler: EventHandler[E]):
-                            Future[seq[E]] =
+                            blockHash: BlockHash):
+                           Future[seq[E]] =
+
+  let topic = topic($E, E.fieldTypes).toArray
+  let filter = FilterByBlockHash(address: contract.address,
+                                 topics: @[topic],
+                                 blockHash: blockHash)
+
+  contract.queryFilter(E, filter)
+
+proc queryFilter*[E: Event](contract: Contract,
+                            _: type E,
+                            fromBlock: BlockTag,
+                            toBlock: BlockTag):
+                           Future[seq[E]] =
 
   let topic = topic($E, E.fieldTypes).toArray
   let filter = Filter(address: contract.address,
@@ -266,12 +304,4 @@ proc queryFilter*[E: Event](contract: Contract,
                       fromBlock: fromBlock,
                       toBlock: toBlock)
 
-  var events: seq[E] = @[]
-  proc logHandler(log: Log) {.upraises: [].} =
-    if event =? E.decode(log.data, log.topics):
-      events.add event
-      # handler(event)
-
-  let logs = contract.provider.getLogs(filter)
-  echo ">>> [contract.queryFilter] returned logs: ", logs
-  return logs
+  contract.queryFilter(E, filter)
