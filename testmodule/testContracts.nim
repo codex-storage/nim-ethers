@@ -189,7 +189,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let receipt = await confirming
       check receipt.blockNumber.isSome
 
-    test "can query last block log":
+    test "can query last block event log":
 
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])
@@ -204,7 +204,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
       ]
 
-    test "can query past logs by specifying from and to blocks":
+    test "can query past event logs by specifying from and to blocks":
 
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])
@@ -224,7 +224,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
       ]
 
-    test "can query past logs by specifying a block hash":
+    test "can query past event logs by specifying a block hash":
 
       let signer0 = provider.getSigner(accounts[0])
 
