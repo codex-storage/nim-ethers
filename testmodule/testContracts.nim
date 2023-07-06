@@ -192,16 +192,14 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
     test "can query last block event log":
 
       let signer0 = provider.getSigner(accounts[0])
-      let signer1 = provider.getSigner(accounts[1])
 
       discard await token.connect(signer0).mint(accounts[0], 100.u256)
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
-      await token.connect(signer1).transfer(accounts[2], 25.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
 
       let logs = await token.queryFilter(Transfer)
 
       check eventually logs == @[
-        Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
+        Transfer(sender: accounts[0], receiver: accounts[1], value: 50.u256)
       ]
 
     test "can query past event logs by specifying from and to blocks":
@@ -210,8 +208,8 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let signer1 = provider.getSigner(accounts[1])
 
       discard await token.connect(signer0).mint(accounts[0], 100.u256)
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
-      await token.connect(signer1).transfer(accounts[2], 25.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
+      discard await token.connect(signer1).transfer(accounts[2], 25.u256)
 
       let currentBlock = await provider.getBlockNumber()
       let logs = await token.queryFilter(Transfer,
@@ -231,7 +229,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let receipt = await token.connect(signer0)
                                .mint(accounts[0], 100.u256)
                                .confirm(1)
-      await token.connect(signer0).transfer(accounts[1], 50.u256)
+      discard await token.connect(signer0).transfer(accounts[1], 50.u256)
 
       let logs = await token.queryFilter(Transfer, !receipt.blockHash)
 
