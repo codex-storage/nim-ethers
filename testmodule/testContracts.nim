@@ -213,11 +213,10 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
       let currentBlock = await provider.getBlockNumber()
       let logs = await token.queryFilter(Transfer,
-                                         BlockTag.init(currentBlock - 3),
+                                         BlockTag.init(currentBlock - 1),
                                          BlockTag.latest)
 
-      check eventually logs == @[
-        Transfer(receiver: accounts[0], value: 100.u256),
+      check logs == @[
         Transfer(sender: accounts[0], receiver: accounts[1], value: 50.u256),
         Transfer(sender: accounts[1], receiver: accounts[2], value: 25.u256)
       ]
@@ -233,6 +232,6 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
       let logs = await token.queryFilter(Transfer, !receipt.blockHash)
 
-      check eventually logs == @[
+      check logs == @[
         Transfer(receiver: accounts[0], value: 100.u256)
       ]
