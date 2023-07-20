@@ -21,7 +21,7 @@ method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
   raiseAssert "not implemented"
 
 method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
-                      filter: Filter,
+                      filter: EventFilter,
                       onLog: LogHandler):
                      Future[JsonNode]
                      {.async, base.} =
@@ -74,7 +74,7 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
   return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
-                     filter: Filter,
+                     filter: EventFilter,
                      onLog: LogHandler):
                     Future[JsonNode]
                     {.async.} =
@@ -148,7 +148,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
   return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
-                     filter: Filter,
+                     filter: EventFilter,
                      onLog: LogHandler):
                     Future[JsonNode]
                     {.async.} =
