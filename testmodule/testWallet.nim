@@ -21,19 +21,23 @@ suite "Wallet":
     await provider.close()
 
   test "Can create Wallet with private key":
-    discard Wallet.new(pk1)
-    discard Wallet.new(PrivateKey.fromHex(pk1).value)
+    check isSome Wallet.new(pk1)
+    discard Wallet.new(PrivateKey.fromHex(pk1).get)
 
   test "Private key can start with 0x":
-    discard Wallet.new("0x" & pk1)
+    check isSome Wallet.new("0x" & pk1)
 
   test "Can create Wallet with provider":
     let provider = JsonRpcProvider.new()
-    discard Wallet.new(pk1, provider)
-    discard Wallet.new(PrivateKey.fromHex(pk1).value)
+    check isSome Wallet.new(pk1, provider)
+    discard Wallet.new(PrivateKey.fromHex(pk1).get, provider)
+
+  test "Cannot create wallet with invalid key string":
+    check isNone Wallet.new("0xInvalidKey")
+    check isNone Wallet.new("0xInvalidKey", JsonRpcProvider.new())
 
   test "Can connect Wallet to provider":
-    let wallet = Wallet.new(pk1)
+    let wallet = !Wallet.new(pk1)
     wallet.connect(provider)
 
   test "Can create Random Wallet":
@@ -48,13 +52,13 @@ suite "Wallet":
     check $wallet1.privateKey != $wallet2.privateKey
 
   test "Creates the correct public key and Address from private key":
-    let wallet = Wallet.new(pk1)
+    let wallet = !Wallet.new(pk1)
     check $wallet.publicKey == "5eed5fa3a67696c334762bb4823e585e2ee579aba3558d9955296d6c04541b426078dbd48d74af1fd0c72aa1a05147cf17be6b60bdbed6ba19b08ec28445b0ca"
     check $wallet.address == "0x328809bc894f92807417d2dad6b7c998c1afdac6"
 
   test "Can sign manually created transaction":
     # Example from EIP-155
-    let wallet = Wallet.new("0x4646464646464646464646464646464646464646464646464646464646464646")
+    let wallet = !Wallet.new("0x4646464646464646464646464646464646464646464646464646464646464646")
     let transaction = Transaction(
       to: !Address.init("0x3535353535353535353535353535353535353535"),
       nonce: some 9.u256,
@@ -68,7 +72,7 @@ suite "Wallet":
     check signed.toHex == "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"
 
   test "Can sign manually created tx with EIP1559":
-    let wallet = Wallet.new(pk1)
+    let wallet = !Wallet.new(pk1)
     let tx = Transaction(
       to: wallet.address,
       nonce: some 0.u256,
@@ -81,7 +85,7 @@ suite "Wallet":
     check signedTx.toHex == "02f86c827a6980843b9aca00847735940082520894328809bc894f92807417d2dad6b7c998c1afdac68080c001a0162929fc5b4cb286ed4cd630d172d1dd747dad4ffbeb413b037f21168f4fe366a062b931c1fc55028ae1fdf5342564300cae251791d785a0efd31c088405a651e7"
 
   test "Can send rawTransaction":
-    let wallet = Wallet.new(pk_with_funds)
+    let wallet = !Wallet.new(pk_with_funds)
     let tx = Transaction(
       to: wallet.address,
       nonce: some 0.u256,
@@ -95,7 +99,7 @@ suite "Wallet":
 
   test "Can call state-changing function automatically":
     #TODO add actual token contract, not random address. Should work regardless
-    let wallet = Wallet.new(pk_with_funds, provider)
+    let wallet = !Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
       nonce: some 0.u256,
       gasPrice: some 1_000_000_000.u256,
@@ -105,7 +109,7 @@ suite "Wallet":
 
   test "Can call state-changing function automatically EIP1559":
     #TODO add actual token contract, not random address. Should work regardless
-    let wallet = Wallet.new(pk_with_funds, provider)
+    let wallet = !Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
       nonce: some 0.u256,
       maxFee: some 1_000_000_000.u256,
