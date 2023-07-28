@@ -1,4 +1,5 @@
 import eth/keys
+import ./basics
 import ./provider
 import ./transaction
 import ./signer
@@ -29,10 +30,16 @@ proc new*(_: type Wallet, privateKey: PrivateKey, provider: Provider): Wallet =
   let wallet = Wallet.new(privateKey)
   wallet.provider = some provider
   wallet
-proc new*(_: type Wallet, privateKey: string): Wallet =
-  Wallet.new(PrivateKey.fromHex(privateKey).value)
-proc new*(_: type Wallet, privateKey: string, provider: Provider): Wallet =
-  Wallet.new(PrivateKey.fromHex(privateKey).value, provider)
+proc new*(_: type Wallet, privateKey: string): ?Wallet =
+  if key =? PrivateKey.fromHex(privateKey):
+    some Wallet.new(key)
+  else:
+    none Wallet
+proc new*(_: type Wallet, privateKey: string, provider: Provider): ?Wallet =
+  if key =? PrivateKey.fromHex(privateKey):
+    some Wallet.new(key, provider)
+  else:
+    none Wallet
 proc connect*(wallet: Wallet, provider: Provider) =
   wallet.provider = some provider
 proc createRandom*(_: type Wallet): Wallet =
