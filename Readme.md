@@ -92,7 +92,7 @@ Which transfers 42 tokens from account 3 to account 7
 
 And lastly, don't forget to close the provider when you're done:
 
-```
+```nim
 await provider.close()
 ```
 
