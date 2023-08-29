@@ -21,20 +21,20 @@ suite "Wallet":
     await provider.close()
 
   test "Can create Wallet with private key":
-    check isSome Wallet.new(pk1)
+    check isSuccess Wallet.new(pk1)
     discard Wallet.new(PrivateKey.fromHex(pk1).get)
 
   test "Private key can start with 0x":
-    check isSome Wallet.new("0x" & pk1)
+    check isSuccess Wallet.new("0x" & pk1)
 
   test "Can create Wallet with provider":
     let provider = JsonRpcProvider.new()
-    check isSome Wallet.new(pk1, provider)
+    check isSuccess Wallet.new(pk1, provider)
     discard Wallet.new(PrivateKey.fromHex(pk1).get, provider)
 
   test "Cannot create wallet with invalid key string":
-    check isNone Wallet.new("0xInvalidKey")
-    check isNone Wallet.new("0xInvalidKey", JsonRpcProvider.new())
+    check isFailure Wallet.new("0xInvalidKey")
+    check isFailure Wallet.new("0xInvalidKey", JsonRpcProvider.new())
 
   test "Can connect Wallet to provider":
     let wallet = !Wallet.new(pk1)

@@ -30,16 +30,15 @@ proc new*(_: type Wallet, privateKey: PrivateKey, provider: Provider): Wallet =
   let wallet = Wallet.new(privateKey)
   wallet.provider = some provider
   wallet
-proc new*(_: type Wallet, privateKey: string): ?Wallet =
-  if key =? PrivateKey.fromHex(privateKey):
-    some Wallet.new(key)
-  else:
-    none Wallet
-proc new*(_: type Wallet, privateKey: string, provider: Provider): ?Wallet =
-  if key =? PrivateKey.fromHex(privateKey):
-    some Wallet.new(key, provider)
-  else:
-    none Wallet
+proc new*(_: type Wallet, privateKey: string): ?!Wallet =
+  let keyResult = PrivateKey.fromHex(privateKey)
+  if keyResult.isErr:
+    return failure newException(WalletError, "invalid key: " & $keyResult.error)
+  success Wallet.new(keyResult.get())
+proc new*(_: type Wallet, privateKey: string, provider: Provider): ?!Wallet =
+  let wallet = ? Wallet.new(privateKey)
+  wallet.provider = some provider
+  success wallet
 proc connect*(wallet: Wallet, provider: Provider) =
   wallet.provider = some provider
 proc createRandom*(_: type Wallet): Wallet =
