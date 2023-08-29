@@ -9,10 +9,10 @@ type SignerError* = object of EthersError
 template raiseSignerError(message: string) =
   raise newException(SignerError, message)
 
-method provider*(signer: Signer): Provider {.base.} =
+method provider*(signer: Signer): Provider {.base, gcsafe.} =
   doAssert false, "not implemented"
 
-method getAddress*(signer: Signer): Future[Address] {.base.} =
+method getAddress*(signer: Signer): Future[Address] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method signMessage*(signer: Signer,
@@ -23,7 +23,7 @@ method sendTransaction*(signer: Signer,
                         transaction: Transaction): Future[TransactionResponse] {.base, async.} =
   doAssert false, "not implemented"
 
-method getGasPrice*(signer: Signer): Future[UInt256] {.base.} =
+method getGasPrice*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getGasPrice()
 
 method getTransactionCount*(signer: Signer,
@@ -38,7 +38,7 @@ method estimateGas*(signer: Signer,
   transaction.sender = some(await signer.getAddress)
   return await signer.provider.estimateGas(transaction)
 
-method getChainId*(signer: Signer): Future[UInt256] {.base.} =
+method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
 method populateTransaction*(signer: Signer,

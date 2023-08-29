@@ -59,56 +59,56 @@ type
 const EthersDefaultConfirmations* {.intdefine.} = 12
 const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
 
-method getBlockNumber*(provider: Provider): Future[UInt256] {.base.} =
+method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
-method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base.} =
+method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method call*(provider: Provider,
              tx: Transaction,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.base.} =
+             blockTag = BlockTag.latest): Future[seq[byte]] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
-method getGasPrice*(provider: Provider): Future[UInt256] {.base.} =
+method getGasPrice*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getTransactionCount*(provider: Provider,
                             address: Address,
                             blockTag = BlockTag.latest):
-                           Future[UInt256] {.base.} =
+                           Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getTransactionReceipt*(provider: Provider,
                             txHash: TransactionHash):
-                           Future[?TransactionReceipt] {.base.} =
+                           Future[?TransactionReceipt] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method sendTransaction*(provider: Provider,
                         rawTransaction: seq[byte]):
-                       Future[TransactionResponse] {.base.} =
+                       Future[TransactionResponse] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getLogs*(provider: Provider,
-                filter: EventFilter): Future[seq[Log]] {.base.} =
+                filter: EventFilter): Future[seq[Log]] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method estimateGas*(provider: Provider,
-                    transaction: Transaction): Future[UInt256] {.base.} =
+                    transaction: Transaction): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
-method getChainId*(provider: Provider): Future[UInt256] {.base.} =
+method getChainId*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method subscribe*(provider: Provider,
                   filter: EventFilter,
                   callback: LogHandler):
-                 Future[Subscription] {.base.} =
+                 Future[Subscription] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method subscribe*(provider: Provider,
                   callback: BlockHandler):
-                 Future[Subscription] {.base.} =
+                 Future[Subscription] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method unsubscribe*(subscription: Subscription) {.base, async.} =
