@@ -5,7 +5,7 @@ export basics
 
 type
   Signer* = ref object of RootObj
-    lastSeenNonce: UInt256
+    lastSeenNonce: ?UInt256
 
 type SignerError* = object of EthersError
 
@@ -44,17 +44,21 @@ method estimateGas*(signer: Signer,
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
-method getNonce(signer: Signer): Future[UInt256] {.base, async.} =
+method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   let count = await signer.getTransactionCount(BlockTag.pending)
-  if signer.lastSeenNonce >= count:
-    signer.lastSeenNonce += 1.u256
+
+  if signer.lastSeenNonce.isSome and !signer.lastSeenNonce >= count:
+    signer.lastSeenNonce = some (!signer.lastSeenNonce + 1.u256)
   else:
-    signer.lastSeenNonce = count
-  return signer.lastSeenNonce
+    signer.lastSeenNonce = some count
+
+  return !signer.lastSeenNonce
 
 method updateNonce*(signer: Signer, nonce: ?UInt256) {.base.} =
-  if nonce.isSome and !nonce > signer.lastSeenNonce:
-    signer.lastSeenNonce = !nonce
+  if signer.lastSeenNonce.isNone:
+    signer.lastSeenNonce = nonce
+  elif nonce.isSome and !nonce > !signer.lastSeenNonce:
+    signer.lastSeenNonce = nonce
 
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
