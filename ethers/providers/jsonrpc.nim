@@ -24,6 +24,7 @@ type
     provider: JsonRpcProvider
     address: ?Address
   JsonRpcProviderError* = object of ProviderError
+    nonce*: ?UInt256
   JsonRpcSubscription* = ref object of Subscription
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
@@ -34,7 +35,19 @@ proc raiseJsonRpcProviderError(message: string) {.upraises: [JsonRpcProviderErro
     message = parseJson(message){"message"}.getStr
   except Exception:
     discard
-  raise newException(JsonRpcProviderError, message)
+  let ex = newException(JsonRpcProviderError, message)
+  ex[].nonce = nonce
+  raise ex
+
+template convertError(nonce = none UInt256, body) =
+  try:
+    body
+  except JsonRpcError as error:
+    raiseProviderError(error.msg, nonce)
+  # Catch all ValueErrors for now, at least until JsonRpcError is actually
+  # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
+  except ValueError as error:
+    raiseProviderError(error.msg, nonce)
 
 template convertError(body) =
   try:
