@@ -43,10 +43,12 @@ template convertError(nonce = none UInt256, body) =
   try:
     body
   except JsonRpcError as error:
+    echo "[jsonrpc.convertError] error encountered (nonce: ", nonce, "): ", error.msg
     raiseProviderError(error.msg, nonce)
   # Catch all ValueErrors for now, at least until JsonRpcError is actually
   # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
   except ValueError as error:
+    echo "[jsonrpc.convertError] error encountered (nonce: ", nonce, "): ", error.msg
     raiseProviderError(error.msg, nonce)
 
 template convertError(body) =
@@ -259,4 +261,5 @@ method sendTransaction*(signer: JsonRpcSigner,
       client = await signer.provider.client
       hash = await client.eth_sendTransaction(transaction)
 
+    echo "[jsonrpc.sendTransaction] RESPONSE send transaction -- nonce: ", transaction.nonce, ", hash: ", hash
     return TransactionResponse(hash: hash, provider: signer.provider)
