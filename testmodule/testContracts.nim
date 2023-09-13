@@ -5,6 +5,7 @@ import pkg/questionable
 import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20
+import pkg/ethers/testing
 import ./hardhat
 import ./helpers
 import ./miner

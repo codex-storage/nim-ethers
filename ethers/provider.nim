@@ -79,6 +79,11 @@ method getTransactionCount*(provider: Provider,
                            Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
+method getTransaction*(provider: Provider,
+                       txHash: TransactionHash):
+                      Future[?Transaction] {.base, gcsafe.} =
+  doAssert false, "not implemented"
+
 method getTransactionReceipt*(provider: Provider,
                             txHash: TransactionHash):
                            Future[?TransactionReceipt] {.base, gcsafe.} =
@@ -113,6 +118,16 @@ method subscribe*(provider: Provider,
 
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
+
+proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.} =
+  # Replay transaction at block. Useful for fetching revert reasons, which will
+  # be present in the raised error message. The replayed block number should
+  # include the state of the chain in the block previous to the block in which
+  # the transaction was mined. This means that transactions that were mined in
+  # the same block BEFORE this transaction will not have their state transitions
+  # included in the replay.
+  # More information: https://snakecharmers.ethereum.org/web3py-revert-reason-parsing/
+  discard await provider.call(tx, BlockTag.init(blockNumber - 1))
 
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,

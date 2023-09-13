@@ -152,6 +152,13 @@ method getTransactionCount*(provider: JsonRpcProvider,
     let client = await provider.client
     return await client.eth_getTransactionCount(address, blockTag)
 
+method getTransaction*(provider: JsonRpcProvider,
+                       txHash: TransactionHash):
+                      Future[?Transaction] {.async.} =
+  convertError:
+    let client = await provider.client
+    return await client.eth_getTransactionByHash(txHash)
+
 method getTransactionReceipt*(provider: JsonRpcProvider,
                               txHash: TransactionHash):
                              Future[?TransactionReceipt] {.async.} =

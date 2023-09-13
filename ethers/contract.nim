@@ -252,7 +252,24 @@ proc confirm*(tx: Future[?TransactionResponse],
       "Transaction hash required. Possibly was a call instead of a send?"
     )
 
-  return await response.confirm(confirmations, timeout)
+  let receipt = await response.confirm(confirmations, timeout)
+
+  echo "[ether/contract.confirm] receipt.status: ", receipt.status
+  if receipt.status != TransactionStatus.Success:
+    without blockNumber =? receipt.blockNumber:
+      raiseContractError "Transaction reverted with unknown reason"
+
+    let provider = response.provider
+    without transaction =? await provider.getTransaction(receipt.transactionHash):
+      raiseContractError "Transaction reverted with unknown reason"
+
+    try:
+      await provider.replay(transaction, blockNumber)
+    except ProviderError as e:
+      # should contain the revert reason
+      raiseContractError e.msg
+
+  return receipt
 
 proc queryFilter[E: Event](contract: Contract,
                             _: type E,
