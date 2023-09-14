@@ -54,10 +54,15 @@ method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   return nonce
 
 method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
-  if signer.lastSeenNonce.isNone:
-    signer.lastSeenNonce = nonce
-  elif nonce.isSome and !nonce > !signer.lastSeenNonce:
-    signer.lastSeenNonce = nonce
+ without nonce =? nonce:
+    return
+
+  without lastSeen =? signer.lastSeenNonce:
+    signer.lastSeenNonce = some nonce
+    return
+
+  if nonce > lastSeen:
+    signer.lastSeenNonce = some nonce
 
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
