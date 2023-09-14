@@ -45,14 +45,13 @@ method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
 method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
-  let count = await signer.getTransactionCount(BlockTag.pending)
-
-  if signer.lastSeenNonce.isSome and !signer.lastSeenNonce >= count:
-    signer.lastSeenNonce = some (!signer.lastSeenNonce + 1.u256)
-  else:
-    signer.lastSeenNonce = some count
-
-  return !signer.lastSeenNonce
+  var nonce = await signer.getTransactionCount(BlockTag.pending)
+  
+  if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
+    nonce = (lastSeen + 1.u256)
+  signer.lastSeenNonce = some nonce
+  
+  return nonce
 
 method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
   if signer.lastSeenNonce.isNone:
