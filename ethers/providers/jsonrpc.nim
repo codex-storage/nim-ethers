@@ -1,6 +1,8 @@
 import std/json
 import std/tables
 import std/uri
+import pkg/chronicles
+import pkg/eth/common/eth_types_json_serialization
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
 import ../basics
@@ -43,12 +45,14 @@ template convertError(nonce = none UInt256, body) =
   try:
     body
   except JsonRpcError as error:
-    trace "jsonrpc error", nonce, error = error.msg
+    echo "nonce for error below: ", nonce
+    trace "jsonrpc error", error = error.msg
     raiseProviderError(error.msg, nonce)
   # Catch all ValueErrors for now, at least until JsonRpcError is actually
   # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
   except ValueError as error:
-    trace "jsonrpc error (from rpc client)", nonce, error = error.msg
+    echo "nonce for error below: ", nonce
+    trace "jsonrpc error (from rpc client)", error = error.msg
     raiseProviderError(error.msg, nonce)
 
 template convertError(body) =

@@ -1,6 +1,7 @@
 import std/json
 import std/macros
 import std/sequtils
+import pkg/chronicles
 import pkg/chronos
 import pkg/contractabi
 import ./basics
