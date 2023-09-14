@@ -54,7 +54,7 @@ method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   return nonce
 
 method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
- without nonce =? nonce:
+  without nonce =? nonce:
     return
 
   without lastSeen =? signer.lastSeenNonce:
