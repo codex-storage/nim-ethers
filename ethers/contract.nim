@@ -254,8 +254,8 @@ proc confirm*(tx: Future[?TransactionResponse],
 
   let receipt = await response.confirm(confirmations, timeout)
 
-  echo "[ether/contract.confirm] receipt.status: ", receipt.status
   if receipt.status != TransactionStatus.Success:
+    trace "transaction failed", status = receipt.status
     without blockNumber =? receipt.blockNumber:
       raiseContractError "Transaction reverted with unknown reason"
 
@@ -264,8 +264,11 @@ proc confirm*(tx: Future[?TransactionResponse],
       raiseContractError "Transaction reverted with unknown reason"
 
     try:
+      trace "replaying transaction to get revert reason"
       await provider.replay(transaction, blockNumber)
+      trace "transaction replay completed, no revert reason obtained"
     except ProviderError as e:
+      trace "transaction revert reason obtained", reason = e.msg
       # should contain the revert reason
       raiseContractError e.msg
 
