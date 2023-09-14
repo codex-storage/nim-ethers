@@ -70,4 +70,5 @@ proc signTransaction*(wallet: Wallet,
 
 method sendTransaction*(wallet: Wallet, transaction: Transaction): Future[TransactionResponse] {.async.} =
   let signed = await signTransaction(wallet, transaction)
+  wallet.updateNonce(transaction.nonce)
   return await provider(wallet).sendTransaction(signed)

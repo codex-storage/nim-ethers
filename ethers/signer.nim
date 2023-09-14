@@ -3,7 +3,10 @@ import ./provider
 
 export basics
 
-type Signer* = ref object of RootObj
+type
+  Signer* = ref object of RootObj
+    lastSeenNonce: ?UInt256
+
 type SignerError* = object of EthersError
 
 template raiseSignerError(message: string) =
@@ -41,6 +44,26 @@ method estimateGas*(signer: Signer,
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
+method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+  var nonce = await signer.getTransactionCount(BlockTag.pending)
+  
+  if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
+    nonce = (lastSeen + 1.u256)
+  signer.lastSeenNonce = some nonce
+  
+  return nonce
+
+method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
+  without nonce =? nonce:
+    return
+
+  without lastSeen =? signer.lastSeenNonce:
+    signer.lastSeenNonce = some nonce
+    return
+
+  if nonce > lastSeen:
+    signer.lastSeenNonce = some nonce
+
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
                            Future[Transaction] {.base, async.} =
@@ -55,7 +78,7 @@ method populateTransaction*(signer: Signer,
   if transaction.sender.isNone:
     populated.sender = some(await signer.getAddress())
   if transaction.nonce.isNone:
-    populated.nonce = some(await signer.getTransactionCount(BlockTag.pending))
+    populated.nonce = some(await signer.getNonce())
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
