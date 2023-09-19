@@ -70,6 +70,9 @@ func `%`*(blockTag: BlockTag): JsonNode =
 # Log
 
 func fromJson*(json: JsonNode, name: string, result: var Log) =
+  if not (json.hasKey("data") and json.hasKey("topics")):
+    raise newException(ValueError, "'data' and/or 'topics' fields not found")
+
   var data: seq[byte]
   var topics: seq[Topic]
   fromJson(json["data"], "data", data)
