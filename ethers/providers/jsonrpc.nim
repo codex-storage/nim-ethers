@@ -15,6 +15,7 @@ import ./jsonrpc/subscriptions
 export json
 export basics
 export provider
+export chronicles
 
 push: {.upraises: [].}
 
