@@ -21,4 +21,4 @@ proc example*(_: type UInt256): UInt256 =
   UInt256.fromBytesBE(array[32, byte].example)
 
 proc example*(_: type Transaction): Transaction =
-  Transaction(to: Address.example, data: seq[byte].example)
+  Transaction(to: Address.example, data: some seq[byte].example)

@@ -66,7 +66,7 @@ proc createTransaction(contract: Contract,
   let data = @selector & AbiEncoder.encode(parameters)
   Transaction(
     to: contract.address,
-    data: data,
+    data: some data,
     nonce: overrides.nonce,
     chainId: overrides.chainId,
     gasPrice: overrides.gasPrice,
