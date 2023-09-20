@@ -19,6 +19,9 @@ export chronicles
 
 push: {.upraises: [].}
 
+logScope:
+  topics = "ethers jsonrpc"
+
 type
   JsonRpcProvider* = ref object of Provider
     client: Future[RpcClient]

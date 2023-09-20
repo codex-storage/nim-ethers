@@ -14,6 +14,9 @@ export basics
 export provider
 export events
 
+logScope:
+  topics = "ethers contract"
+
 type
   Contract* = ref object of RootObj
     provider: Provider
@@ -256,6 +259,7 @@ proc confirm*(tx: Future[?TransactionResponse],
   let receipt = await response.confirm(confirmations, timeout)
 
   if receipt.status != TransactionStatus.Success:
+    echo "[ethers contract] transaction failed, status: ", receipt.status
     trace "transaction failed", status = receipt.status
     without blockNumber =? receipt.blockNumber:
       raiseContractError "Transaction reverted with unknown reason"
@@ -265,10 +269,13 @@ proc confirm*(tx: Future[?TransactionResponse],
       raiseContractError "Transaction reverted with unknown reason"
 
     try:
+      echo "[ethers contract] replaying transaction to get revert reason"
       trace "replaying transaction to get revert reason"
       await provider.replay(transaction, blockNumber)
+      echo "transaction replay completed, no revert reason obtained"
       trace "transaction replay completed, no revert reason obtained"
     except ProviderError as e:
+      echo "transaction revert reason obtained, reason: ", e.msg
       trace "transaction revert reason obtained", reason = e.msg
       # should contain the revert reason
       raiseContractError e.msg
