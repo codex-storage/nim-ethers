@@ -10,6 +10,11 @@ import ../../provider
 
 export jsonmarshal
 
+type JsonSerializationError = object of EthersError
+
+template raiseSerializationError(message: string) =
+  raise newException(JsonSerializationError, message)
+
 func fromJson*(T: type, json: JsonNode, name = ""): T =
   fromJson(json, name, result)
 
@@ -91,23 +96,31 @@ func `%`*(status: TransactionStatus): JsonNode =
 
 # Transaction
 
-func fromJson*(json: JsonNode, name: string, result: var Transaction) =
-  # Deserializes a transaction response, eg eth_getTransactionByHash.
-  # Spec: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
-  let expectedFields =
-    @["input", "from", "to", "value", "nonce", "chainId", "gasPrice"]
-
+proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
   for fieldName in expectedFields:
     if not json.hasKey(fieldName):
-      raise newException(ValueError,
-        fmt"'{fieldName}' field not found in ${json}")
+      raiseSerializationError(fmt"'{fieldName}' field not found in ${json}")
 
-  result = Transaction(
-    sender: fromJson(?Address, json["from"], "from"),
+func fromJson*(json: JsonNode, name: string, result: var PastTransaction) =
+  # Deserializes a past transaction, eg eth_getTransactionByHash.
+  # Spec: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
+  json.expectFields "blockHash", "blockNumber", "from", "gas", "gasPrice",
+                    "hash", "input", "nonce", "to", "transactionIndex", "value",
+                    "v", "r", "s"
+
+  result = PastTransaction(
+    blockHash: BlockHash.fromJson(json["blockHash"], "blockHash"),
+    blockNumber: UInt256.fromJson(json["blockNumber"], "blockNumber"),
+    sender: Address.fromJson(json["from"], "from"),
+    gas: UInt256.fromJson(json["gas"], "gas"),
+    gasPrice: UInt256.fromJson(json["gasPrice"], "gasPrice"),
+    hash: TransactionHash.fromJson(json["hash"], "hash"),
+    input: seq[byte].fromJson(json["input"], "input"),
+    nonce: UInt256.fromJson(json["nonce"], "nonce"),
     to: Address.fromJson(json["to"], "to"),
-    data: seq[byte].fromJson(json["input"], "input"),
+    transactionIndex: UInt256.fromJson(json["transactionIndex"], "transactionIndex"),
     value: UInt256.fromJson(json["value"], "value"),
-    nonce: fromJson(?UInt256, json["nonce"], "nonce"),
-    chainId: fromJson(?UInt256, json["chainId"], "chainId"),
-    gasPrice: fromJson(?UInt256, json["gasPrice"], "gasPrice")
+    v: UInt256.fromJson(json["v"], "v"),
+    r: UInt256.fromJson(json["r"], "r"),
+    s: UInt256.fromJson(json["s"], "s"),
   )

@@ -1,3 +1,4 @@
+import pkg/chronicles
 import ./basics
 import ./transaction
 import ./blocktag
@@ -55,14 +56,38 @@ type
     number*: ?UInt256
     timestamp*: UInt256
     hash*: ?BlockHash
+  PastTransaction* = object
+    blockHash*: BlockHash
+    blockNumber*: UInt256
+    sender*: Address
+    gas*: UInt256
+    gasPrice*: UInt256
+    hash*: TransactionHash
+    input*: seq[byte]
+    nonce*: UInt256
+    to*: Address
+    transactionIndex*: UInt256
+    value*: UInt256
+    v*, r*, s*         : UInt256
 
 const EthersDefaultConfirmations* {.intdefine.} = 12
 const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
+
+logScope:
+  topics = "ethers provider"
+
+template raiseProviderError(message: string) =
+  raise newException(ProviderError, message)
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base, gcsafe.} =
+  doAssert false, "not implemented"
+
+method call*(provider: Provider,
+             tx: PastTransaction,
+             blockTag = BlockTag.latest): Future[seq[byte]] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method call*(provider: Provider,
@@ -81,7 +106,7 @@ method getTransactionCount*(provider: Provider,
 
 method getTransaction*(provider: Provider,
                        txHash: TransactionHash):
-                      Future[?Transaction] {.base, gcsafe.} =
+                      Future[?PastTransaction] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getTransactionReceipt*(provider: Provider,
@@ -119,7 +144,7 @@ method subscribe*(provider: Provider,
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
 
-proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.} =
+proc replay*(provider: Provider, tx: PastTransaction, blockNumber: UInt256) {.async.} =
   # Replay transaction at block. Useful for fetching revert reasons, which will
   # be present in the raised error message. The replayed block number should
   # include the state of the chain in the block previous to the block in which
@@ -128,6 +153,25 @@ proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.
   # included in the replay.
   # More information: https://snakecharmers.ethereum.org/web3py-revert-reason-parsing/
   discard await provider.call(tx, BlockTag.init(blockNumber - 1))
+
+method getRevertReason*(
+  provider: Provider,
+  receipt: TransactionReceipt
+): Future[?string] {.base, async.} =
+
+  if receipt.status != TransactionStatus.Failure:
+    raiseProviderError "cannot get revert reason, transaction not failed"
+
+  without blockNumber =? receipt.blockNumber or
+          transaction =? await provider.getTransaction(receipt.transactionHash):
+    return none string
+
+  try:
+    await provider.replay(transaction, blockNumber)
+    return none string
+  except ProviderError as e:
+    # should contain the revert reason
+    return some e.msg
 
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,

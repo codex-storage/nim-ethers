@@ -49,13 +49,11 @@ template convertError(nonce = none UInt256, body) =
   try:
     body
   except JsonRpcError as error:
-    echo "nonce for error below: ", nonce
     trace "jsonrpc error", error = error.msg
     raiseProviderError(error.msg, nonce)
   # Catch all ValueErrors for now, at least until JsonRpcError is actually
   # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
   except ValueError as error:
-    echo "nonce for error below: ", nonce
     trace "jsonrpc error (from rpc client)", error = error.msg
     raiseProviderError(error.msg, nonce)
 
@@ -147,6 +145,13 @@ method call*(provider: JsonRpcProvider,
     let client = await provider.client
     return await client.eth_call(tx, blockTag)
 
+method call*(provider: JsonRpcProvider,
+             tx: PastTransaction,
+             blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
+  convertError:
+    let client = await provider.client
+    return await client.eth_call(tx, blockTag)
+
 method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   convertError:
     let client = await provider.client
@@ -162,7 +167,7 @@ method getTransactionCount*(provider: JsonRpcProvider,
 
 method getTransaction*(provider: JsonRpcProvider,
                        txHash: TransactionHash):
-                      Future[?Transaction] {.async.} =
+                      Future[?PastTransaction] {.async.} =
   convertError:
     let client = await provider.client
     return await client.eth_getTransactionByHash(txHash)

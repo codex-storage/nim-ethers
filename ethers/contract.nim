@@ -258,29 +258,19 @@ proc confirm*(tx: Future[?TransactionResponse],
 
   let receipt = await response.confirm(confirmations, timeout)
 
-  if receipt.status != TransactionStatus.Success:
+  # TODO: handle TransactionStatus.Invalid?
+  if receipt.status == TransactionStatus.Failure:
     logScope:
       transactionHash = receipt.transactionHash
-    echo "[ethers contract] transaction failed, status: ", receipt.status
-    trace "transaction failed", status = receipt.status
-    without blockNumber =? receipt.blockNumber:
-      raiseContractError "Transaction reverted with unknown reason"
 
-    let provider = response.provider
-    without transaction =? await provider.getTransaction(receipt.transactionHash):
-      raiseContractError "Transaction reverted with unknown reason"
+    trace "transaction failed, replaying transaction to get revert reason"
 
-    try:
-      echo "[ethers contract] replaying transaction to get revert reason"
-      trace "replaying transaction to get revert reason"
-      await provider.replay(transaction, blockNumber)
-      echo "transaction replay completed, no revert reason obtained"
+    if revertReason =? await response.provider.getRevertReason(receipt):
+      trace "transaction revert reason obtained", revertReason
+      raiseContractError(revertReason)
+    else:
       trace "transaction replay completed, no revert reason obtained"
-    except ProviderError as e:
-      echo "transaction revert reason obtained, reason: ", e.msg
-      trace "transaction revert reason obtained", reason = e.msg
-      # should contain the revert reason
-      raiseContractError e.msg
+      raiseContractError("Transaction reverted with unknown reason")
 
   return receipt
 
