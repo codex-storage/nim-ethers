@@ -1,6 +1,7 @@
 import std/json
 import std/strformat
 import std/strutils
+import std/typetraits
 import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
 import ../../basics
@@ -94,7 +95,7 @@ func fromJson*(json: JsonNode, name: string, result: var TransactionStatus) =
 func `%`*(status: TransactionStatus): JsonNode =
   %(status.int.toHex)
 
-# Transaction
+# PastTransaction
 
 proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
   for fieldName in expectedFields:
@@ -124,3 +125,21 @@ func fromJson*(json: JsonNode, name: string, result: var PastTransaction) =
     r: UInt256.fromJson(json["r"], "r"),
     s: UInt256.fromJson(json["s"], "s"),
   )
+
+func `%`*(tx: PastTransaction): JsonNode =
+  %*{
+    "blockHash": tx.blockHash,
+    "blockNumber": tx.blockNumber,
+    "from": tx.sender,
+    "gas": tx.gas,
+    "gasPrice": tx.gasPrice,
+    "hash": tx.hash,
+    "input": tx.input,
+    "nonce": tx.nonce,
+    "to": tx.to,
+    "transactionIndex": tx.transactionIndex,
+    "value": tx.value,
+    "v": tx.v,
+    "r": tx.r,
+    "s": tx.s
+  }
