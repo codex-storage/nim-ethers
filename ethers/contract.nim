@@ -69,7 +69,7 @@ proc createTransaction(contract: Contract,
   let data = @selector & AbiEncoder.encode(parameters)
   Transaction(
     to: contract.address,
-    data: some data,
+    data: data,
     nonce: overrides.nonce,
     chainId: overrides.chainId,
     gasPrice: overrides.gasPrice,
@@ -259,6 +259,8 @@ proc confirm*(tx: Future[?TransactionResponse],
   let receipt = await response.confirm(confirmations, timeout)
 
   if receipt.status != TransactionStatus.Success:
+    logScope:
+      transactionHash = receipt.transactionHash
     echo "[ethers contract] transaction failed, status: ", receipt.status
     trace "transaction failed", status = receipt.status
     without blockNumber =? receipt.blockNumber:

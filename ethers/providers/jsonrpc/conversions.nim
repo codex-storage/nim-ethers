@@ -1,4 +1,5 @@
 import std/json
+import std/strformat
 import std/strutils
 import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
@@ -87,3 +88,26 @@ func fromJson*(json: JsonNode, name: string, result: var TransactionStatus) =
 
 func `%`*(status: TransactionStatus): JsonNode =
   %(status.int.toHex)
+
+# Transaction
+
+func fromJson*(json: JsonNode, name: string, result: var Transaction) =
+  # Deserializes a transaction response, eg eth_getTransactionByHash.
+  # Spec: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
+  let expectedFields =
+    @["input", "from", "to", "value", "nonce", "chainId", "gasPrice"]
+
+  for fieldName in expectedFields:
+    if not json.hasKey(fieldName):
+      raise newException(ValueError,
+        fmt"'{fieldName}' field not found in ${json}")
+
+  result = Transaction(
+    sender: fromJson(?Address, json["from"], "from"),
+    to: Address.fromJson(json["to"], "to"),
+    data: seq[byte].fromJson(json["input"], "input"),
+    value: UInt256.fromJson(json["value"], "value"),
+    nonce: fromJson(?UInt256, json["nonce"], "nonce"),
+    chainId: fromJson(?UInt256, json["chainId"], "chainId"),
+    gasPrice: fromJson(?UInt256, json["gasPrice"], "gasPrice")
+  )

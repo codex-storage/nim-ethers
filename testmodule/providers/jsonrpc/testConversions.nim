@@ -119,7 +119,7 @@ suite "JSON Conversions":
     expect ValueError:
       discard Log.fromJson(parseJson(json))
 
-  test "missing data in Transaction isNone":
+  test "getTransactionByHash correctly deserializes 'data' field from 'input' for Transaction":
     let json = %*{
       "blockHash":"0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922",
       "blockNumber":"0x22e",
@@ -140,4 +140,4 @@ suite "JSON Conversions":
     }
 
     let receipt = Transaction.fromJson(json)
-    check receipt.data.isNone
+    check receipt.data.len > 0

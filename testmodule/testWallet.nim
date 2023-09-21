@@ -66,7 +66,7 @@ suite "Wallet":
       gasPrice: some 20 * 10.u256.pow(9),
       gasLimit: some 21000.u256,
       value: 10.u256.pow(18),
-      data: none seq[byte]
+      data: @[]
     )
     let signed = await wallet.signTransaction(transaction)
     check signed.toHex == "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83"

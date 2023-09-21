@@ -4,7 +4,7 @@ import ./basics
 type Transaction* = object
   sender*: ?Address
   to*: Address
-  data*: ?seq[byte]
+  data*: seq[byte]
   value*: UInt256
   nonce*: ?UInt256
   chainId*: ?UInt256
@@ -19,7 +19,7 @@ func `$`*(transaction: Transaction): string =
     result &= "from: " & $sender & ", "
   result &= "to: " & $transaction.to & ", "
   result &= "value: " & $transaction.value & ", "
-  result &= "data: 0x" & $(transaction.data.?toHex)
+  result &= "data: 0x" & $(transaction.data.toHex)
   if nonce =? transaction.nonce:
     result &= ", nonce: " & $nonce
   if chainId =? transaction.chainId:
