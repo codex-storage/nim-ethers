@@ -8,6 +8,7 @@ import ./wallet/signing
 
 export keys
 export WalletError
+export signing
 
 var rng {.threadvar.}: ref HmacDrbgContext
 

@@ -16,6 +16,11 @@ type JsonSerializationError = object of EthersError
 template raiseSerializationError(message: string) =
   raise newException(JsonSerializationError, message)
 
+proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
+  for fieldName in expectedFields:
+    if not json.hasKey(fieldName):
+      raiseSerializationError(fmt"'{fieldName}' field not found in ${json}")
+
 func fromJson*(T: type, json: JsonNode, name = ""): T =
   fromJson(json, name, result)
 
@@ -96,11 +101,6 @@ func `%`*(status: TransactionStatus): JsonNode =
   %(status.int.toHex)
 
 # PastTransaction
-
-proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
-  for fieldName in expectedFields:
-    if not json.hasKey(fieldName):
-      raiseSerializationError(fmt"'{fieldName}' field not found in ${json}")
 
 func fromJson*(json: JsonNode, name: string, result: var PastTransaction) =
   # Deserializes a past transaction, eg eth_getTransactionByHash.

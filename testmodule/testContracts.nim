@@ -7,6 +7,7 @@ import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20
 import pkg/ethers/testing
+import pkg/ethers/wallet
 import ./hardhat
 import ./helpers
 import ./miner

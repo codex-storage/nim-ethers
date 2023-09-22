@@ -79,6 +79,15 @@ logScope:
 template raiseProviderError(message: string) =
   raise newException(ProviderError, message)
 
+func toTransaction*(past: PastTransaction): Transaction =
+  Transaction(
+    sender: some past.sender,
+    gasPrice: some past.gasPrice,
+    data: past.input,
+    nonce: some past.nonce,
+    to: past.to
+  )
+
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
@@ -144,7 +153,7 @@ method subscribe*(provider: Provider,
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
 
-proc replay*(provider: Provider, tx: PastTransaction, blockNumber: UInt256) {.async.} =
+proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.} =
   # Replay transaction at block. Useful for fetching revert reasons, which will
   # be present in the raised error message. The replayed block number should
   # include the state of the chain in the block previous to the block in which
@@ -160,11 +169,11 @@ method getRevertReason*(
   blockNumber: UInt256
 ): Future[?string] {.base, async.} =
 
-  without transaction =? await provider.getTransaction(hash):
+  without pastTx =? await provider.getTransaction(hash):
     return none string
 
   try:
-    await provider.replay(transaction, blockNumber)
+    await provider.replay(pastTx.toTransaction, blockNumber)
     return none string
   except ProviderError as e:
     # should contain the revert reason

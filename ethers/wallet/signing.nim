@@ -1,8 +1,10 @@
 import pkg/eth/keys
 import pkg/eth/rlp
 import pkg/eth/common/transaction as eth
+import pkg/eth/common/eth_hash
 import ../basics
 import ../transaction as ethers
+import ../provider
 import ./error
 
 type
@@ -62,3 +64,6 @@ func sign(key: PrivateKey, transaction: SignableTransaction): seq[byte] =
 
 func sign*(key: PrivateKey, transaction: Transaction): seq[byte] =
   key.sign(transaction.toSignableTransaction())
+
+func toTransactionHash*(bytes: seq[byte]): TransactionHash =
+  TransactionHash(bytes.keccakHash.data)
