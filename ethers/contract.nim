@@ -261,7 +261,7 @@ proc confirm*(tx: Future[?TransactionResponse],
   # TODO: handle TransactionStatus.Invalid?
   if receipt.status == TransactionStatus.Failure:
     logScope:
-      transactionHash = receipt.transactionHash
+      transactionHash = receipt.transactionHash.to0xHex
 
     trace "transaction failed, replaying transaction to get revert reason"
 

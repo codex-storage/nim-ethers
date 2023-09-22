@@ -2,6 +2,7 @@ import std/json
 import std/options
 import pkg/asynctest
 import pkg/questionable
+import pkg/stew/byteutils
 import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20

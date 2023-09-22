@@ -156,14 +156,11 @@ proc replay*(provider: Provider, tx: PastTransaction, blockNumber: UInt256) {.as
 
 method getRevertReason*(
   provider: Provider,
-  receipt: TransactionReceipt
+  hash: TransactionHash,
+  blockNumber: UInt256
 ): Future[?string] {.base, async.} =
 
-  if receipt.status != TransactionStatus.Failure:
-    raiseProviderError "cannot get revert reason, transaction not failed"
-
-  without blockNumber =? receipt.blockNumber or
-          transaction =? await provider.getTransaction(receipt.transactionHash):
+  without transaction =? await provider.getTransaction(hash):
     return none string
 
   try:
@@ -172,6 +169,29 @@ method getRevertReason*(
   except ProviderError as e:
     # should contain the revert reason
     return some e.msg
+
+method getRevertReason*(
+  provider: Provider,
+  receipt: TransactionReceipt
+): Future[?string] {.base, async.} =
+
+  if receipt.status != TransactionStatus.Failure:
+    raiseProviderError "cannot get revert reason, transaction not failed"
+
+  without blockNumber =? receipt.blockNumber:
+    return none string
+
+  return await provider.getRevertReason(receipt.transactionHash, blockNumber)
+  # without blockNumber =? receipt.blockNumber or
+  #         transaction =? await provider.getTransaction(receipt.transactionHash):
+  #   return none string
+
+  # try:
+  #   await provider.replay(transaction, blockNumber)
+  #   return none string
+  # except ProviderError as e:
+  #   # should contain the revert reason
+  #   return some e.msg
 
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,
