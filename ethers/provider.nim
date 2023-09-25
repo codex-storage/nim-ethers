@@ -161,7 +161,7 @@ proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.
   # the same block BEFORE this transaction will not have their state transitions
   # included in the replay.
   # More information: https://snakecharmers.ethereum.org/web3py-revert-reason-parsing/
-  discard await provider.call(tx, BlockTag.init(blockNumber - 1))
+  discard await provider.call(tx, BlockTag.init(blockNumber))
 
 method getRevertReason*(
   provider: Provider,
