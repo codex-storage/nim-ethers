@@ -48,7 +48,9 @@ type
     logs*: seq[Log]
     blockNumber*: ?UInt256
     cumulativeGasUsed*: UInt256
+    effectiveGasPrice*: ?UInt256
     status*: TransactionStatus
+    transactionType*: TransactionType
   LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
   BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
   Topic* = array[32, byte]
@@ -67,6 +69,8 @@ type
     nonce*: UInt256
     to*: Address
     transactionIndex*: UInt256
+    transactionType*: ?TransactionType
+    chainId*: ?UInt256
     value*: UInt256
     v*, r*, s*         : UInt256
 
@@ -85,7 +89,9 @@ func toTransaction*(past: PastTransaction): Transaction =
     gasPrice: some past.gasPrice,
     data: past.input,
     nonce: some past.nonce,
-    to: past.to
+    to: past.to,
+    transactionType: past.transactionType,
+    chainId: past.chainId
   )
 
 method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =

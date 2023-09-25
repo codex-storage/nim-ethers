@@ -59,6 +59,16 @@ func `%`*(integer: UInt256): JsonNode =
 func fromJson*(json: JsonNode, name: string, result: var UInt256) =
   result = UInt256.fromHex(json.getStr())
 
+# TransactionType
+
+func fromJson*(json: JsonNode, name: string, result: var TransactionType) =
+  let val = fromHex[int](json.getStr)
+  result = TransactionType(val)
+
+func `%`*(txType: TransactionType): JsonNode =
+  debugEcho "serializing tx type: ", txType, " to: 0x", txType.int.toHex(1)
+  %("0x" & txType.int.toHex(1))
+
 # Transaction
 
 func `%`*(transaction: Transaction): JsonNode =
@@ -73,6 +83,8 @@ func `%`*(transaction: Transaction): JsonNode =
     result["gasPrice"] = %gasPrice
   if gasLimit =? transaction.gasLimit:
     result["gas"] = %gasLimit
+  if txType =? transaction.transactionType:
+    result["type"] = %txType
 
 # BlockTag
 
@@ -98,7 +110,7 @@ func fromJson*(json: JsonNode, name: string, result: var TransactionStatus) =
   result = TransactionStatus(val)
 
 func `%`*(status: TransactionStatus): JsonNode =
-  %(status.int.toHex)
+  %("0x" & status.int.toHex(1))
 
 # PastTransaction
 
@@ -125,9 +137,13 @@ func fromJson*(json: JsonNode, name: string, result: var PastTransaction) =
     r: UInt256.fromJson(json["r"], "r"),
     s: UInt256.fromJson(json["s"], "s"),
   )
+  if json.hasKey("type"):
+    result.transactionType = fromJson(?TransactionType, json["type"], "type")
+  if json.hasKey("chainId"):
+    result.chainId = fromJson(?UInt256, json["chainId"], "chainId")
 
 func `%`*(tx: PastTransaction): JsonNode =
-  %*{
+  let json = %*{
     "blockHash": tx.blockHash,
     "blockNumber": tx.blockNumber,
     "from": tx.sender,
@@ -143,3 +159,34 @@ func `%`*(tx: PastTransaction): JsonNode =
     "r": tx.r,
     "s": tx.s
   }
+  if txType =? tx.transactionType:
+    json["type"] = %txType
+  if chainId =? tx.chainId:
+    json["chainId"] = %chainId
+  return json
+
+# TransactionReceipt
+
+func fromJson*(json: JsonNode, name: string, result: var TransactionReceipt) =
+  # Deserializes a transaction receipt, eg eth_getTransactionReceipt.
+  # Spec: https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
+  json.expectFields "transactionHash", "transactionIndex", "cumulativeGasUsed",
+                    "effectiveGasPrice", "gasUsed", "logs", "logsBloom", "type",
+                    "status"
+
+  result = TransactionReceipt(
+    transactionHash: fromJson(TransactionHash, json["transactionHash"], "transactionHash"),
+    transactionIndex: UInt256.fromJson(json["transactionIndex"], "transactionIndex"),
+    blockHash: fromJson(?BlockHash, json["blockHash"], "blockHash"),
+    blockNumber: fromJson(?UInt256, json["blockNumber"], "blockNumber"),
+    sender: fromJson(?Address, json["from"], "from"),
+    to: fromJson(?Address, json["to"], "to"),
+    cumulativeGasUsed: UInt256.fromJson(json["cumulativeGasUsed"], "cumulativeGasUsed"),
+    effectiveGasPrice: fromJson(?UInt256, json["effectiveGasPrice"], "effectiveGasPrice"),
+    gasUsed: UInt256.fromJson(json["gasUsed"], "gasUsed"),
+    contractAddress: fromJson(?Address, json["contractAddress"], "contractAddress"),
+    logs: seq[Log].fromJson(json["logs"], "logs"),
+    logsBloom: seq[byte].fromJson(json["logsBloom"], "logsBloom"),
+    transactionType: TransactionType.fromJson(json["type"], "type"),
+    status: TransactionStatus.fromJson(json["status"], "status")
+  )

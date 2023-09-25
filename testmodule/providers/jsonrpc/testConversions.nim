@@ -42,7 +42,7 @@ suite "JSON Conversions":
 
   test "missing block number in TransactionReceipt isNone":
     var json = %*{
-      "sender": newJNull(),
+      "from": newJNull(),
       "to": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
       "contractAddress": newJNull(),
       "transactionIndex": "0x0",
@@ -62,7 +62,9 @@ suite "JSON Conversions":
       ],
       "blockNumber": newJNull(),
       "cumulativeGasUsed": "0x10db1",
-      "status": "0000000000000001"
+      "status": "0x1",
+      "effectiveGasPrice": "0x3b9aca08",
+      "type": "0x0"
     }
 
     var receipt = TransactionReceipt.fromJson(json)
@@ -75,7 +77,7 @@ suite "JSON Conversions":
 
   test "missing block hash in TransactionReceipt isNone":
     let json = %*{
-      "sender": newJNull(),
+      "from": newJNull(),
       "to": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
       "contractAddress": newJNull(),
       "transactionIndex": "0x0",
@@ -95,7 +97,9 @@ suite "JSON Conversions":
       ],
       "blockNumber": newJNull(),
       "cumulativeGasUsed": "0x10db1",
-      "status": "0000000000000001"
+      "status": "0x1",
+      "effectiveGasPrice": "0x3b9aca08",
+      "type": "0x0"
     }
 
     let receipt = TransactionReceipt.fromJson(json)
@@ -157,44 +161,48 @@ suite "JSON Conversions":
     check tx.to == Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e").get
     check tx.transactionIndex == 0x3.u256
     check tx.value == 0.u256
+    check tx.transactionType == some TransactionType.Legacy
+    check tx.chainId == some 0xc0de4.u256
     check tx.v == 0x181bec.u256
     check tx.r == UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a"))
     check tx.s == UInt256.fromBytesBE(hexToSeqByte("0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2"))
 
-test "PastTransaction serializes correctly":
-  let tx = PastTransaction(
-    blockHash: BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")),
-    blockNumber: 0x22e.u256,
-    sender: Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get,
-    gas: 0x4d4bb.u256,
-    gasPrice: 0x3b9aca07.u256,
-    hash: TransactionHash(array[32, byte].fromHex("0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790")),
-    input: hexToSeqByte("0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000"),
-    nonce: 0x3.u256,
-    to: Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e").get,
-    transactionIndex: 0x3.u256,
-    value: 0.u256,
-    v: 0x181bec.u256,
-    r: UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a")),
-    s: UInt256.fromBytesBE(hexToSeqByte("0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2"))
-  )
-  let expected = """
-    {
-      "blockHash":"0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922",
-      "blockNumber":"0x22e",
-      "from":"0xe00b677c29ff8d8fe6068530e2bc36158c54dd34",
-      "gas":"0x4d4bb",
-      "gasPrice":"0x3b9aca07",
-      "hash":"0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790",
-      "input":"0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000",
-      "nonce":"0x3",
-      "to":"0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e",
-      "transactionIndex":"0x3",
-      "value":"0x0",
-      "v":"0x181bec",
-      "r":"0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a",
-      "s":"0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2"
-    }""".flatten
-    # "type":"0x0",
-    # "chainId":"0xc0de4",
-  check $(%tx) == expected
+  test "PastTransaction serializes correctly":
+    let tx = PastTransaction(
+      blockHash: BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")),
+      blockNumber: 0x22e.u256,
+      sender: Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get,
+      gas: 0x4d4bb.u256,
+      gasPrice: 0x3b9aca07.u256,
+      hash: TransactionHash(array[32, byte].fromHex("0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790")),
+      input: hexToSeqByte("0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000"),
+      nonce: 0x3.u256,
+      to: Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e").get,
+      transactionIndex: 0x3.u256,
+      value: 0.u256,
+      v: 0x181bec.u256,
+      r: UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a")),
+      s: UInt256.fromBytesBE(hexToSeqByte("0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2")),
+      transactionType: some TransactionType.Legacy,
+      chainId: some 0xc0de4.u256
+    )
+    let expected = """
+      {
+        "blockHash":"0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922",
+        "blockNumber":"0x22e",
+        "from":"0xe00b677c29ff8d8fe6068530e2bc36158c54dd34",
+        "gas":"0x4d4bb",
+        "gasPrice":"0x3b9aca07",
+        "hash":"0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790",
+        "input":"0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000",
+        "nonce":"0x3",
+        "to":"0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e",
+        "transactionIndex":"0x3",
+        "value":"0x0",
+        "v":"0x181bec",
+        "r":"0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a",
+        "s":"0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2",
+        "type":"0x0",
+        "chainId":"0xc0de4"
+      }""".flatten
+    check $(%tx) == expected
