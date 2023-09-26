@@ -91,7 +91,7 @@ func toTransaction*(past: PastTransaction): Transaction =
     data: past.input,
     nonce: some past.nonce,
     to: past.to,
-    # transactionType: past.transactionType,
+    transactionType: past.transactionType,
     gasLimit: some past.gas,
     chainId: past.chainId
   )
