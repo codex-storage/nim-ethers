@@ -1,3 +1,4 @@
+import std/json
 import pkg/chronicles
 import ./basics
 import ./transaction
@@ -102,7 +103,7 @@ method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base, gcsa
   doAssert false, "not implemented"
 
 method call*(provider: Provider,
-             tx: PastTransaction,
+             tx: JsonNode,
              blockTag = BlockTag.latest): Future[seq[byte]] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
