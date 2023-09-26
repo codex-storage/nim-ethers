@@ -200,16 +200,6 @@ method getRevertReason*(
     return none string
 
   return await provider.getRevertReason(receipt.transactionHash, blockNumber)
-  # without blockNumber =? receipt.blockNumber or
-  #         transaction =? await provider.getTransaction(receipt.transactionHash):
-  #   return none string
-
-  # try:
-  #   await provider.replay(transaction, blockNumber)
-  #   return none string
-  # except ProviderError as e:
-  #   # should contain the revert reason
-  #   return some e.msg
 
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,

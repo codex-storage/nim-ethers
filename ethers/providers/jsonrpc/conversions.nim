@@ -66,7 +66,6 @@ func fromJson*(json: JsonNode, name: string, result: var TransactionType) =
   result = TransactionType(val)
 
 func `%`*(txType: TransactionType): JsonNode =
-  debugEcho "serializing tx type: ", txType, " to: 0x", txType.int.toHex(1)
   %("0x" & txType.int.toHex(1))
 
 # Transaction
@@ -83,8 +82,6 @@ func `%`*(transaction: Transaction): JsonNode =
     result["gasPrice"] = %gasPrice
   if gasLimit =? transaction.gasLimit:
     result["gas"] = %gasLimit
-  if txType =? transaction.transactionType:
-    result["type"] = %txType
 
 # BlockTag
 
