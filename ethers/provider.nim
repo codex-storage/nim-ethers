@@ -141,7 +141,8 @@ method getLogs*(provider: Provider,
   doAssert false, "not implemented"
 
 method estimateGas*(provider: Provider,
-                    transaction: Transaction): Future[UInt256] {.base, gcsafe.} =
+                    transaction: Transaction,
+                    blockTag = BlockTag.latest): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getChainId*(provider: Provider): Future[UInt256] {.base, gcsafe.} =

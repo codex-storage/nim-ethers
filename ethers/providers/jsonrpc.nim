@@ -199,10 +199,11 @@ method getLogs*(provider: JsonRpcProvider,
     return logs
 
 method estimateGas*(provider: JsonRpcProvider,
-                    transaction: Transaction): Future[UInt256] {.async.} =
+                    transaction: Transaction,
+                    blockTag = BlockTag.latest): Future[UInt256] {.async.} =
   convertError:
     let client = await provider.client
-    return await client.eth_estimateGas(transaction)
+    return await client.eth_estimateGas(transaction, blockTag)
 
 method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   convertError:
