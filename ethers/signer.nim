@@ -111,12 +111,12 @@ method populateTransaction*(signer: Signer,
 
   if transaction.sender.isNone:
     populated.sender = some(await signer.getAddress())
-  if transaction.nonce.isNone:
-    populated.nonce = some(await signer.getNonce())
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
+  if transaction.nonce.isNone:
+    populated.nonce = some(await signer.getNonce())
   if transaction.gasLimit.isNone:
     try:
       populated.gasLimit = some(await signer.estimateGas(populated))
