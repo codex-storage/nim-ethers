@@ -1,7 +1,12 @@
 import ./basics
 import ./provider
+import pkg/chronicles
 
 export basics
+export chronicles
+
+logScope:
+  topics = "ethers signer"
 
 type
   Signer* = ref object of RootObj
@@ -87,7 +92,8 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
     signer.lastSeenNonce = some lastSeen - 1
 
 method populateTransaction*(signer: Signer,
-                            transaction: Transaction):
+                            transaction: Transaction,
+                            cancelOnEstimateGasError = false):
                            Future[Transaction] {.base, async.} =
 
   if sender =? transaction.sender and sender != await signer.getAddress():

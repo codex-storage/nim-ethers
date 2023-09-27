@@ -9,6 +9,7 @@ import ./hardhat
 import ./helpers
 import ./miner
 import ./mocks
+import ./examples
 
 type
   TestToken = ref object of Erc20Token
