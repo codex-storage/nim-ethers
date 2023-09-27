@@ -1,4 +1,6 @@
 import std/json
+import std/options
+import std/strutils
 import pkg/asynctest
 import pkg/questionable
 import pkg/stint
@@ -7,6 +9,7 @@ import pkg/ethers/erc20
 import ./hardhat
 import ./miner
 import ./mocks
+import ./examples
 
 type
   TestToken = ref object of Erc20Token

@@ -123,7 +123,7 @@ proc send(contract: Contract,
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
-    let populated = await signer.populateTransaction(transaction)
+    let populated = await signer.populateTransaction(transaction, cancelOnEstimateGasError = true)
     let txResp = await signer.sendTransaction(populated)
     return txResp.some
   else:

@@ -1,7 +1,12 @@
 import ./basics
 import ./provider
+import pkg/chronicles
 
 export basics
+export chronicles
+
+logScope:
+  topics = "ethers signer"
 
 type
   Signer* = ref object of RootObj
@@ -64,8 +69,37 @@ method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
   if nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
+method cancelTransaction(
+  signer: Signer,
+  tx: Transaction
+): Future[TransactionResponse] {.async, base.} =
+  # cancels a transaction by sending with a 0-valued transaction to ourselves
+  # with the failed tx's nonce
+
+  without sender =? tx.sender:
+    raiseSignerError "transaction must have sender"
+  if sender != await signer.getAddress():
+    raiseSignerError "can only cancel a tx this signer has sent"
+  without nonce =? tx.nonce:
+    raiseSignerError "transaction must have nonce"
+
+  var cancelTx = tx
+  cancelTx.to = sender
+  cancelTx.value = 0.u256
+  cancelTx.nonce = some nonce
+  try:
+    cancelTx.gasLimit = some(await signer.estimateGas(cancelTx))
+  except ProviderError:
+    warn "failed to estimate gas for cancellation tx, sending anyway",
+      tx = $cancelTx
+    discard
+
+  trace "cancelling transaction to prevent stuck transactions", nonce
+  return await signer.sendTransaction(cancelTx)
+
 method populateTransaction*(signer: Signer,
-                            transaction: Transaction):
+                            transaction: Transaction,
+                            cancelOnEstimateGasError = false):
                            Future[Transaction] {.base, async.} =
 
   if sender =? transaction.sender and sender != await signer.getAddress():
@@ -84,6 +118,13 @@ method populateTransaction*(signer: Signer,
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
   if transaction.gasLimit.isNone:
-    populated.gasLimit = some(await signer.estimateGas(populated))
+    try:
+      populated.gasLimit = some(await signer.estimateGas(populated))
+    except ProviderError as e:
+      # send a 0-valued transaction with the errored nonce to prevent stuck txs
+      discard await signer.cancelTransaction(populated)
+      raiseSignerError "estimateGas failed. *A cancellation transaction " &
+        "(0-valued tx to ourselves with the estimateGas nonce) has been sent " &
+        "to prevent stuck transactions.* Error: " & e.msg
 
   return populated
