@@ -14,8 +14,8 @@ type
 
 type SignerError* = object of EthersError
 
-template raiseSignerError(message: string) =
-  raise newException(SignerError, message)
+template raiseSignerError(message: string, parent: ref ProviderError = nil) =
+  raise newException(SignerError, message, parent)
 
 method provider*(signer: Signer): Provider {.base, gcsafe.} =
   doAssert false, "not implemented"
@@ -123,8 +123,8 @@ method populateTransaction*(signer: Signer,
     except ProviderError as e:
       # send a 0-valued transaction with the errored nonce to prevent stuck txs
       discard await signer.cancelTransaction(populated)
-      raiseSignerError "estimateGas failed. *A cancellation transaction " &
-        "(0-valued tx to ourselves with the estimateGas nonce) has been sent " &
-        "to prevent stuck transactions.* Error: " & e.msg
+      raiseSignerError "Estimate gas failed -- A cancellation transaction " &
+        "has been sent to prevent stuck transactions. See parent exception " &
+        "for revert reason.", e
 
   return populated

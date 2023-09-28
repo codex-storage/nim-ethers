@@ -1,7 +1,8 @@
 import std/strutils
 import ./provider
+import ./signer
 
-proc revertReason*(e: ref ProviderError): string =
+proc revertReason*(e: ref EthersError): string =
   var msg = e.msg
   const revertPrefixes = @[
     # hardhat
@@ -22,7 +23,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError:
+  except ProviderError, SignerError:
     return true
 
 proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
@@ -32,5 +33,11 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError as error:
-    return reason == error.revertReason
+  except EthersError as error:
+    var passed = reason == error.revertReason
+    if not passed and
+       not error.parent.isNil and
+       error.parent of (ref EthersError):
+      let revertReason = (ref EthersError)(error.parent).revertReason
+      passed = reason == revertReason
+    return passed
