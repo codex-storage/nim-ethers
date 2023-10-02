@@ -16,6 +16,7 @@ type
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 method myBalance(token: TestToken): UInt256 {.base, contract, view.}
+method doRevert(token: TestToken, reason: string): ?TransactionResponse {.base, contract.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
 

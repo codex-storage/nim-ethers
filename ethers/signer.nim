@@ -66,7 +66,9 @@ method estimateGas*(signer: Signer,
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
-method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+func lastSeenNonce*(signer: Signer): ?UInt256 = signer.lastSeenNonce
+
+method getNonce*(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
@@ -84,7 +86,7 @@ method updateNonce*(
     signer.lastSeenNonce = some nonce
     return
 
-  if nonce > lastSeen:
+  if force or nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
 method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
@@ -92,8 +94,7 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
     signer.lastSeenNonce = some lastSeen - 1
 
 method populateTransaction*(signer: Signer,
-                            transaction: Transaction,
-                            cancelOnEstimateGasError = false):
+                            transaction: Transaction):
                            Future[Transaction] {.base, async.} =
 
   if sender =? transaction.sender and sender != await signer.getAddress():
