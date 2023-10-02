@@ -12,7 +12,10 @@ type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
 
-type SignerError* = object of EthersError
+type
+  SignerError* = object of EthersError
+  EstimateGasError* = object of SignerError
+    transaction*: Transaction
 
 template raiseSignerError(message: string, parent: ref ProviderError = nil) =
   raise newException(SignerError, message, parent)
@@ -49,27 +52,35 @@ method estimateGas*(signer: Signer,
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
-method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+func lastSeenNonce*(signer: Signer): ?UInt256 = signer.lastSeenNonce
+
+method getNonce*(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   var nonce = await signer.getTransactionCount(BlockTag.pending)
-  
+
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
     nonce = (lastSeen + 1.u256)
   signer.lastSeenNonce = some nonce
-  
+
   return nonce
 
-method updateNonce*(signer: Signer, nonce: ?UInt256) {.base, gcsafe.} =
-  without nonce =? nonce:
-    return
+method updateNonce*(
+  signer: Signer,
+  nonce: UInt256,
+  force = false
+) {.base, gcsafe.} =
+  ## When true, force updates nonce without first checking if it is higher than
+  ## the last seen nonce. NOTE: This should ONLY be used when absolutely needed,
+  ## eg when estimateGas fails, but no other nonces have been generated between
+  ## the estimateGas and updateNonce calls
 
   without lastSeen =? signer.lastSeenNonce:
     signer.lastSeenNonce = some nonce
     return
 
-  if nonce > lastSeen:
+  if force or nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
-method cancelTransaction(
+method cancelTransaction*(
   signer: Signer,
   tx: Transaction
 ): Future[TransactionResponse] {.async, base.} =
@@ -98,8 +109,7 @@ method cancelTransaction(
   return await signer.sendTransaction(cancelTx)
 
 method populateTransaction*(signer: Signer,
-                            transaction: Transaction,
-                            cancelOnEstimateGasError = false):
+                            transaction: Transaction):
                            Future[Transaction] {.base, async.} =
 
   if sender =? transaction.sender and sender != await signer.getAddress():
@@ -121,10 +131,10 @@ method populateTransaction*(signer: Signer,
     try:
       populated.gasLimit = some(await signer.estimateGas(populated))
     except ProviderError as e:
-      # send a 0-valued transaction with the errored nonce to prevent stuck txs
-      discard await signer.cancelTransaction(populated)
-      raiseSignerError "Estimate gas failed -- A cancellation transaction " &
-        "has been sent to prevent stuck transactions. See parent exception " &
-        "for revert reason.", e
+      let e = (ref EstimateGasError)(
+        msg: "Estimate gas failed",
+        transaction: populated,
+        parent: e)
+      raise e
 
   return populated

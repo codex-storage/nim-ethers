@@ -16,6 +16,7 @@ type
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 method myBalance(token: TestToken): UInt256 {.base, contract, view.}
+method doRevert(token: TestToken, reason: string): ?TransactionResponse {.base, contract.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
@@ -238,3 +239,33 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check logs == @[
         Transfer(receiver: accounts[0], value: 100.u256)
       ]
+
+    test "transactions are cancelled once nonce has been incremented to prevent stuck transactions":
+      let signer = provider.getSigner()
+      token = TestToken.new(token.address, signer)
+
+      # emulate concurrent getNonce calls
+      let nonce0 = await signer.getNonce()
+      let nonce1 = await signer.getNonce()
+
+      expect ContractError:
+        discard await token.doRevert("some reason", TransactionOverrides(nonce: some nonce0))
+
+      let receipt = await token
+        .mint(accounts[0], 100.u256, TransactionOverrides(nonce: some nonce1))
+        .confirm(1)
+
+      check receipt.status == TransactionStatus.Success
+
+    test "transactions are not cancelled if nonce has not been incremented":
+      let signer = provider.getSigner()
+      token = TestToken.new(token.address, signer)
+
+      expect ContractError:
+        discard await token.doRevert("some reason")
+
+      let receipt = await token
+        .mint(accounts[0], 100.u256)
+        .confirm(1)
+
+      check receipt.status == TransactionStatus.Success

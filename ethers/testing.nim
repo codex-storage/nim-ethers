@@ -33,8 +33,9 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except EthersError as error:
-    var passed = reason == error.revertReason
+  except ProviderError, SignerError:
+    let error = getCurrentException()
+    var passed = reason == (ref EthersError)(error).revertReason
     if not passed and
        not error.parent.isNil and
        error.parent of (ref EthersError):
