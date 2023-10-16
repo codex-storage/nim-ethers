@@ -69,6 +69,32 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check (await token.balanceOf(accounts[0])) == 100.u256
       check (await token.balanceOf(accounts[1])) == 0.u256
 
+    test "increase/decrease allowance":
+      discard await testToken.mint(accounts[0], 100.u256)
+
+      check (await token.allowance(accounts[0], accounts[1])) == 0.u256
+      check (await token.balanceOf(accounts[0])) == 100.u256
+      check (await token.balanceOf(accounts[1])) == 0.u256
+
+      discard await token.increaseAllowance(accounts[1], 50.u256)
+
+      check (await token.allowance(accounts[0], accounts[1])) == 50.u256
+      check (await token.balanceOf(accounts[0])) == 100.u256
+      check (await token.balanceOf(accounts[1])) == 0.u256
+
+      discard await token.increaseAllowance(accounts[1], 50.u256)
+
+      check (await token.allowance(accounts[0], accounts[1])) == 100.u256
+      check (await token.balanceOf(accounts[0])) == 100.u256
+      check (await token.balanceOf(accounts[1])) == 0.u256
+
+      discard await token.decreaseAllowance(accounts[1], 50.u256)
+
+      check (await token.allowance(accounts[0], accounts[1])) == 50.u256
+      check (await token.balanceOf(accounts[0])) == 100.u256
+      check (await token.balanceOf(accounts[1])) == 0.u256
+
+
     test "transferFrom tokens":
       let senderAccount = accounts[0]
       let receiverAccount = accounts[1]
