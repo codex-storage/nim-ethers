@@ -73,16 +73,13 @@ type
     transactionType*: ?TransactionType
     chainId*: ?UInt256
     value*: UInt256
-    v*, r*, s*         : UInt256
+    v*, r*, s*: UInt256
 
 const EthersDefaultConfirmations* {.intdefine.} = 12
 const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
 
 logScope:
   topics = "ethers provider"
-
-template raiseProviderError(message: string) =
-  raise newException(ProviderError, message)
 
 func toTransaction*(past: PastTransaction): Transaction =
   Transaction(
@@ -100,11 +97,6 @@ method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base, gcsafe.} =
-  doAssert false, "not implemented"
-
-method call*(provider: Provider,
-             tx: JsonNode,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method call*(provider: Provider,
@@ -200,7 +192,7 @@ method getRevertReason*(
   without blockNumber =? receipt.blockNumber:
     return none string
 
-  return await provider.getRevertReason(receipt.transactionHash, blockNumber)
+  return await provider.getRevertReason(receipt.transactionHash, blockNumber - 1)
 
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,

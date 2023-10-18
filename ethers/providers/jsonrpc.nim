@@ -124,13 +124,6 @@ method getBlock*(provider: JsonRpcProvider,
     return await client.eth_getBlockByNumber(tag, false)
 
 method call*(provider: JsonRpcProvider,
-             tx: JsonNode,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
-  convertError:
-    let client = await provider.client
-    return await client.eth_call(tx, blockTag)
-
-method call*(provider: JsonRpcProvider,
              tx: Transaction,
              blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
   convertError:
