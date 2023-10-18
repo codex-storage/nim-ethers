@@ -1,4 +1,5 @@
 import std/strutils
+import ./contract
 import ./provider
 import ./signer
 

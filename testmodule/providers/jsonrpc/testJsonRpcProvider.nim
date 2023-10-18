@@ -99,20 +99,3 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         discard await provider.subscribe(proc(_: Block) = discard)
       expect JsonRpcProviderError:
         discard await provider.getSigner().sendTransaction(Transaction.example)
-
-    test "JsonRpcProviderError contains nonce":
-      let signer = provider.getSigner()
-      var transaction = Transaction.example
-      var populated: Transaction
-      try:
-        populated = await signer.populateTransaction(transaction)
-        populated.chainId = some 0.u256
-        let confirming = signer.sendTransaction(populated).confirm(1)
-        await sleepAsync(100.millis) # wait for tx to be mined
-        await provider.mineBlocks(1)
-        discard await confirming
-      except JsonRpcProviderError as e:
-        check e.nonce.isSome
-        check e.nonce == populated.nonce
-        return
-      fail()

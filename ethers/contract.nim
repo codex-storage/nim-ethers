@@ -58,8 +58,8 @@ func signer*(contract: Contract): ?Signer =
 func address*(contract: Contract): Address =
   contract.address
 
-template raiseContractError(message: string) =
-  raise newException(ContractError, message)
+template raiseContractError(message: string, parent: ref Exception = nil) =
+  raise newException(ContractError, message, parent)
 
 proc createTransaction(contract: Contract,
                        function: string,
@@ -250,6 +250,8 @@ proc confirm*(tx: Future[?TransactionResponse],
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
   ##          .confirm(3)`
+  ## Will raise ContractError with revert reason if TransactionReceipt.Status
+  ## is Failed
   without response =? (await tx):
     raise newException(
       EthersError,

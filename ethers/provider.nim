@@ -195,7 +195,7 @@ method getRevertReason*(
 ): Future[?string] {.base, async.} =
 
   if receipt.status != TransactionStatus.Failure:
-    raiseProviderError "cannot get revert reason, transaction not failed"
+    return none string
 
   without blockNumber =? receipt.blockNumber:
     return none string
