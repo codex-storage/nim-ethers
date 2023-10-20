@@ -21,9 +21,4 @@ contract TestToken is ERC20 {
   function myBalance() public view returns (uint256)  {
     return balanceOf(msg.sender);
   }
-
-  function doRevert(string memory reason) public {
-    // Revert every tx with given reason
-    require(false, reason);
-  }
 }
