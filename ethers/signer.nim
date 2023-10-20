@@ -66,8 +66,6 @@ method estimateGas*(signer: Signer,
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
-func lastSeenNonce*(signer: Signer): ?UInt256 = signer.lastSeenNonce
-
 method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
