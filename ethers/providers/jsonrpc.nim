@@ -3,6 +3,7 @@ import std/tables
 import std/uri
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
+import pkg/stew/byteutils
 import ../basics
 import ../provider
 import ../signer

@@ -68,7 +68,7 @@ method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
 
 func lastSeenNonce*(signer: Signer): ?UInt256 = signer.lastSeenNonce
 
-method getNonce*(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
@@ -86,7 +86,7 @@ method updateNonce*(
     signer.lastSeenNonce = some nonce
     return
 
-  if force or nonce > lastSeen:
+  if nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
 method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
@@ -109,11 +109,11 @@ method populateTransaction*(signer: Signer,
 
   var populated = transaction
 
-  if transaction.sender.isNone:
+  if populated.sender.isNone:
     populated.sender = some(await signer.getAddress())
-  if transaction.chainId.isNone:
+  if populated.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone and (populated.maxFee.isNone or populated.maxPriorityFee.isNone):
+  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
 
   if transaction.nonce.isNone and transaction.gasLimit.isNone:

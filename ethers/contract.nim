@@ -3,6 +3,7 @@ import std/macros
 import std/sequtils
 import pkg/chronos
 import pkg/contractabi
+import pkg/stew/byteutils
 import ./basics
 import ./provider
 import ./signer
@@ -117,38 +118,6 @@ proc call(contract: Contract,
   let response = await contract.provider.call(transaction, overrides)
   return decodeResponse(ReturnType, returnMultiple, response)
 
-proc populateTransaction(
-  contract: Contract,
-  tx: Transaction
-): Future[Transaction] {.async.} =
-
-  if signer =? contract.signer:
-    try:
-      return await signer.populateTransaction(tx)
-    except EstimateGasError as e:
-      if nonce =? e.transaction.nonce:
-
-        if lastSeenNonce =? signer.lastSeenNonce and
-          lastSeenNonce > nonce:
-            discard await signer.cancelTransaction(e.transaction)
-            let revertReason = if not e.parent.isNil: e.parent.msg
-                               else: "unknown"
-            info "A cancellation transaction has been sent to prevent stuck " &
-              "transactions",
-              nonce = e.transaction.nonce,
-              revertReason
-
-        # nonce wasn't incremented by another transaction, so force update the
-        # lastSeenNonce
-        else:
-          signer.updateNonce(nonce - 1, force = true)
-          trace "nonce decremented -- estimateGas failed but no further " &
-            "nonces were generated. Prevents stuck txs.",
-            failedNonce = nonce,
-            newNonce = nonce - 1
-
-      raiseContractError e.msgStack
-
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
@@ -156,7 +125,7 @@ proc send(contract: Contract,
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
-    let populated = await contract.populateTransaction(transaction)
+    let populated = await signer.populateTransaction(transaction)
     let txResp = await signer.sendTransaction(populated)
     return txResp.some
   else:
