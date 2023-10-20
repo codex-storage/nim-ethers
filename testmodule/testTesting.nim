@@ -97,4 +97,4 @@ suite "Testing helpers - contracts":
     await provider.close()
 
   test "revert works with provider":
-    check await helpersContract.doRevert(revertReason).reverts(revertReason)
+    check await helpersContract.doRevert(revertReason).reverts()
