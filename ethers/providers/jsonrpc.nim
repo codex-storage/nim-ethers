@@ -3,6 +3,7 @@ import std/tables
 import std/uri
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
+import pkg/stew/byteutils
 import ../basics
 import ../provider
 import ../signer
@@ -28,7 +29,7 @@ type
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
 
-proc raiseProviderError(message: string) {.upraises: [JsonRpcProviderError].} =
+proc raiseJsonRpcProviderError(message: string) {.upraises: [JsonRpcProviderError].} =
   var message = message
   try:
     message = parseJson(message){"message"}.getStr
@@ -40,11 +41,11 @@ template convertError(body) =
   try:
     body
   except JsonRpcError as error:
-    raiseProviderError(error.msg)
+    raiseJsonRpcProviderError(error.msg)
   # Catch all ValueErrors for now, at least until JsonRpcError is actually
   # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
   except ValueError as error:
-    raiseProviderError(error.msg)
+    raiseJsonRpcProviderError(error.msg)
 
 # Provider
 
@@ -228,7 +229,7 @@ method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
   if accounts.len > 0:
     return accounts[0]
 
-  raiseProviderError "no address found"
+  raiseJsonRpcProviderError "no address found"
 
 method signMessage*(signer: JsonRpcSigner,
                     message: seq[byte]): Future[seq[byte]] {.async.} =

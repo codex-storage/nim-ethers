@@ -2,8 +2,8 @@ import std/strutils
 import ./provider
 import ./signer
 
-proc revertReason*(e: ref EthersError): string =
-  var msg = e.msg
+proc revertReason*(emsg: string): string =
+  var msg = emsg
   const revertPrefixes = @[
     # hardhat
     "Error: VM Exception while processing transaction: reverted with " &
@@ -16,6 +16,10 @@ proc revertReason*(e: ref EthersError): string =
   msg = msg.replace("\'")
   return msg
 
+proc revertReason*(e: ref EthersError): string =
+  var msg = e.msg
+  msg.revertReason
+
 proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
   try:
     when T is void:
@@ -23,7 +27,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError, SignerError:
+  except ProviderError, EstimateGasError:
     return true
 
 proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
@@ -33,12 +37,12 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError, SignerError:
-    let error = getCurrentException()
-    var passed = reason == (ref EthersError)(error).revertReason
+  except ProviderError, EstimateGasError:
+    let e = getCurrentException()
+    var passed = reason == (ref EthersError)(e).revertReason
     if not passed and
-       not error.parent.isNil and
-       error.parent of (ref EthersError):
-      let revertReason = (ref EthersError)(error.parent).revertReason
+       not e.parent.isNil and
+       e.parent of (ref EthersError):
+      let revertReason = (ref EthersError)(e.parent).revertReason
       passed = reason == revertReason
     return passed

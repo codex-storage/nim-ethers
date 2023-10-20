@@ -11,6 +11,7 @@ logScope:
 type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
+    populateLock: AsyncLock
 
 type
   SignerError* = object of EthersError
@@ -19,6 +20,16 @@ type
 
 template raiseSignerError(message: string, parent: ref ProviderError = nil) =
   raise newException(SignerError, message, parent)
+
+proc raiseEstimateGasError(
+  transaction: Transaction,
+  parent: ref ProviderError = nil
+) =
+  let e = (ref EstimateGasError)(
+    msg: "Estimate gas failed",
+    transaction: transaction,
+    parent: parent)
+  raise e
 
 method provider*(signer: Signer): Provider {.base, gcsafe.} =
   doAssert false, "not implemented"
@@ -47,14 +58,17 @@ method estimateGas*(signer: Signer,
                     transaction: Transaction): Future[UInt256] {.base, async.} =
   var transaction = transaction
   transaction.sender = some(await signer.getAddress)
-  return await signer.provider.estimateGas(transaction)
+  try:
+    return await signer.provider.estimateGas(transaction)
+  except ProviderError as e:
+    raiseEstimateGasError transaction, e
 
 method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
   signer.provider.getChainId()
 
 func lastSeenNonce*(signer: Signer): ?UInt256 = signer.lastSeenNonce
 
-method getNonce*(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
@@ -65,48 +79,48 @@ method getNonce*(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
 
 method updateNonce*(
   signer: Signer,
-  nonce: UInt256,
-  force = false
+  nonce: UInt256
 ) {.base, gcsafe.} =
-  ## When true, force updates nonce without first checking if it is higher than
-  ## the last seen nonce. NOTE: This should ONLY be used when absolutely needed,
-  ## eg when estimateGas fails, but no other nonces have been generated between
-  ## the estimateGas and updateNonce calls
 
   without lastSeen =? signer.lastSeenNonce:
     signer.lastSeenNonce = some nonce
     return
 
-  if force or nonce > lastSeen:
+  if nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
-method cancelTransaction*(
+method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
+  if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
+    signer.lastSeenNonce = some lastSeen - 1
+
+proc ensureNonceSequence(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.async, base.} =
-  # cancels a transaction by sending with a 0-valued transaction to ourselves
-  # with the failed tx's nonce
+): Future[Transaction] {.async.} =
+  ## Ensures that once the nonce is incremented, if estimate gas fails, the
+  ## nonce is decremented. Disallows concurrent calls by use of AsyncLock.
+  ## Immediately returns if tx already has a nonce or gasLimit.
 
-  without sender =? tx.sender:
-    raiseSignerError "transaction must have sender"
-  if sender != await signer.getAddress():
-    raiseSignerError "can only cancel a tx this signer has sent"
-  without nonce =? tx.nonce:
-    raiseSignerError "transaction must have nonce"
+  if not (tx.nonce.isNone and tx.gasLimit.isNone):
+    return tx
 
-  var cancelTx = tx
-  cancelTx.to = sender
-  cancelTx.value = 0.u256
-  cancelTx.nonce = some nonce
+  var populated = tx
+  if signer.populateLock.isNil:
+    signer.populateLock = newAsyncLock()
+
+  await signer.populateLock.acquire()
+
   try:
-    cancelTx.gasLimit = some(await signer.estimateGas(cancelTx))
-  except ProviderError:
-    warn "failed to estimate gas for cancellation tx, sending anyway",
-      tx = $cancelTx
-    discard
+    populated.nonce = some(await signer.getNonce())
+    populated.gasLimit = some(await signer.estimateGas(populated))
+  except ProviderError, EstimateGasError:
+    let e = getCurrentException()
+    signer.decreaseNonce()
+    raise e
+  finally:
+    signer.populateLock.release()
 
-  trace "cancelling transaction to prevent stuck transactions", nonce
-  return await signer.sendTransaction(cancelTx)
+  return populated
 
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
@@ -117,24 +131,33 @@ method populateTransaction*(signer: Signer,
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
 
-  var populated = transaction
+  var populated = await signer.ensureNonceSequence(transaction)
 
-  if transaction.sender.isNone:
+  if populated.sender.isNone:
     populated.sender = some(await signer.getAddress())
-  if transaction.chainId.isNone:
+  if populated.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
+  if populated.gasPrice.isNone and (populated.maxFee.isNone or populated.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
-  if transaction.nonce.isNone:
+  if populated.nonce.isNone:
     populated.nonce = some(await signer.getNonce())
-  if transaction.gasLimit.isNone:
-    try:
-      populated.gasLimit = some(await signer.estimateGas(populated))
-    except ProviderError as e:
-      let e = (ref EstimateGasError)(
-        msg: "Estimate gas failed",
-        transaction: populated,
-        parent: e)
-      raise e
+  if populated.gasLimit.isNone:
+          populated.gasLimit = some(await signer.estimateGas(populated))
 
   return populated
+
+method cancelTransaction*(
+  signer: Signer,
+  tx: Transaction
+): Future[TransactionResponse] {.async, base.} =
+  # cancels a transaction by sending with a 0-valued transaction to ourselves
+  # with the failed tx's nonce
+
+  without sender =? tx.sender:
+    raiseSignerError "transaction must have sender"
+  without nonce =? tx.nonce:
+    raiseSignerError "transaction must have nonce"
+
+  var cancelTx = Transaction(to: sender, value: 0.u256, nonce: some nonce)
+  cancelTx = await signer.populateTransaction(cancelTx)
+  return await signer.sendTransaction(cancelTx)

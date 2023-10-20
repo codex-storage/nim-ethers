@@ -1,22 +1,20 @@
 import std/json
 import std/options
-import std/strutils
 import pkg/asynctest
 import pkg/questionable
 import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20
 import ./hardhat
+import ./helpers
 import ./miner
 import ./mocks
-import ./examples
 
 type
   TestToken = ref object of Erc20Token
 
 method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
 method myBalance(token: TestToken): UInt256 {.base, contract, view.}
-method doRevert(token: TestToken, reason: string): ?TransactionResponse {.base, contract.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
@@ -240,29 +238,28 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         Transfer(receiver: accounts[0], value: 100.u256)
       ]
 
-    test "transactions are cancelled once nonce has been incremented to prevent stuck transactions":
+    test "concurrent transactions with first failing increment nonce correctly":
       let signer = provider.getSigner()
-      token = TestToken.new(token.address, signer)
+      let token = TestToken.new(token.address, signer)
+      let helpersContract = TestHelpers.new(signer)
 
-      # emulate concurrent getNonce calls
-      let nonce0 = await signer.getNonce()
-      let nonce1 = await signer.getNonce()
-
-      expect ContractError:
-        discard await token.doRevert("some reason", TransactionOverrides(nonce: some nonce0))
-
-      let receipt = await token
-        .mint(accounts[0], 100.u256, TransactionOverrides(nonce: some nonce1))
-        .confirm(1)
+      # emulate concurrent populateTransaction calls, where the first one fails
+      let futs = await allFinished(
+        helpersContract.doRevert("some reason"),
+        token.mint(accounts[0], 100.u256)
+      )
+      check futs[0].error of EstimateGasError
+      let receipt = await futs[1].confirm(1)
 
       check receipt.status == TransactionStatus.Success
 
-    test "transactions are not cancelled if nonce has not been incremented":
+    test "non-concurrent transactions with first failing increment nonce correctly":
       let signer = provider.getSigner()
-      token = TestToken.new(token.address, signer)
+      let token = TestToken.new(token.address, signer)
+      let helpersContract = TestHelpers.new(signer)
 
-      expect ContractError:
-        discard await token.doRevert("some reason")
+      expect EstimateGasError:
+        discard await helpersContract.doRevert("some reason")
 
       let receipt = await token
         .mint(accounts[0], 100.u256)
