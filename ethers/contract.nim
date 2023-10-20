@@ -250,31 +250,13 @@ proc confirm*(tx: Future[?TransactionResponse],
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
   ##          .confirm(3)`
-  ## Will raise ContractError with revert reason if TransactionReceipt.Status
-  ## is Failed
   without response =? (await tx):
     raise newException(
       EthersError,
       "Transaction hash required. Possibly was a call instead of a send?"
     )
 
-  let receipt = await response.confirm(confirmations, timeout)
-
-  # TODO: handle TransactionStatus.Invalid?
-  if receipt.status == TransactionStatus.Failure:
-    logScope:
-      transactionHash = receipt.transactionHash.to0xHex
-
-    trace "transaction failed, replaying transaction to get revert reason"
-
-    if revertReason =? await response.provider.getRevertReason(receipt):
-      trace "transaction revert reason obtained", revertReason
-      raiseContractError(revertReason)
-    else:
-      trace "transaction replay completed, no revert reason obtained"
-      raiseContractError("Transaction reverted with unknown reason")
-
-  return receipt
+  return await response.confirm(confirmations, timeout)
 
 proc queryFilter[E: Event](contract: Contract,
                             _: type E,

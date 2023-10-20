@@ -81,6 +81,9 @@ const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
 logScope:
   topics = "ethers provider"
 
+template raiseProviderError(msg: string) =
+  raise newException(ProviderError, msg)
+
 func toTransaction*(past: PastTransaction): Transaction =
   Transaction(
     sender: some past.sender,
@@ -194,11 +197,33 @@ method getRevertReason*(
 
   return await provider.getRevertReason(receipt.transactionHash, blockNumber - 1)
 
+proc ensureSuccess(
+  provider: Provider,
+  receipt: TransactionReceipt
+) {.async, upraises: [ProviderError].} =
+  ## If the receipt.status is Failed, the tx is replayed to obtain a revert
+  ## reason, after which a ProviderError with the revert reason is raised.
+  ## If no revert reason was obtained
+
+  # TODO: handle TransactionStatus.Invalid?
+  if receipt.status == TransactionStatus.Failure:
+    logScope:
+      transactionHash = receipt.transactionHash.to0xHex
+
+    trace "transaction failed, replaying transaction to get revert reason"
+
+    if revertReason =? await provider.getRevertReason(receipt):
+      trace "transaction revert reason obtained", revertReason
+      raiseProviderError(revertReason)
+    else:
+      trace "transaction replay completed, no revert reason obtained"
+      raiseProviderError("Transaction reverted with unknown reason")
+
 proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,
               timeout = EthersReceiptTimeoutBlks):
              Future[TransactionReceipt]
-             {.async, upraises: [EthersError].} =
+             {.async, upraises: [ProviderError, EthersError].} =
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise an error if too many
@@ -237,6 +262,7 @@ proc confirm*(tx: TransactionResponse,
 
     if txBlockNumber + confirmations.u256 <= blockNumber + 1:
       await subscription.unsubscribe()
+      await tx.provider.ensureSuccess(receipt)
       return receipt
 
 proc confirm*(tx: Future[TransactionResponse],
