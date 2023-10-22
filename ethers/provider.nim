@@ -1,5 +1,5 @@
-import std/json
 import pkg/chronicles
+import pkg/stew/byteutils
 import ./basics
 import ./transaction
 import ./blocktag
