@@ -1,12 +1,7 @@
 import ./basics
 import ./provider
-import pkg/chronicles
 
 export basics
-export chronicles
-
-logScope:
-  topics = "ethers signer"
 
 type
   Signer* = ref object of RootObj
@@ -107,9 +102,9 @@ method populateTransaction*(signer: Signer,
 
   var populated = transaction
 
-  if populated.sender.isNone:
+  if transaction.sender.isNone:
     populated.sender = some(await signer.getAddress())
-  if populated.chainId.isNone:
+  if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
