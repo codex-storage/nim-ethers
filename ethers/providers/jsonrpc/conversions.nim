@@ -1,7 +1,6 @@
 import std/json
 import std/strformat
 import std/strutils
-import std/typetraits
 import pkg/json_rpc/jsonmarshal
 import pkg/stew/byteutils
 import ../../basics

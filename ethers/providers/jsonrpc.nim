@@ -260,5 +260,4 @@ method sendTransaction*(signer: JsonRpcSigner,
       client = await signer.provider.client
       hash = await client.eth_sendTransaction(transaction)
 
-    trace "jsonrpc sendTransaction RESPONSE", nonce = transaction.nonce, hash = hash.to0xHex
     return TransactionResponse(hash: hash, provider: signer.provider)

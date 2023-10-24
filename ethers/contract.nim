@@ -58,8 +58,8 @@ func signer*(contract: Contract): ?Signer =
 func address*(contract: Contract): Address =
   contract.address
 
-template raiseContractError(message: string, parent: ref Exception = nil) =
-  raise newException(ContractError, message, parent)
+template raiseContractError(message: string) =
+  raise newException(ContractError, message)
 
 proc createTransaction(contract: Contract,
                        function: string,
