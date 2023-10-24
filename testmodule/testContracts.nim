@@ -1,10 +1,12 @@
 import std/json
+import std/options
 import pkg/asynctest
 import pkg/questionable
 import pkg/stint
 import pkg/ethers
 import pkg/ethers/erc20
 import ./hardhat
+import ./helpers
 import ./miner
 import ./mocks
 
@@ -235,3 +237,32 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check logs == @[
         Transfer(receiver: accounts[0], value: 100.u256)
       ]
+
+    test "concurrent transactions with first failing increment nonce correctly":
+      let signer = provider.getSigner()
+      let token = TestToken.new(token.address, signer)
+      let helpersContract = TestHelpers.new(signer)
+
+      # emulate concurrent populateTransaction calls, where the first one fails
+      let futs = await allFinished(
+        helpersContract.doRevert("some reason"),
+        token.mint(accounts[0], 100.u256)
+      )
+      check futs[0].error of EstimateGasError
+      let receipt = await futs[1].confirm(1)
+
+      check receipt.status == TransactionStatus.Success
+
+    test "non-concurrent transactions with first failing increment nonce correctly":
+      let signer = provider.getSigner()
+      let token = TestToken.new(token.address, signer)
+      let helpersContract = TestHelpers.new(signer)
+
+      expect EstimateGasError:
+        discard await helpersContract.doRevert("some reason")
+
+      let receipt = await token
+        .mint(accounts[0], 100.u256)
+        .confirm(1)
+
+      check receipt.status == TransactionStatus.Success

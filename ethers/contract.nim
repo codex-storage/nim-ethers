@@ -246,7 +246,6 @@ proc confirm*(tx: Future[?TransactionResponse],
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
   ##          .confirm(3)`
-
   without response =? (await tx):
     raise newException(
       EthersError,

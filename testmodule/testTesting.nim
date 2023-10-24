@@ -3,7 +3,7 @@ import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
 import pkg/ethers/testing
-import ./hardhat
+import ./helpers
 
 suite "Testing helpers":
 
@@ -13,13 +13,13 @@ suite "Testing helpers":
 
   test "checks that call reverts":
     proc call() {.async.} =
-      raise newException(ProviderError, $rpcResponse)
+      raise newException(EstimateGasError, $rpcResponse)
 
     check await call().reverts()
 
   test "checks reason for revert":
     proc call() {.async.} =
-      raise newException(ProviderError, $rpcResponse)
+      raise newException(EstimateGasError, $rpcResponse)
 
     check await call().reverts(revertReason)
 
@@ -28,19 +28,31 @@ suite "Testing helpers":
 
     check not await call().reverts()
 
-  test "reverts only checks ProviderErrors":
-    proc call() {.async.} =
-      raise newException(ContractError, "test")
+  test "reverts only checks ProviderErrors, EstimateGasErrors":
+    proc callProviderError() {.async.} =
+      raise newException(ProviderError, "test")
+    proc callEstimateGasError() {.async.} =
+      raise newException(EstimateGasError, "test")
+    proc callEthersError() {.async.} =
+      raise newException(EthersError, "test")
 
-    expect ContractError:
-      check await call().reverts()
+    check await callProviderError().reverts()
+    check await callEstimateGasError().reverts()
+    expect EthersError:
+      check await callEthersError().reverts()
 
-  test "reverts with reason only checks ProviderErrors":
-    proc call() {.async.} =
-      raise newException(ContractError, "test")
+  test "reverts with reason only checks ProviderErrors, EstimateGasErrors":
+    proc callProviderError() {.async.} =
+      raise newException(ProviderError, revertReason)
+    proc callEstimateGasError() {.async.} =
+      raise newException(EstimateGasError, revertReason)
+    proc callEthersError() {.async.} =
+      raise newException(EthersError, revertReason)
 
-    expect ContractError:
-      check await call().reverts(revertReason)
+    check await callProviderError().reverts(revertReason)
+    check await callEstimateGasError().reverts(revertReason)
+    expect EthersError:
+      check await callEthersError().reverts(revertReason)
 
   test "reverts with reason is false when there is no revert":
     proc call() {.async.} = discard
@@ -49,29 +61,24 @@ suite "Testing helpers":
 
   test "reverts is false when the revert reason doesn't match":
     proc call() {.async.} =
-      raise newException(ProviderError, "other reason")
+      raise newException(EstimateGasError, "other reason")
 
     check not await call().reverts(revertReason)
 
   test "revert handles non-standard revert prefix":
     let nonStdMsg = fmt"Provider VM Exception: reverted with {revertReason}"
     proc call() {.async.} =
-      raise newException(ProviderError, nonStdMsg)
+      raise newException(EstimateGasError, nonStdMsg)
 
     check await call().reverts(nonStdMsg)
 
   test "works with functions that return a value":
     proc call(): Future[int] {.async.} = return 42
     check not await call().reverts()
-    check not await call().reverts("some reason")
+    check not await call().reverts(revertReason)
 
-type
-  TestHelpers* = ref object of Contract
 
-method revertsWith*(self: TestHelpers,
-                    revertReason: string) {.base, contract, view.}
-
-suite "Testing helpers - provider":
+suite "Testing helpers - contracts":
 
   var helpersContract: TestHelpers
   var provider: JsonRpcProvider
@@ -83,12 +90,11 @@ suite "Testing helpers - provider":
     provider = JsonRpcProvider.new("ws://127.0.0.1:8545")
     snapshot = await provider.send("evm_snapshot")
     accounts = await provider.listAccounts()
-    let deployment = readDeployment()
-    helpersContract = TestHelpers.new(!deployment.address(TestHelpers), provider)
+    helpersContract = TestHelpers.new(provider.getSigner())
 
   teardown:
     discard await provider.send("evm_revert", @[snapshot])
     await provider.close()
 
   test "revert works with provider":
-    check await helpersContract.revertsWith(revertReason).reverts(revertReason)
+    check await helpersContract.doRevert(revertReason).reverts(revertReason)
