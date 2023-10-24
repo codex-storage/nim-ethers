@@ -3,13 +3,11 @@ import std/macros
 import std/sequtils
 import pkg/chronos
 import pkg/contractabi
-import pkg/stew/byteutils
 import ./basics
 import ./provider
 import ./signer
 import ./events
 import ./fields
-import ./exceptions
 
 export basics
 export provider

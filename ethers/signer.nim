@@ -1,12 +1,7 @@
 import ./basics
 import ./provider
-import pkg/chronicles
 
 export basics
-export chronicles
-
-logScope:
-  topics = "ethers signer"
 
 type
   Signer* = ref object of RootObj
@@ -91,35 +86,6 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
   if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
     signer.lastSeenNonce = some lastSeen - 1
 
-proc ensureNonceSequence(
-  signer: Signer,
-  tx: Transaction
-): Future[Transaction] {.async.} =
-  ## Ensures that once the nonce is incremented, if estimate gas fails, the
-  ## nonce is decremented. Disallows concurrent calls by use of AsyncLock.
-  ## Immediately returns if tx already has a nonce or gasLimit.
-
-  if not (tx.nonce.isNone and tx.gasLimit.isNone):
-    return tx
-
-  var populated = tx
-  if signer.populateLock.isNil:
-    signer.populateLock = newAsyncLock()
-
-  await signer.populateLock.acquire()
-
-  try:
-    populated.nonce = some(await signer.getNonce())
-    populated.gasLimit = some(await signer.estimateGas(populated))
-  except ProviderError, EstimateGasError:
-    let e = getCurrentException()
-    signer.decreaseNonce()
-    raise e
-  finally:
-    signer.populateLock.release()
-
-  return populated
-
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
                            Future[Transaction] {.base, async.} =
@@ -129,18 +95,40 @@ method populateTransaction*(signer: Signer,
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
 
-  var populated = await signer.ensureNonceSequence(transaction)
+  if signer.populateLock.isNil:
+    signer.populateLock = newAsyncLock()
 
-  if populated.sender.isNone:
+  await signer.populateLock.acquire()
+
+  var populated = transaction
+
+  if transaction.sender.isNone:
     populated.sender = some(await signer.getAddress())
-  if populated.chainId.isNone:
+  if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if populated.gasPrice.isNone and (populated.maxFee.isNone or populated.maxPriorityFee.isNone):
+  if transaction.gasPrice.isNone and (populated.maxFee.isNone or populated.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
-  if populated.nonce.isNone:
-    populated.nonce = some(await signer.getNonce())
-  if populated.gasLimit.isNone:
-          populated.gasLimit = some(await signer.estimateGas(populated))
+
+  if transaction.nonce.isNone and transaction.gasLimit.isNone:
+    # when both nonce and gasLimit are not populated, we must ensure getNonce is
+    # followed by an estimateGas so we can determine if there was an error. If
+    # there is an error, the nonce must be deprecated to prevent nonce gaps and
+    # stuck transactions
+    try:
+      populated.nonce = some(await signer.getNonce())
+      populated.gasLimit = some(await signer.estimateGas(populated))
+    except ProviderError, EstimateGasError:
+      let e = getCurrentException()
+      signer.decreaseNonce()
+      raise e
+    finally:
+      signer.populateLock.release()
+
+  else:
+    if transaction.nonce.isNone:
+      populated.nonce = some(await signer.getNonce())
+    if transaction.gasLimit.isNone:
+      populated.gasLimit = some(await signer.estimateGas(populated))
 
   return populated
 
