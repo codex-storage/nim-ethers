@@ -103,33 +103,35 @@ method populateTransaction*(signer: Signer,
 
   var populated = transaction
 
-  if transaction.sender.isNone:
-    populated.sender = some(await signer.getAddress())
-  if transaction.chainId.isNone:
-    populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
-    populated.gasPrice = some(await signer.getGasPrice())
+  try:
+    if transaction.sender.isNone:
+      populated.sender = some(await signer.getAddress())
+    if transaction.chainId.isNone:
+      populated.chainId = some(await signer.getChainId())
+    if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
+      populated.gasPrice = some(await signer.getGasPrice())
 
-  if transaction.nonce.isNone and transaction.gasLimit.isNone:
-    # when both nonce and gasLimit are not populated, we must ensure getNonce is
-    # followed by an estimateGas so we can determine if there was an error. If
-    # there is an error, the nonce must be deprecated to prevent nonce gaps and
-    # stuck transactions
-    try:
-      populated.nonce = some(await signer.getNonce())
-      populated.gasLimit = some(await signer.estimateGas(populated))
-    except ProviderError, EstimateGasError:
-      let e = getCurrentException()
-      signer.decreaseNonce()
-      raise e
-    finally:
-      signer.populateLock.release()
+    if transaction.nonce.isNone and transaction.gasLimit.isNone:
+      # when both nonce and gasLimit are not populated, we must ensure getNonce is
+      # followed by an estimateGas so we can determine if there was an error. If
+      # there is an error, the nonce must be deprecated to prevent nonce gaps and
+      # stuck transactions
+      try:
+        populated.nonce = some(await signer.getNonce())
+        populated.gasLimit = some(await signer.estimateGas(populated))
+      except ProviderError, EstimateGasError:
+        let e = getCurrentException()
+        signer.decreaseNonce()
+        raise e
 
-  else:
-    if transaction.nonce.isNone:
-      populated.nonce = some(await signer.getNonce())
-    if transaction.gasLimit.isNone:
-      populated.gasLimit = some(await signer.estimateGas(populated))
+    else:
+      if transaction.nonce.isNone:
+        populated.nonce = some(await signer.getNonce())
+      if transaction.gasLimit.isNone:
+        populated.gasLimit = some(await signer.estimateGas(populated))
+
+  finally:
+    signer.populateLock.release()
 
   return populated
 
