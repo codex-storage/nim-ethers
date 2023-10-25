@@ -1,6 +1,7 @@
 import std/json
 import std/macros
 import std/sequtils
+import pkg/chronicles
 import pkg/chronos
 import pkg/contractabi
 import ./basics
@@ -12,6 +13,9 @@ import ./fields
 export basics
 export provider
 export events
+
+logScope:
+  topics = "ethers contract"
 
 type
   Contract* = ref object of RootObj

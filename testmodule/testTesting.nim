@@ -96,5 +96,14 @@ suite "Testing helpers - contracts":
     discard await provider.send("evm_revert", @[snapshot])
     await provider.close()
 
-  test "revert works with provider":
-    check await helpersContract.doRevert(revertReason).reverts(revertReason)
+  test "revert reason can be retrieved when transaction fails":
+    let txResp = helpersContract.doRevert(
+                  revertReason,
+                  # override gasLimit to skip estimating gas
+                  TransactionOverrides(gasLimit: some 10000000.u256)
+                )
+    check await txResp.confirm(1).reverts(revertReason)
+
+  test "revert reason can be retrieved when estimate gas fails":
+    let txResp = helpersContract.doRevert(revertReason)
+    check await txResp.reverts(revertReason)

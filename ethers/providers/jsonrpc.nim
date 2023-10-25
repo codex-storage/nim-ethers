@@ -1,6 +1,8 @@
 import std/json
 import std/tables
 import std/uri
+import pkg/chronicles
+import pkg/eth/common/eth_types_json_serialization
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
 import ../basics
@@ -13,8 +15,12 @@ import ./jsonrpc/subscriptions
 export json
 export basics
 export provider
+export chronicles
 
 push: {.upraises: [].}
+
+logScope:
+  topics = "ethers jsonrpc"
 
 type
   JsonRpcProvider* = ref object of Provider
@@ -137,6 +143,13 @@ method getTransactionCount*(provider: JsonRpcProvider,
     let client = await provider.client
     return await client.eth_getTransactionCount(address, blockTag)
 
+method getTransaction*(provider: JsonRpcProvider,
+                       txHash: TransactionHash):
+                      Future[?PastTransaction] {.async.} =
+  convertError:
+    let client = await provider.client
+    return await client.eth_getTransactionByHash(txHash)
+
 method getTransactionReceipt*(provider: JsonRpcProvider,
                               txHash: TransactionHash):
                              Future[?TransactionReceipt] {.async.} =
@@ -164,10 +177,11 @@ method getLogs*(provider: JsonRpcProvider,
     return logs
 
 method estimateGas*(provider: JsonRpcProvider,
-                    transaction: Transaction): Future[UInt256] {.async.} =
+                    transaction: Transaction,
+                    blockTag = BlockTag.latest): Future[UInt256] {.async.} =
   convertError:
     let client = await provider.client
-    return await client.eth_estimateGas(transaction)
+    return await client.eth_estimateGas(transaction, blockTag)
 
 method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
   convertError:

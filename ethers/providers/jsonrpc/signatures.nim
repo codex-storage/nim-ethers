@@ -5,9 +5,10 @@ proc eth_call(transaction: Transaction, blockTag: BlockTag): seq[byte]
 proc eth_gasPrice(): UInt256
 proc eth_getBlockByNumber(blockTag: BlockTag, includeTransactions: bool): ?Block
 proc eth_getLogs(filter: EventFilter | Filter | FilterByBlockHash): JsonNode
+proc eth_getTransactionByHash(hash: TransactionHash): ?PastTransaction
 proc eth_getBlockByHash(hash: BlockHash, includeTransactions: bool): ?Block
 proc eth_getTransactionCount(address: Address, blockTag: BlockTag): UInt256
-proc eth_estimateGas(transaction: Transaction): UInt256
+proc eth_estimateGas(transaction: Transaction, blockTag: BlockTag): UInt256
 proc eth_chainId(): UInt256
 proc eth_sendTransaction(transaction: Transaction): TransactionHash
 proc eth_sendRawTransaction(data: seq[byte]): TransactionHash

@@ -50,7 +50,8 @@ method getTransactionCount*(signer: Signer,
   return await signer.provider.getTransactionCount(address, blockTag)
 
 method estimateGas*(signer: Signer,
-                    transaction: Transaction): Future[UInt256] {.base, async.} =
+                    transaction: Transaction,
+                    blockTag = BlockTag.latest): Future[UInt256] {.base, async.} =
   var transaction = transaction
   transaction.sender = some(await signer.getAddress)
   try:
@@ -106,7 +107,7 @@ method populateTransaction*(signer: Signer,
     populated.sender = some(await signer.getAddress())
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone and (populated.maxFee.isNone or populated.maxPriorityFee.isNone):
+  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
 
   if transaction.nonce.isNone and transaction.gasLimit.isNone:
