@@ -17,7 +17,7 @@ export basics
 export provider
 export chronicles
 
-push: {.upraises: [].}
+{.push raises: [].}
 
 logScope:
   topics = "ethers jsonrpc"
@@ -34,7 +34,7 @@ type
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
 
-proc raiseJsonRpcProviderError(message: string) {.upraises: [JsonRpcProviderError].} =
+proc raiseJsonRpcProviderError(message: string) {.raises: [JsonRpcProviderError].} =
   var message = message
   try:
     message = parseJson(message){"message"}.getStr

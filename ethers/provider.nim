@@ -8,7 +8,7 @@ export basics
 export transaction
 export blocktag
 
-push: {.upraises: [].}
+{.push raises: [].}
 
 type
   Provider* = ref object of RootObj
@@ -52,8 +52,8 @@ type
     effectiveGasPrice*: ?UInt256
     status*: TransactionStatus
     transactionType*: TransactionType
-  LogHandler* = proc(log: Log) {.gcsafe, upraises:[].}
-  BlockHandler* = proc(blck: Block) {.gcsafe, upraises:[].}
+  LogHandler* = proc(log: Log) {.gcsafe, raises:[].}
+  BlockHandler* = proc(blck: Block) {.gcsafe, raises:[].}
   Topic* = array[32, byte]
   Block* = object
     number*: ?UInt256
@@ -200,7 +200,7 @@ method getRevertReason*(
 proc ensureSuccess(
   provider: Provider,
   receipt: TransactionReceipt
-) {.async, upraises: [ProviderError].} =
+) {.async, raises: [ProviderError].} =
   ## If the receipt.status is Failed, the tx is replayed to obtain a revert
   ## reason, after which a ProviderError with the revert reason is raised.
   ## If no revert reason was obtained
@@ -223,7 +223,7 @@ proc confirm*(tx: TransactionResponse,
               confirmations = EthersDefaultConfirmations,
               timeout = EthersReceiptTimeoutBlks):
              Future[TransactionReceipt]
-             {.async, upraises: [ProviderError, EthersError].} =
+             {.async, raises: [ProviderError, EthersError].} =
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise an error if too many

@@ -34,7 +34,7 @@ type
 
   ContractError* = object of EthersError
   Confirmable* = ?TransactionResponse
-  EventHandler*[E: Event] = proc(event: E) {.gcsafe, upraises:[].}
+  EventHandler*[E: Event] = proc(event: E) {.gcsafe, raises:[].}
 
 func new*(ContractType: type Contract,
           address: Address,
@@ -235,7 +235,7 @@ proc subscribe*[E: Event](contract: Contract,
   let topic = topic($E, E.fieldTypes).toArray
   let filter = EventFilter(address: contract.address, topics: @[topic])
 
-  proc logHandler(log: Log) {.upraises: [].} =
+  proc logHandler(log: Log) {.raises: [].} =
     if event =? E.decode(log.data, log.topics):
       handler(event)
 

@@ -12,7 +12,7 @@ type
   JsonRpcSubscriptions* = ref object of RootObj
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
-  SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, upraises:[].}
+  SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
 
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
@@ -55,7 +55,7 @@ type
 proc new*(_: type JsonRpcSubscriptions,
           client: RpcWebSocketClient): JsonRpcSubscriptions =
   let subscriptions = WebSocketSubscriptions(client: client)
-  proc subscriptionHandler(arguments: JsonNode) {.upraises:[].} =
+  proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
     if id =? arguments["subscription"].catch and
        callback =? subscriptions.getCallback(id):
       callback(id, arguments)

@@ -1,7 +1,6 @@
 import pkg/stint
-import pkg/upraises
 
-push: {.upraises: [].}
+{.push raises:[].}
 
 type
   BlockTagKind = enum
