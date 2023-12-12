@@ -114,10 +114,10 @@ method populateTransaction*(signer: Signer,
     if transaction.nonce.isNone and transaction.gasLimit.isNone:
       # when both nonce and gasLimit are not populated, we must ensure getNonce is
       # followed by an estimateGas so we can determine if there was an error. If
-      # there is an error, the nonce must be deprecated to prevent nonce gaps and
+      # there is an error, the nonce must be decreased to prevent nonce gaps and
       # stuck transactions
+      populated.nonce = some(await signer.getNonce())
       try:
-        populated.nonce = some(await signer.getNonce())
         populated.gasLimit = some(await signer.estimateGas(populated))
       except ProviderError, EstimateGasError:
         let e = getCurrentException()
