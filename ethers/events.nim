@@ -6,7 +6,7 @@ import ./provider
 type
   Event* = object of RootObj
 
-push: {.upraises: [].}
+{.push raises:[].}
 
 template indexed* {.pragma.}
 
