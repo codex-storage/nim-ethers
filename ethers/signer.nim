@@ -26,10 +26,12 @@ proc raiseEstimateGasError(
     parent: parent)
   raise e
 
-method provider*(signer: Signer): Provider {.base, gcsafe.} =
+method provider*(signer: Signer):
+    Provider {.base, gcsafe, raises: [CatchableError].} =
   doAssert false, "not implemented"
 
-method getAddress*(signer: Signer): Future[Address] {.base, gcsafe.} =
+method getAddress*(signer: Signer):
+    Future[Address] {.base, gcsafe, raises: [CatchableError].} =
   doAssert false, "not implemented"
 
 method signMessage*(signer: Signer,
@@ -40,7 +42,8 @@ method sendTransaction*(signer: Signer,
                         transaction: Transaction): Future[TransactionResponse] {.base, async.} =
   doAssert false, "not implemented"
 
-method getGasPrice*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
+method getGasPrice*(signer: Signer):
+    Future[UInt256] {.base, gcsafe, raises: [CatchableError].} =
   signer.provider.getGasPrice()
 
 method getTransactionCount*(signer: Signer,
@@ -59,7 +62,8 @@ method estimateGas*(signer: Signer,
   except ProviderError as e:
     raiseEstimateGasError transaction, e
 
-method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
+method getChainId*(signer: Signer):
+    Future[UInt256] {.base, gcsafe, raises: [CatchableError].} =
   signer.provider.getChainId()
 
 method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
@@ -74,7 +78,7 @@ method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
 method updateNonce*(
   signer: Signer,
   nonce: UInt256
-) {.base, gcsafe.} =
+) {.base, gcsafe, raises: [CatchableError].} =
 
   without lastSeen =? signer.lastSeenNonce:
     signer.lastSeenNonce = some nonce
@@ -83,7 +87,7 @@ method updateNonce*(
   if nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
-method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
+method decreaseNonce*(signer: Signer) {.base, gcsafe, raises: [CatchableError].} =
   if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
     signer.lastSeenNonce = some lastSeen - 1
 
@@ -119,10 +123,12 @@ method populateTransaction*(signer: Signer,
       populated.nonce = some(await signer.getNonce())
       try:
         populated.gasLimit = some(await signer.estimateGas(populated))
-      except ProviderError, EstimateGasError:
-        let e = getCurrentException()
+      except ProviderError as exc:
         signer.decreaseNonce()
-        raise e
+        raise exc
+      except EstimateGasError as exc:
+        signer.decreaseNonce()
+        raise exc
 
     else:
       if transaction.nonce.isNone:

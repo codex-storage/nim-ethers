@@ -14,6 +14,14 @@ type
     callbacks: Table[JsonNode, SubscriptionCallback]
   SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
 
+# FIXME Nim 1.6.XX seems to have issues tracking exception effects and will see
+#   ghost unlisted Exceptions with table operations. In a smaller example
+#   (https://forum.nim-lang.org/t/10749), using {.experimental:"strictEffects".}
+#   would fix it, but it doesn't work here for some reason I yet don't
+#   understand. For now, therefore, I'm simply using a mitigation which is to
+#   tell the compiler the truth.
+template mitigateEffectsBug(body) = {.cast(raises: []).}: body
+
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
                        Future[JsonNode]
@@ -70,7 +78,7 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     if blck =? Block.fromJson(arguments["result"]).catch:
       onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
-  subscriptions.callbacks[id] = callback
+  mitigateEffectsBug: subscriptions.callbacks[id] = callback
   return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
@@ -82,13 +90,13 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
     if log =? Log.fromJson(arguments["result"]).catch:
       onLog(log)
   let id = await subscriptions.client.eth_subscribe("logs", filter)
-  subscriptions.callbacks[id] = callback
+  mitigateEffectsBug: subscriptions.callbacks[id] = callback
   return id
 
 method unsubscribe(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  subscriptions.callbacks.del(id)
+  mitigateEffectsBug: subscriptions.callbacks.del(id)
   discard await subscriptions.client.eth_unsubscribe(id)
 
 # Polling
@@ -144,7 +152,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
       asyncSpawn getBlock(hash)
 
   let id = await subscriptions.client.eth_newBlockFilter()
-  subscriptions.callbacks[id] = callback
+  mitigateEffectsBug: subscriptions.callbacks[id] = callback
   return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
@@ -158,11 +166,11 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
       onLog(log)
 
   let id = await subscriptions.client.eth_newFilter(filter)
-  subscriptions.callbacks[id] = callback
+  mitigateEffectsBug: subscriptions.callbacks[id] = callback
   return id
 
 method unsubscribe(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  subscriptions.callbacks.del(id)
+  mitigateEffectsBug: subscriptions.callbacks.del(id)
   discard await subscriptions.client.eth_uninstallFilter(id)

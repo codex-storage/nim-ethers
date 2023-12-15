@@ -1,10 +1,12 @@
+import std/os
 import std/json
 import pkg/ethers/basics
 
 type Deployment* = object
   json: JsonNode
 
-const defaultFile = "../testnode/deployment.json"
+const defaultFile = currentSourcePath.parentDir.parentDir /
+  "testnode" / "deployment.json"
 
 ## Reads deployment information from a json file. It expects a file that has
 ## been exported with Hardhat deploy. See also:
