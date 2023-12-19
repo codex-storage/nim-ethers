@@ -11,7 +11,7 @@ import ./looping
 type
   JsonRpcSubscriptions* = ref object of RootObj
     client: RpcClient
-    callbacks: Table[JsonNode, SubscriptionCallback]
+    callbacks: Table[string, SubscriptionCallback]
   SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
 
 # FIXME Nim 1.6.XX seems to have issues tracking exception effects and will see
@@ -20,7 +20,7 @@ type
 #   would fix it, but it doesn't work here for some reason I yet don't
 #   understand. For now, therefore, I'm simply using a mitigation which is to
 #   tell the compiler the truth.
-template mitigateEffectsBug(body) = {.cast(raises: []).}: body
+# template mitigateEffectsBug(body) = {.cast(raises: []).}: body
 
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
@@ -43,13 +43,13 @@ method unsubscribe*(subscriptions: JsonRpcSubscriptions,
 method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
-    await subscriptions.unsubscribe(id)
+    await subscriptions.unsubscribe(%id)
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback =
   try:
-    if subscriptions.callbacks.hasKey(id):
-      subscriptions.callbacks[id].some
+    if subscriptions.callbacks.hasKey($id):
+      subscriptions.callbacks[$id].some
     else:
       SubscriptionCallback.none
   except Exception:
@@ -78,7 +78,7 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     if blck =? Block.fromJson(arguments["result"]).catch:
       onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
-  mitigateEffectsBug: subscriptions.callbacks[id] = callback
+  subscriptions.callbacks[$id] = callback
   return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
@@ -90,14 +90,14 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
     if log =? Log.fromJson(arguments["result"]).catch:
       onLog(log)
   let id = await subscriptions.client.eth_subscribe("logs", filter)
-  mitigateEffectsBug: subscriptions.callbacks[id] = callback
+  subscriptions.callbacks[$id] = callback
   return id
 
-method unsubscribe(subscriptions: WebSocketSubscriptions,
+method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  mitigateEffectsBug: subscriptions.callbacks.del(id)
-  discard await subscriptions.client.eth_unsubscribe(id)
+  subscriptions.callbacks.del($id)
+  discard await subscriptions.client.eth_unsubscribe(%id)
 
 # Polling
 
@@ -125,7 +125,7 @@ proc new*(_: type JsonRpcSubscriptions,
   proc poll {.async.} =
     untilCancelled:
       for id in toSeq subscriptions.callbacks.keys:
-        await poll(id)
+        await poll(%id)
       await sleepAsync(pollingInterval)
 
   subscriptions.polling = poll()
@@ -152,7 +152,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
       asyncSpawn getBlock(hash)
 
   let id = await subscriptions.client.eth_newBlockFilter()
-  mitigateEffectsBug: subscriptions.callbacks[id] = callback
+  subscriptions.callbacks[$id] = callback
   return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
@@ -166,11 +166,11 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
       onLog(log)
 
   let id = await subscriptions.client.eth_newFilter(filter)
-  mitigateEffectsBug: subscriptions.callbacks[id] = callback
+  subscriptions.callbacks[$id] = callback
   return id
 
-method unsubscribe(subscriptions: PollingSubscriptions,
+method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  mitigateEffectsBug: subscriptions.callbacks.del(id)
+  subscriptions.callbacks.del($id)
   discard await subscriptions.client.eth_uninstallFilter(id)
