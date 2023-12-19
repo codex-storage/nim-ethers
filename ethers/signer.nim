@@ -3,6 +3,8 @@ import ./provider
 
 export basics
 
+{.push raises: [].}
+
 type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
@@ -19,7 +21,7 @@ template raiseSignerError(message: string, parent: ref ProviderError = nil) =
 proc raiseEstimateGasError(
   transaction: Transaction,
   parent: ref ProviderError = nil
-) =
+) {.raises: [EstimateGasError] .} =
   let e = (ref EstimateGasError)(
     msg: "Estimate gas failed",
     transaction: transaction,
@@ -27,11 +29,11 @@ proc raiseEstimateGasError(
   raise e
 
 method provider*(signer: Signer):
-    Provider {.base, gcsafe, raises: [CatchableError].} =
+    Provider {.base, gcsafe, raises: [EthersError].} =
   doAssert false, "not implemented"
 
 method getAddress*(signer: Signer):
-    Future[Address] {.base, gcsafe, raises: [CatchableError].} =
+    Future[Address] {.base, gcsafe.} =
   doAssert false, "not implemented"
 
 method signMessage*(signer: Signer,
@@ -43,7 +45,7 @@ method sendTransaction*(signer: Signer,
   doAssert false, "not implemented"
 
 method getGasPrice*(signer: Signer):
-    Future[UInt256] {.base, gcsafe, raises: [CatchableError].} =
+    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
   signer.provider.getGasPrice()
 
 method getTransactionCount*(signer: Signer,
@@ -63,7 +65,7 @@ method estimateGas*(signer: Signer,
     raiseEstimateGasError transaction, e
 
 method getChainId*(signer: Signer):
-    Future[UInt256] {.base, gcsafe, raises: [CatchableError].} =
+    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
   signer.provider.getChainId()
 
 method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
@@ -78,7 +80,7 @@ method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
 method updateNonce*(
   signer: Signer,
   nonce: UInt256
-) {.base, gcsafe, raises: [CatchableError].} =
+) {.base, gcsafe.} =
 
   without lastSeen =? signer.lastSeenNonce:
     signer.lastSeenNonce = some nonce
@@ -87,7 +89,7 @@ method updateNonce*(
   if nonce > lastSeen:
     signer.lastSeenNonce = some nonce
 
-method decreaseNonce*(signer: Signer) {.base, gcsafe, raises: [CatchableError].} =
+method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
   if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
     signer.lastSeenNonce = some lastSeen - 1
 
