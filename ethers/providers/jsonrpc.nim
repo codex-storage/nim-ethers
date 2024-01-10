@@ -91,8 +91,9 @@ proc new*(_: type JsonRpcProvider,
       await initialized
       return subscriptions
 
-  initialized = initialize()
-  JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
+  convertError:
+    initialized = initialize()
+    JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
 
 proc send*(provider: JsonRpcProvider,
            call: string,
