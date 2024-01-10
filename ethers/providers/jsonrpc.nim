@@ -62,7 +62,7 @@ proc jsonHeaders: seq[(string, string)] =
 
 proc new*(_: type JsonRpcProvider,
           url=defaultUrl,
-          pollingInterval=defaultPollingInterval): JsonRpcProvider =
+          pollingInterval=defaultPollingInterval): JsonRpcProvider {.raises: [JsonRpcProviderError].} =
   var initialized: Future[void]
   var client: RpcClient
   var subscriptions: JsonRpcSubscriptions
@@ -93,7 +93,7 @@ proc new*(_: type JsonRpcProvider,
 
   convertError:
     initialized = initialize()
-    JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
+    return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
 
 proc send*(provider: JsonRpcProvider,
            call: string,
