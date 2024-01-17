@@ -182,6 +182,9 @@ method unsubscribe*(
 
   doAssert false, "not implemented"
 
+method isSyncing*(provider: Provider): Future[bool] {.base, async.} =
+  doAssert false, "not implemented"
+
 proc replay*(
   provider: Provider,
   tx: Transaction,

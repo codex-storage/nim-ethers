@@ -268,6 +268,10 @@ method unsubscribe*(
     let id = subscription.id
     await subscriptions.unsubscribe(id)
 
+method isSyncing*(provider: JsonRpcProvider): Future[bool] {.async.} =
+  let response = await provider.send("eth_syncing")
+  return response.getBool()
+
 method close*(
   provider: JsonRpcProvider) {.async: (raises:[ProviderError]).} =
 
