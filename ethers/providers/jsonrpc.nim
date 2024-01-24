@@ -96,12 +96,28 @@ proc new*(_: type JsonRpcProvider,
   initialized = initialize()
   JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
 
-proc send*(provider: JsonRpcProvider,
-           call: string,
-           arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
+proc callImpl(
+  client: RpcClient,
+  call: string,
+  args: JsonNode): Future[JsonNode] {.async: (raises: [JsonRpcProviderError]).} =
+
+  without response =? (await client.call(call, %args)).catch, error:
+    raiseJsonRpcProviderError error.msg
+  echo "[jsonrpc.callImpl] response: ", response.string
+  without json =? JsonNode.fromJson(response.string), error:
+    echo "[jsonrpc.callImpl] error after parsing json: ", error.msg
+    raiseJsonRpcProviderError "Failed to parse response: " & error.msg
+  json
+
+
+proc send*(
+  provider: JsonRpcProvider,
+  call: string,
+  arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
   convertError:
     let client = await provider.client
     return await client.call(call, %arguments)
+    return await client.callImpl(call, %arguments)
 
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
   convertError:
