@@ -1,7 +1,6 @@
-import std/json
 import std/tables
 import std/uri
-import pkg/chronicles
+import pkg/chronicles except `%`
 import pkg/eth/common/eth_types_json_serialization
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
@@ -11,6 +10,7 @@ import ../signer
 import ./jsonrpc/rpccalls
 import ./jsonrpc/conversions
 import ./jsonrpc/subscriptions
+import ./jsonrpc/json
 
 export json
 export basics
@@ -34,12 +34,14 @@ type
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
 
-proc raiseJsonRpcProviderError(message: string) {.raises: [JsonRpcProviderError].} =
+proc raiseJsonRpcProviderError(
+  message: string) {.raises: [JsonRpcProviderError].} =
+
   var message = message
-  try:
-    message = parseJson(message){"message"}.getStr
-  except Exception:
-    discard
+  if json =? JsonNode.fromJson(message):
+    if "message" in json:
+      message = json{"message"}.getStr
+  echo "JsonRpcProviderError: ", message
   raise newException(JsonRpcProviderError, message)
 
 template convertError(body) =

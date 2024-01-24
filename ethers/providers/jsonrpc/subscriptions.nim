@@ -1,3 +1,4 @@
+import std/hashes
 import std/tables
 import std/sequtils
 import pkg/chronos
@@ -200,7 +201,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
       discard
 
   proc callback(id, change: JsonNode) =
-    if hash =? BlockHash.fromJson(change).catch:
+    if hash =? BlockHash.fromJson(change):
       asyncSpawn getBlock(hash)
 
   let id = await subscriptions.client.eth_newBlockFilter()
@@ -214,7 +215,7 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
                     {.async.} =
 
   proc callback(id, change: JsonNode) =
-    if log =? Log.fromJson(change).catch:
+    if log =? Log.fromJson(change):
       onLog(log)
 
   let id = await subscriptions.client.eth_newFilter(filter)

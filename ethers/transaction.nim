@@ -1,5 +1,6 @@
 import pkg/stew/byteutils
 import ./basics
+import ./providers/jsonrpc/json
 
 type
   TransactionType* = enum
@@ -7,17 +8,17 @@ type
     AccessList = 1,
     Dynamic = 2
   Transaction* = object
-    sender*: ?Address
-    to*: Address
-    data*: seq[byte]
-    value*: UInt256
-    nonce*: ?UInt256
-    chainId*: ?UInt256
-    gasPrice*: ?UInt256
-    maxFee*: ?UInt256
-    maxPriorityFee*: ?UInt256
-    gasLimit*: ?UInt256
-    transactionType*: ?TransactionType
+    sender* {.serialize.}: ?Address
+    to* {.serialize.}: Address
+    data* {.serialize.}: seq[byte]
+    value* {.serialize.}: UInt256
+    nonce* {.serialize.}: ?UInt256
+    chainId* {.serialize.}: ?UInt256
+    gasPrice* {.serialize.}: ?UInt256
+    maxFee* {.serialize.}: ?UInt256
+    maxPriorityFee* {.serialize.}: ?UInt256
+    gasLimit* {.serialize.}: ?UInt256
+    `type`* {.serialize.}: ?TransactionType
 
 func `$`*(transaction: Transaction): string =
   result = "("
@@ -34,6 +35,6 @@ func `$`*(transaction: Transaction): string =
     result &= ", gasPrice: " & $gasPrice
   if gasLimit =? transaction.gasLimit:
     result &= ", gasLimit: " & $gasLimit
-  if txType =? transaction.transactionType:
+  if txType =? transaction.`type`:
     result &= ", type: " & $txType
   result &= ")"
