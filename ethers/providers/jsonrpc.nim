@@ -49,9 +49,7 @@ template convertError(body) =
     body
   except JsonRpcError as error:
     raiseJsonRpcProviderError(error.msg)
-  # Catch all ValueErrors for now, at least until JsonRpcError is actually
-  # raised. PR created: https://github.com/status-im/nim-json-rpc/pull/151
-  except ValueError as error:
+  except CatchableError as error:
     raiseJsonRpcProviderError(error.msg)
 
 # Provider
@@ -62,9 +60,11 @@ const defaultPollingInterval = 4.seconds
 proc jsonHeaders: seq[(string, string)] =
   @[("Content-Type", "application/json")]
 
-proc new*(_: type JsonRpcProvider,
-          url=defaultUrl,
-          pollingInterval=defaultPollingInterval): JsonRpcProvider =
+proc new*(
+  _: type JsonRpcProvider,
+  url=defaultUrl,
+  pollingInterval=defaultPollingInterval): JsonRpcProvider {.raises: [JsonRpcProviderError].} =
+
   var initialized: Future[void]
   var client: RpcClient
   var subscriptions: JsonRpcSubscriptions
@@ -82,19 +82,21 @@ proc new*(_: type JsonRpcProvider,
       client = http
       subscriptions = JsonRpcSubscriptions.new(http,
                                                pollingInterval = pollingInterval)
+    subscriptions.init()
 
-  proc awaitClient: Future[RpcClient] {.async.} =
+  proc awaitClient: Future[RpcClient] {.async:(raises:[JsonRpcProviderError]).} =
     convertError:
       await initialized
       return client
 
-  proc awaitSubscriptions: Future[JsonRpcSubscriptions] {.async.} =
+  proc awaitSubscriptions: Future[JsonRpcSubscriptions] {.async:(raises:[JsonRpcProviderError]).} =
     convertError:
       await initialized
       return subscriptions
 
-  initialized = initialize()
-  JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
+  convertError:
+    initialized = initialize()
+    return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
 
 proc callImpl(
   client: RpcClient,
@@ -116,7 +118,6 @@ proc send*(
   arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
   convertError:
     let client = await provider.client
-    return await client.call(call, %arguments)
     return await client.callImpl(call, %arguments)
 
 proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
@@ -130,54 +131,66 @@ proc getSigner*(provider: JsonRpcProvider): JsonRpcSigner =
 proc getSigner*(provider: JsonRpcProvider, address: Address): JsonRpcSigner =
   JsonRpcSigner(provider: provider, address: some address)
 
-method getBlockNumber*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+method getBlockNumber*(
+  provider: JsonRpcProvider): Future[UInt256] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_blockNumber()
 
-method getBlock*(provider: JsonRpcProvider,
-                 tag: BlockTag): Future[?Block] {.async.} =
+method getBlock*(
+  provider: JsonRpcProvider,
+  tag: BlockTag): Future[?Block] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_getBlockByNumber(tag, false)
 
-method call*(provider: JsonRpcProvider,
-             tx: Transaction,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.async.} =
+method call*(
+  provider: JsonRpcProvider,
+  tx: Transaction,
+  blockTag = BlockTag.latest): Future[seq[byte]] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_call(tx, blockTag)
 
-method getGasPrice*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+method getGasPrice*(
+  provider: JsonRpcProvider): Future[UInt256] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_gasPrice()
 
-method getTransactionCount*(provider: JsonRpcProvider,
-                            address: Address,
-                            blockTag = BlockTag.latest):
-                           Future[UInt256] {.async.} =
+method getTransactionCount*(
+  provider: JsonRpcProvider,
+  address: Address,
+  blockTag = BlockTag.latest): Future[UInt256] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_getTransactionCount(address, blockTag)
 
-method getTransaction*(provider: JsonRpcProvider,
-                       txHash: TransactionHash):
-                      Future[?PastTransaction] {.async.} =
+method getTransaction*(
+  provider: JsonRpcProvider,
+  txHash: TransactionHash): Future[?PastTransaction] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_getTransactionByHash(txHash)
 
-method getTransactionReceipt*(provider: JsonRpcProvider,
-                              txHash: TransactionHash):
-                             Future[?TransactionReceipt] {.async.} =
+method getTransactionReceipt*(
+  provider: JsonRpcProvider,
+  txHash: TransactionHash): Future[?TransactionReceipt] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_getTransactionReceipt(txHash)
 
-method getLogs*(provider: JsonRpcProvider,
-                filter: EventFilter):
-               Future[seq[Log]] {.async.} =
+method getLogs*(
+  provider: JsonRpcProvider,
+  filter: EventFilter): Future[seq[Log]] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     let logsJson = if filter of Filter:
@@ -189,19 +202,23 @@ method getLogs*(provider: JsonRpcProvider,
 
     var logs: seq[Log] = @[]
     for logJson in logsJson.getElems:
-      if log =? Log.fromJson(logJson).catch:
+      if log =? Log.fromJson(logJson):
         logs.add log
 
     return logs
 
-method estimateGas*(provider: JsonRpcProvider,
-                    transaction: Transaction,
-                    blockTag = BlockTag.latest): Future[UInt256] {.async.} =
+method estimateGas*(
+  provider: JsonRpcProvider,
+  transaction: Transaction,
+  blockTag = BlockTag.latest): Future[UInt256] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_estimateGas(transaction, blockTag)
 
-method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
+method getChainId*(
+  provider: JsonRpcProvider): Future[UInt256] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let client = await provider.client
     try:
@@ -209,7 +226,10 @@ method getChainId*(provider: JsonRpcProvider): Future[UInt256] {.async.} =
     except CatchableError:
       return parse(await client.net_version(), UInt256)
 
-method sendTransaction*(provider: JsonRpcProvider, rawTransaction: seq[byte]): Future[TransactionResponse] {.async.} =
+method sendTransaction*(
+  provider: JsonRpcProvider,
+  rawTransaction: seq[byte]): Future[TransactionResponse] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let
       client = await provider.client
@@ -217,33 +237,42 @@ method sendTransaction*(provider: JsonRpcProvider, rawTransaction: seq[byte]): F
 
     return TransactionResponse(hash: hash, provider: provider)
 
-method subscribe*(provider: JsonRpcProvider,
-                  filter: EventFilter,
-                  onLog: LogHandler):
-                 Future[Subscription] {.async.} =
+method subscribe*(
+  provider: JsonRpcProvider,
+  filter: EventFilter,
+  onLog: LogHandler): Future[Subscription] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let subscriptions = await provider.subscriptions
     let id = await subscriptions.subscribeLogs(filter, onLog)
     return JsonRpcSubscription(subscriptions: subscriptions, id: id)
 
-method subscribe*(provider: JsonRpcProvider,
-                  onBlock: BlockHandler):
-                 Future[Subscription] {.async.} =
+method subscribe*(
+  provider: JsonRpcProvider,
+  onBlock: BlockHandler): Future[Subscription] {.async: (raises:[ProviderError]).} =
+
   convertError:
     let subscriptions = await provider.subscriptions
     let id = await subscriptions.subscribeBlocks(onBlock)
     return JsonRpcSubscription(subscriptions: subscriptions, id: id)
 
-method unsubscribe(subscription: JsonRpcSubscription) {.async.} =
+method unsubscribe*(
+  subscription: JsonRpcSubscription) {.async: (raises:[ProviderError]).} =
+
   convertError:
     let subscriptions = subscription.subscriptions
     let id = subscription.id
+    echo "[jsonrpc.unsubscribe] subscription id: ", $id
     await subscriptions.unsubscribe(id)
 
-method close*(provider: JsonRpcProvider) {.async.} =
+method close*(
+  provider: JsonRpcProvider) {.async: (raises:[ProviderError]).} =
+
   convertError:
+    echo "[JsonRpcProvider.close]"
     let client = await provider.client
     let subscriptions = await provider.subscriptions
+    echo "[JsonRpcProvider.closing subscriptions]"
     await subscriptions.close()
     await client.close()
 
@@ -252,25 +281,32 @@ method close*(provider: JsonRpcProvider) {.async.} =
 method provider*(signer: JsonRpcSigner): Provider =
   signer.provider
 
-method getAddress*(signer: JsonRpcSigner): Future[Address] {.async.} =
+method getAddress*(
+  signer: JsonRpcSigner): Future[Address] {.async: (raises:[ProviderError]).} =
+
   if address =? signer.address:
     return address
 
-  let accounts = await signer.provider.listAccounts()
-  if accounts.len > 0:
-    return accounts[0]
+  convertError:
+    let accounts = await signer.provider.listAccounts()
+    if accounts.len > 0:
+      return accounts[0]
 
   raiseJsonRpcProviderError "no address found"
 
-method signMessage*(signer: JsonRpcSigner,
-                    message: seq[byte]): Future[seq[byte]] {.async.} =
+method signMessage*(
+  signer: JsonRpcSigner,
+  message: seq[byte]): Future[seq[byte]] {.async: (raises:[JsonRpcProviderError]).} =
+
   convertError:
     let client = await signer.provider.client
     let address = await signer.getAddress()
     return await client.eth_sign(address, message)
 
-method sendTransaction*(signer: JsonRpcSigner,
-                        transaction: Transaction): Future[TransactionResponse] {.async.} =
+method sendTransaction*(
+  signer: JsonRpcSigner,
+  transaction: Transaction): Future[TransactionResponse] {.async: (raises:[JsonRpcProviderError]).} =
+
   convertError:
     if nonce =? transaction.nonce:
       signer.updateNonce(nonce)

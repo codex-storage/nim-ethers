@@ -97,68 +97,94 @@ func toTransaction*(past: PastTransaction): Transaction =
     chainId: past.chainId
   )
 
-method getBlockNumber*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
+method getBlockNumber*(
+  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getBlock*(provider: Provider, tag: BlockTag): Future[?Block] {.base, gcsafe.} =
+method getBlock*(
+  provider: Provider,
+  tag: BlockTag): Future[?Block] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method call*(provider: Provider,
-             tx: Transaction,
-             blockTag = BlockTag.latest): Future[seq[byte]] {.base, gcsafe.} =
+method call*(
+  provider: Provider,
+  tx: Transaction,
+  blockTag = BlockTag.latest): Future[seq[byte]] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getGasPrice*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
+method getGasPrice*(
+  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getTransactionCount*(provider: Provider,
-                            address: Address,
-                            blockTag = BlockTag.latest):
-                           Future[UInt256] {.base, gcsafe.} =
+method getTransactionCount*(
+  provider: Provider,
+  address: Address,
+  blockTag = BlockTag.latest): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getTransaction*(provider: Provider,
-                       txHash: TransactionHash):
-                      Future[?PastTransaction] {.base, gcsafe.} =
+method getTransaction*(
+  provider: Provider,
+  txHash: TransactionHash): Future[?PastTransaction] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getTransactionReceipt*(provider: Provider,
-                            txHash: TransactionHash):
-                           Future[?TransactionReceipt] {.base, gcsafe.} =
+method getTransactionReceipt*(
+  provider: Provider,
+  txHash: TransactionHash): Future[?TransactionReceipt] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method sendTransaction*(provider: Provider,
-                        rawTransaction: seq[byte]):
-                       Future[TransactionResponse] {.base, gcsafe.} =
+method sendTransaction*(
+  provider: Provider,
+  rawTransaction: seq[byte]): Future[TransactionResponse] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getLogs*(provider: Provider,
-                filter: EventFilter): Future[seq[Log]] {.base, gcsafe.} =
+method getLogs*(
+  provider: Provider,
+  filter: EventFilter): Future[seq[Log]] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method estimateGas*(provider: Provider,
-                    transaction: Transaction,
-                    blockTag = BlockTag.latest): Future[UInt256] {.base, gcsafe.} =
+method estimateGas*(
+  provider: Provider,
+  transaction: Transaction,
+  blockTag = BlockTag.latest): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method getChainId*(provider: Provider): Future[UInt256] {.base, gcsafe.} =
+method getChainId*(
+  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method subscribe*(provider: Provider,
-                  filter: EventFilter,
-                  callback: LogHandler):
-                 Future[Subscription] {.base, gcsafe.} =
+method subscribe*(
+  provider: Provider,
+  filter: EventFilter,
+  callback: LogHandler): Future[Subscription] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method subscribe*(provider: Provider,
-                  callback: BlockHandler):
-                 Future[Subscription] {.base, gcsafe.} =
+method subscribe*(
+  provider: Provider,
+  callback: BlockHandler): Future[Subscription] {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-method unsubscribe*(subscription: Subscription) {.base, async.} =
+method unsubscribe*(
+  subscription: Subscription) {.base, async: (raises:[ProviderError]).} =
+
   doAssert false, "not implemented"
 
-proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.} =
+proc replay*(
+  provider: Provider,
+  tx: Transaction,
+  blockNumber: UInt256) {.async: (raises:[ProviderError]).} =
   # Replay transaction at block. Useful for fetching revert reasons, which will
   # be present in the raised error message. The replayed block number should
   # include the state of the chain in the block previous to the block in which
@@ -172,8 +198,7 @@ proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.
 method getRevertReason*(
   provider: Provider,
   hash: TransactionHash,
-  blockNumber: UInt256
-): Future[?string] {.base, async.} =
+  blockNumber: UInt256): Future[?string] {.base, async: (raises: [ProviderError]).} =
 
   without pastTx =? await provider.getTransaction(hash):
     return none string
@@ -187,8 +212,7 @@ method getRevertReason*(
 
 method getRevertReason*(
   provider: Provider,
-  receipt: TransactionReceipt
-): Future[?string] {.base, async.} =
+  receipt: TransactionReceipt): Future[?string] {.base, async: (raises: [ProviderError]).} =
 
   if receipt.status != TransactionStatus.Failure:
     return none string
@@ -200,8 +224,7 @@ method getRevertReason*(
 
 proc ensureSuccess(
   provider: Provider,
-  receipt: TransactionReceipt
-) {.async, raises: [ProviderError].} =
+  receipt: TransactionReceipt) {.async: (raises: [ProviderError]).} =
   ## If the receipt.status is Failed, the tx is replayed to obtain a revert
   ## reason, after which a ProviderError with the revert reason is raised.
   ## If no revert reason was obtained
@@ -220,11 +243,10 @@ proc ensureSuccess(
       trace "transaction replay completed, no revert reason obtained"
       raiseProviderError("Transaction reverted with unknown reason")
 
-proc confirm*(tx: TransactionResponse,
-              confirmations = EthersDefaultConfirmations,
-              timeout = EthersReceiptTimeoutBlks):
-             Future[TransactionReceipt]
-             {.async, raises: [ProviderError, EthersError].} =
+proc confirm*(
+  tx: TransactionResponse,
+  confirmations = EthersDefaultConfirmations,
+  timeout = EthersReceiptTimeoutBlks): Future[TransactionReceipt] {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise an error if too many
@@ -266,10 +288,10 @@ proc confirm*(tx: TransactionResponse,
       await tx.provider.ensureSuccess(receipt)
       return receipt
 
-proc confirm*(tx: Future[TransactionResponse],
-             confirmations: int = EthersDefaultConfirmations,
-             timeout: int = EthersReceiptTimeoutBlks):
-            Future[TransactionReceipt] {.async.} =
+proc confirm*(
+  tx: Future[TransactionResponse],
+  confirmations: int = EthersDefaultConfirmations,
+  timeout: int = EthersReceiptTimeoutBlks): Future[TransactionReceipt] {.async.} =
   ## Convenience method that allows wait to be chained to a sendTransaction
   ## call, eg:
   ## `await signer.sendTransaction(populated).confirm(3)`
@@ -277,5 +299,5 @@ proc confirm*(tx: Future[TransactionResponse],
   let txResp = await tx
   return await txResp.confirm(confirmations, timeout)
 
-method close*(provider: Provider) {.async, base.} =
+method close*(provider: Provider) {.base, async: (raises:[ProviderError]).} =
   discard

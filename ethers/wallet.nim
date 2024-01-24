@@ -54,7 +54,7 @@ proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result.address = Address.init(result.publicKey.toCanonicalAddress())
   result.provider = some provider
 
-method provider*(wallet: Wallet): Provider =
+method provider*(wallet: Wallet): Provider {.raises: [WalletError].} =
   without provider =? wallet.provider:
     raiseWalletError "Wallet has no provider"
   provider

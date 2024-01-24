@@ -3,6 +3,8 @@ import ./provider
 
 export basics
 
+{.push raises: [].}
+
 type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
@@ -19,17 +21,18 @@ template raiseSignerError(message: string, parent: ref ProviderError = nil) =
 proc raiseEstimateGasError(
   transaction: Transaction,
   parent: ref ProviderError = nil
-) =
+) {.raises: [EstimateGasError] .} =
   let e = (ref EstimateGasError)(
     msg: "Estimate gas failed",
     transaction: transaction,
     parent: parent)
   raise e
 
-method provider*(signer: Signer): Provider {.base, gcsafe.} =
+method provider*(signer: Signer):
+    Provider {.base, gcsafe, raises: [EthersError].} =
   doAssert false, "not implemented"
 
-method getAddress*(signer: Signer): Future[Address] {.base, gcsafe.} =
+method getAddress*(signer: Signer): Future[Address] {.base, async: (raises:[ProviderError]).} =
   doAssert false, "not implemented"
 
 method signMessage*(signer: Signer,
@@ -40,7 +43,8 @@ method sendTransaction*(signer: Signer,
                         transaction: Transaction): Future[TransactionResponse] {.base, async.} =
   doAssert false, "not implemented"
 
-method getGasPrice*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
+method getGasPrice*(signer: Signer):
+    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
   signer.provider.getGasPrice()
 
 method getTransactionCount*(signer: Signer,
@@ -59,7 +63,8 @@ method estimateGas*(signer: Signer,
   except ProviderError as e:
     raiseEstimateGasError transaction, e
 
-method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
+method getChainId*(signer: Signer):
+    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
   signer.provider.getChainId()
 
 method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
@@ -91,6 +96,7 @@ method populateTransaction*(signer: Signer,
                             transaction: Transaction):
                            Future[Transaction] {.base, async.} =
 
+  echo "[signer.populatetransaction] signer type: ", typeof signer
   if sender =? transaction.sender and sender != await signer.getAddress():
     raiseSignerError("from address mismatch")
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
@@ -119,8 +125,10 @@ method populateTransaction*(signer: Signer,
       populated.nonce = some(await signer.getNonce())
       try:
         populated.gasLimit = some(await signer.estimateGas(populated))
-      except ProviderError, EstimateGasError:
-        let e = getCurrentException()
+      except ProviderError as e:
+        signer.decreaseNonce()
+        raise e
+      except EstimateGasError as e:
         signer.decreaseNonce()
         raise e
 
