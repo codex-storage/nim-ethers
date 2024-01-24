@@ -36,7 +36,7 @@ type
     Success = 1,
     Invalid = 2
   TransactionResponse* = object
-    provider* {.serialize.}: Provider
+    provider*: Provider
     hash* {.serialize.}: TransactionHash
   TransactionReceipt* = object
     sender* {.serialize.}: ?Address

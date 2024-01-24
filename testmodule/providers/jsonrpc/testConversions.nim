@@ -17,14 +17,16 @@ suite "JSON Conversions":
       "timestamp":"0x6285c293"
     }
 
-    var blk = Block.fromJson(json)
-    check blk.number.isNone
+    without blk1 =? Block.fromJson(json):
+      fail
+    check blk1.number.isNone
 
     json["number"] = newJString("")
 
-    blk = Block.fromJson(json)
-    check blk.number.isSome
-    check blk.number.get.isZero
+    without blk2 =? Block.fromJson(json):
+      fail
+    check blk2.number.isSome
+    check blk2.number.get.isZero
 
   test "missing block hash in Block isNone":
 
@@ -37,7 +39,8 @@ suite "JSON Conversions":
       }
     }
 
-    var blk = Block.fromJson(blkJson["result"])
+    without blk =? Block.fromJson(blkJson["result"]):
+      fail
     check blk.hash.isNone
 
   test "missing block number in TransactionReceipt isNone":
@@ -67,13 +70,15 @@ suite "JSON Conversions":
       "type": "0x0"
     }
 
-    var receipt = TransactionReceipt.fromJson(json)
-    check receipt.blockNumber.isNone
+    without receipt1 =? TransactionReceipt.fromJson(json):
+      fail
+    check receipt1.blockNumber.isNone
 
     json["blockNumber"] = newJString("")
-    receipt = TransactionReceipt.fromJson(json)
-    check receipt.blockNumber.isSome
-    check receipt.blockNumber.get.isZero
+    without receipt2 =? TransactionReceipt.fromJson(json):
+      fail
+    check receipt2.blockNumber.isSome
+    check receipt2.blockNumber.get.isZero
 
   test "missing block hash in TransactionReceipt isNone":
     let json = %*{
@@ -102,7 +107,8 @@ suite "JSON Conversions":
       "type": "0x0"
     }
 
-    let receipt = TransactionReceipt.fromJson(json)
+    without receipt =? TransactionReceipt.fromJson(json):
+      fail
     check receipt.blockHash.isNone
 
   test "newHeads subcription raises exception when deserializing to Log":
@@ -149,7 +155,8 @@ suite "JSON Conversions":
       "s":"0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2"
     }
 
-    let tx = PastTransaction.fromJson(json)
+    without tx =? PastTransaction.fromJson(json):
+      fail
     check tx.blockHash == BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922"))
     check tx.blockNumber == 0x22e.u256
     check tx.sender == Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get
@@ -161,7 +168,7 @@ suite "JSON Conversions":
     check tx.to == Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e").get
     check tx.transactionIndex == 0x3.u256
     check tx.value == 0.u256
-    check tx.transactionType == some TransactionType.Legacy
+    check tx.`type` == some TransactionType.Legacy
     check tx.chainId == some 0xc0de4.u256
     check tx.v == 0x181bec.u256
     check tx.r == UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a"))
@@ -183,7 +190,7 @@ suite "JSON Conversions":
       v: 0x181bec.u256,
       r: UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a")),
       s: UInt256.fromBytesBE(hexToSeqByte("0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2")),
-      transactionType: some TransactionType.Legacy,
+      `type`: some TransactionType.Legacy,
       chainId: some 0xc0de4.u256
     )
     let expected = """
@@ -227,7 +234,8 @@ suite "JSON Conversions":
       "s":"0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2"
     }
 
-    let past = PastTransaction.fromJson(json)
+    without past =? PastTransaction.fromJson(json):
+      fail
     check %past.toTransaction == %*{
       "to": !Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e"),
       "data": hexToSeqByte("0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000"),

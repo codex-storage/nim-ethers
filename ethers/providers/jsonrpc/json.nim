@@ -63,7 +63,7 @@ template expectJsonKind(
   if json.isNil or json.kind notin expectedKinds:
     return failure(newUnexpectedKindError(expectedType, expectedKinds, json))
 
-template expectJsonKind(
+template expectJsonKind*(
   expectedType: type,
   expectedKind: JsonNodeKind,
   json: JsonNode
