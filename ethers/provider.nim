@@ -39,7 +39,7 @@ type
     provider*: Provider
     hash* {.serialize.}: TransactionHash
   TransactionReceipt* = object
-    sender* {.serialize.}: ?Address
+    `from`* {.serialize.}: ?Address
     to* {.serialize.}: ?Address
     contractAddress* {.serialize.}: ?Address
     transactionIndex* {.serialize.}: UInt256
@@ -51,7 +51,7 @@ type
     blockNumber* {.serialize.}: ?UInt256
     cumulativeGasUsed* {.serialize.}: UInt256
     effectiveGasPrice* {.serialize.}: ?UInt256
-    status*: TransactionStatus
+    status* {.serialize.}: TransactionStatus
     `type`* {.serialize.}: TransactionType
   LogHandler* = proc(log: Log) {.gcsafe, raises:[].}
   BlockHandler* = proc(blck: Block) {.gcsafe, raises:[].}
@@ -63,7 +63,7 @@ type
   PastTransaction* = object
     blockHash* {.serialize.}: BlockHash
     blockNumber* {.serialize.}: UInt256
-    sender* {.serialize.}: Address
+    `from`* {.serialize.}: Address
     gas* {.serialize.}: UInt256
     gasPrice* {.serialize.}: UInt256
     hash* {.serialize.}: TransactionHash
@@ -87,7 +87,7 @@ template raiseProviderError(msg: string) =
 
 func toTransaction*(past: PastTransaction): Transaction =
   Transaction(
-    sender: some past.sender,
+    `from`: some past.`from`,
     gasPrice: some past.gasPrice,
     data: past.input,
     nonce: some past.nonce,

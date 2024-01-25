@@ -10,6 +10,7 @@ import pkg/chronicles
 import pkg/contractabi
 import pkg/stew/byteutils
 import pkg/stint
+import pkg/questionable
 import pkg/questionable/results
 
 import ../../basics
@@ -204,7 +205,6 @@ proc fromJson*[T: ref object or object](
   _: type T,
   json: JsonNode
 ): ?!T =
-
   when T is JsonNode:
     return success T(json)
 
@@ -212,17 +212,25 @@ proc fromJson*[T: ref object or object](
   var res = when type(T) is ref: T.new() else: T.default
 
   # Leave this in, it's good for debugging:
-  # trace "deserializing object", to = $T, json
+  trace "deserializing object", to = $T, json
   for name, value in fieldPairs(when type(T) is ref: res[] else: res):
 
-    if jsonVal =? json{name}.catch and not jsonVal.isNil:
+    logScope:
+      field = $T & "." & name
+
+    if name in json and
+       jsonVal =? json{name}.catch and
+       not jsonVal.isNil:
+
       without parsed =? type(value).fromJson(jsonVal), e:
         error "error deserializing field",
-          field = $T & "." & name,
           json = jsonVal,
           error = e.msg
         return failure(e)
       value = parsed
+
+    else:
+      debug "object field does not exist in json, skipping", json
   success(res)
 
 proc parse*(json: string): ?!JsonNode =
@@ -240,48 +248,6 @@ proc fromJson*[T: ref object or object](
   let json = ? parse(string.fromBytes(bytes))
   T.fromJson(json)
 
-
-# import std/streams
-# import std/parsejson
-
-# type StringStreamFixed = ref object of StringStream
-#   closeImplFixed: proc (s: StringStreamFixed)
-#       {.nimcall, raises: [IOError, OSError], tags: [WriteIOEffect], gcsafe.}
-
-# proc closeImpl*: proc (s: StringStreamFixed)
-#       {.nimcall, raises: [IOError, OSError], tags: [WriteIOEffect], gcsafe.} = discard
-
-# proc ssCloseFixed(s: StringStreamFixed) =
-#   # var s = StringStream(s)
-#   s.data = ""
-
-# proc close*(s: StringStreamFixed) {.raises: [IOError, OSError].} =
-#   ## Closes the stream `s`.
-#   ##
-#   ## See also:
-#   ## * `flush proc <#flush,Stream>`_
-#   # runnableExamples:
-#   #   var strm = newStringStream("The first line\nthe second line\nthe third line")
-#   #   ## do something...
-#   #   strm.close()
-#   if not isNil(s.closeImplFixed): s.closeImplFixed(s)
-
-# proc newStringStreamFixed*(s: sink string = ""): owned StringStreamFixed {.raises:[].} =
-#   var ss = StringStreamFixed(newStringStream(s))
-#   ss.closeImplFixed = ssCloseFixed
-#   ss
-
-
-# proc parseJson*(buffer: string; rawIntegers = false, rawFloats = false): JsonNode {.raises: [IOError, OSError, JsonParsingError, ValueError].} =
-#   ## Parses JSON from `buffer`.
-#   ## If `buffer` contains extra data, it will raise `JsonParsingError`.
-#   ## If `rawIntegers` is true, integer literals will not be converted to a `JInt`
-#   ## field but kept as raw numbers via `JString`.
-#   ## If `rawFloats` is true, floating point literals will not be converted to a `JFloat`
-#   ## field but kept as raw numbers via `JString`.
-#   result = parseJson(newStringStreamFixed(buffer), "input", rawIntegers, rawFloats)
-
-
 proc fromJson*(
   _: type JsonNode,
   json: string
@@ -293,6 +259,7 @@ proc fromJson*[T: ref object or object](
   _: type T,
   json: string
 ): ?!T =
+  echo "[T.fromJson] T: ", T, ", json string: ", json
   let json = ? parse(json)
   T.fromJson(json)
 

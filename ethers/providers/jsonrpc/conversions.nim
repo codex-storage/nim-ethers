@@ -31,6 +31,15 @@ proc getOrRaise*[T, E](self: ?!T, exc: typedesc[E]): T {.raises: [E].} =
     raise newException(E, self.error.msg)
   val
 
+template mapFailure*[T, V, E](
+    exp: Result[T, V],
+    exc: typedesc[E],
+): Result[T, ref CatchableError] =
+  ## Convert `Result[T, E]` to `Result[E, ref CatchableError]`
+  ##
+
+  exp.mapErr(proc (e: V): ref CatchableError = (ref exc)(msg: e.msg))
+
 proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
   for fieldName in expectedFields:
     if not json.hasKey(fieldName):
@@ -160,6 +169,16 @@ func fromJson*(_: type BlockTag, json: JsonNode): ?!BlockTag =
   else: return failure newException(SerializationError,
       "Failed to convert '" & $json &
       "' to BlockTag: must be one of 'earliest', 'latest', 'pending'")
+
+# TransactionStatus | TransactionType
+
+proc fromJson*[E: TransactionStatus | TransactionType](
+  T: type E,
+  json: JsonNode
+): ?!T =
+  expectJsonKind(string, JString, json)
+  let integer = ? fromHex[int](json.str).catch.mapFailure(SerializationError)
+  success T(integer)
 
 # proc readValue*(r: var JsonReader[JrpcConv],
 #                 result: var BlockTag) {.raises:[SerializationError, IOError].} =

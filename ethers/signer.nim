@@ -57,7 +57,7 @@ method estimateGas*(signer: Signer,
                     transaction: Transaction,
                     blockTag = BlockTag.latest): Future[UInt256] {.base, async.} =
   var transaction = transaction
-  transaction.sender = some(await signer.getAddress)
+  transaction.`from` = some(await signer.getAddress)
   try:
     return await signer.provider.estimateGas(transaction)
   except ProviderError as e:
@@ -97,7 +97,7 @@ method populateTransaction*(signer: Signer,
                            Future[Transaction] {.base, async.} =
 
   echo "[signer.populatetransaction] signer type: ", typeof signer
-  if sender =? transaction.sender and sender != await signer.getAddress():
+  if sender =? transaction.`from` and sender != await signer.getAddress():
     raiseSignerError("from address mismatch")
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
@@ -110,8 +110,8 @@ method populateTransaction*(signer: Signer,
   var populated = transaction
 
   try:
-    if transaction.sender.isNone:
-      populated.sender = some(await signer.getAddress())
+    if transaction.`from`.isNone:
+      populated.`from` = some(await signer.getAddress())
     if transaction.chainId.isNone:
       populated.chainId = some(await signer.getChainId())
     if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
@@ -150,7 +150,7 @@ method cancelTransaction*(
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
-  without sender =? tx.sender:
+  without sender =? tx.`from`:
     raiseSignerError "transaction must have sender"
   without nonce =? tx.nonce:
     raiseSignerError "transaction must have nonce"

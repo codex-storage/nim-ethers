@@ -8,7 +8,7 @@ type
     AccessList = 1,
     Dynamic = 2
   Transaction* = object
-    sender* {.serialize.}: ?Address
+    `from`* {.serialize.}: ?Address
     to* {.serialize.}: Address
     data* {.serialize.}: seq[byte]
     value* {.serialize.}: UInt256
@@ -22,7 +22,7 @@ type
 
 func `$`*(transaction: Transaction): string =
   result = "("
-  if sender =? transaction.sender:
+  if sender =? transaction.`from`:
     result &= "from: " & $sender & ", "
   result &= "to: " & $transaction.to & ", "
   result &= "value: " & $transaction.value & ", "

@@ -64,7 +64,7 @@ method getAddress(wallet: Wallet): Future[Address] {.async.} =
 
 proc signTransaction*(wallet: Wallet,
                       transaction: Transaction): Future[seq[byte]] {.async.} =
-  if sender =? transaction.sender and sender != wallet.address:
+  if sender =? transaction.`from` and sender != wallet.address:
     raiseWalletError "from address mismatch"
 
   return wallet.privateKey.sign(transaction)
