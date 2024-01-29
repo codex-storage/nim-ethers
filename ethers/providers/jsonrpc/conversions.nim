@@ -127,6 +127,25 @@ func fromJson*(_: type UInt256, json: JsonNode): ?!UInt256 =
 
 # Transaction
 
+# TODO: add option that ignores none Option[T]
+# TODO: add name option (gasLimit => gas, sender => from)
+func `%`*(transaction: Transaction): JsonNode =
+  result = %*{
+    "to": transaction.to,
+    "data": %transaction.data,
+    "value": %transaction.value
+  }
+  if sender =? transaction.`from`:
+    result["from"] = %sender
+  if nonce =? transaction.nonce:
+    result["nonce"] = %nonce
+  if chainId =? transaction.chainId:
+    result["chainId"] = %chainId
+  if gasPrice =? transaction.gasPrice:
+    result["gasPrice"] = %gasPrice
+  if gasLimit =? transaction.gasLimit:
+    result["gas"] = %gasLimit
+
 # proc writeValue*(
 #   writer: var JsonWriter[JrpcConv],
 #   value: Transaction
@@ -171,6 +190,9 @@ func fromJson*(_: type BlockTag, json: JsonNode): ?!BlockTag =
       "' to BlockTag: must be one of 'earliest', 'latest', 'pending'")
 
 # TransactionStatus | TransactionType
+
+func `%`*(e: TransactionStatus | TransactionType): JsonNode =
+  % ("0x" & e.int8.toHex(1))
 
 proc fromJson*[E: TransactionStatus | TransactionType](
   T: type E,

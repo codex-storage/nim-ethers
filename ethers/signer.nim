@@ -9,9 +9,7 @@ type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
     populateLock: AsyncLock
-
-type
-  SignerError* = object of EthersError
+  SignerError* = object of ProviderError
   EstimateGasError* = object of SignerError
     transaction*: Transaction
 
@@ -28,46 +26,78 @@ proc raiseEstimateGasError(
     parent: parent)
   raise e
 
-method provider*(signer: Signer):
-    Provider {.base, gcsafe, raises: [EthersError].} =
+template convertError(body) =
+  try:
+    body
+  except EthersError as error:
+    raiseSignerError(error.msg)
+  except CatchableError as error:
+    raiseSignerError(error.msg)
+
+method provider*(
+  signer: Signer): Provider {.base, gcsafe, raises: [SignerError].} =
   doAssert false, "not implemented"
 
-method getAddress*(signer: Signer): Future[Address] {.base, async: (raises:[ProviderError]).} =
+method getAddress*(
+  signer: Signer): Future[Address] {.base, async: (raises:[SignerError]).} =
+
   doAssert false, "not implemented"
 
-method signMessage*(signer: Signer,
-                    message: seq[byte]): Future[seq[byte]] {.base, async.} =
+method signMessage*(
+  signer: Signer,
+  message: seq[byte]): Future[seq[byte]] {.base, async: (raises:[SignerError]).} =
+
   doAssert false, "not implemented"
 
-method sendTransaction*(signer: Signer,
-                        transaction: Transaction): Future[TransactionResponse] {.base, async.} =
+method sendTransaction*(
+  signer: Signer,
+  transaction: Transaction): Future[TransactionResponse]
+  {.base, async: (raises:[SignerError]).} =
+
   doAssert false, "not implemented"
 
-method getGasPrice*(signer: Signer):
-    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
-  signer.provider.getGasPrice()
+method getGasPrice*(
+  signer: Signer): Future[UInt256] {.base, gcsafe, async: (raises: [SignerError]).} =
 
-method getTransactionCount*(signer: Signer,
-                            blockTag = BlockTag.latest):
-                           Future[UInt256] {.base, async.} =
-  let address = await signer.getAddress()
-  return await signer.provider.getTransactionCount(address, blockTag)
+  convertError:
+    return await signer.provider.getGasPrice()
 
-method estimateGas*(signer: Signer,
-                    transaction: Transaction,
-                    blockTag = BlockTag.latest): Future[UInt256] {.base, async.} =
+method getTransactionCount*(
+  signer: Signer,
+  blockTag = BlockTag.latest): Future[UInt256]
+  {.base, async: (raises:[SignerError]).} =
+
+  convertError:
+    let address = await signer.getAddress()
+    return await signer.provider.getTransactionCount(address, blockTag)
+
+method estimateGas*(
+  signer: Signer,
+  transaction: Transaction,
+  blockTag = BlockTag.latest): Future[UInt256]
+  {.base, async: (raises:[SignerError]).} =
+
   var transaction = transaction
-  transaction.`from` = some(await signer.getAddress)
+  var address: Address
+
+  convertError:
+    address = await signer.getAddress
+
+  transaction.`from` = some(address)
   try:
     return await signer.provider.estimateGas(transaction)
   except ProviderError as e:
     raiseEstimateGasError transaction, e
 
-method getChainId*(signer: Signer):
-    Future[UInt256] {.base, gcsafe, raises: [EthersError].} =
-  signer.provider.getChainId()
+method getChainId*(
+  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
 
-method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+  convertError:
+    return await signer.provider.getChainId()
+
+method getNonce(
+  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
+
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
@@ -92,9 +122,10 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
   if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
     signer.lastSeenNonce = some lastSeen - 1
 
-method populateTransaction*(signer: Signer,
-                            transaction: Transaction):
-                           Future[Transaction] {.base, async.} =
+method populateTransaction*(
+  signer: Signer,
+  transaction: Transaction): Future[Transaction]
+  {.base, async: (raises: [CancelledError, AsyncLockError, SignerError]).} =
 
   echo "[signer.populatetransaction] signer type: ", typeof signer
   if sender =? transaction.`from` and sender != await signer.getAddress():
@@ -127,7 +158,7 @@ method populateTransaction*(signer: Signer,
         populated.gasLimit = some(await signer.estimateGas(populated))
       except ProviderError as e:
         signer.decreaseNonce()
-        raise e
+        raiseSignerError(e.msg)
       except EstimateGasError as e:
         signer.decreaseNonce()
         raise e

@@ -2,9 +2,9 @@ import pkg/eth/keys
 import pkg/eth/rlp
 import pkg/eth/common/transaction as eth
 import pkg/eth/common/eth_hash
-import ../basics
-import ../transaction as ethers
-import ../provider
+import ../../basics
+import ../../transaction as ethers
+import ../../provider
 import ./error
 
 type

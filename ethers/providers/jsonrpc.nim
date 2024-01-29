@@ -26,13 +26,17 @@ type
   JsonRpcProvider* = ref object of Provider
     client: Future[RpcClient]
     subscriptions: Future[JsonRpcSubscriptions]
-  JsonRpcSigner* = ref object of Signer
-    provider: JsonRpcProvider
-    address: ?Address
+
   JsonRpcProviderError* = object of ProviderError
   JsonRpcSubscription* = ref object of Subscription
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
+
+  # Signer
+  JsonRpcSigner* = ref object of Signer
+    provider: JsonRpcProvider
+    address: ?Address
+  JsonRpcSignerError* = object of SignerError
 
 proc raiseJsonRpcProviderError(
   message: string) {.raises: [JsonRpcProviderError].} =
@@ -50,7 +54,7 @@ template convertError(body) =
   except JsonRpcError as error:
     raiseJsonRpcProviderError(error.msg)
   except CatchableError as error:
-    raiseJsonRpcProviderError(error.msg)
+    raise newException(JsonRpcProviderError, error.msg)
 
 # Provider
 
@@ -104,6 +108,7 @@ proc callImpl(
   args: JsonNode): Future[JsonNode] {.async: (raises: [JsonRpcProviderError]).} =
 
   without response =? (await client.call(call, %args)).catch, error:
+    echo "[jsonrpc.callImpl] error during call: ", error.msg
     raiseJsonRpcProviderError error.msg
   echo "[jsonrpc.callImpl] response: ", response.string
   without json =? JsonNode.fromJson(response.string), error:
@@ -111,16 +116,19 @@ proc callImpl(
     raiseJsonRpcProviderError "Failed to parse response: " & error.msg
   json
 
-
 proc send*(
   provider: JsonRpcProvider,
   call: string,
-  arguments: seq[JsonNode] = @[]): Future[JsonNode] {.async.} =
+  arguments: seq[JsonNode] = @[]): Future[JsonNode]
+  {.async: (raises: [JsonRpcProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.callImpl(call, %arguments)
 
-proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]] {.async.} =
+proc listAccounts*(provider: JsonRpcProvider): Future[seq[Address]]
+  {.async: (raises: [JsonRpcProviderError]).} =
+
   convertError:
     let client = await provider.client
     return await client.eth_accounts()
@@ -228,7 +236,8 @@ method getChainId*(
 
 method sendTransaction*(
   provider: JsonRpcProvider,
-  rawTransaction: seq[byte]): Future[TransactionResponse] {.async: (raises:[ProviderError]).} =
+  rawTransaction: seq[byte]): Future[TransactionResponse]
+  {.async: (raises:[ProviderError]).} =
 
   convertError:
     let
@@ -278,36 +287,55 @@ method close*(
 
 # Signer
 
-method provider*(signer: JsonRpcSigner): Provider =
+proc raiseJsonRpcSignerError(
+  message: string) {.raises: [JsonRpcSignerError].} =
+
+  var message = message
+  if json =? JsonNode.fromJson(message):
+    if "message" in json:
+      message = json{"message"}.getStr
+  raise newException(JsonRpcSignerError, message)
+
+template convertSignerError(body) =
+  try:
+    body
+  except JsonRpcError as error:
+    raiseJsonRpcSignerError(error.msg)
+  except CatchableError as error:
+    raise newException(JsonRpcSignerError, error.msg)
+
+method provider*(signer: JsonRpcSigner): Provider {.gcsafe.} =
   signer.provider
 
 method getAddress*(
-  signer: JsonRpcSigner): Future[Address] {.async: (raises:[ProviderError]).} =
+  signer: JsonRpcSigner): Future[Address] {.async: (raises:[SignerError]).} =
 
   if address =? signer.address:
     return address
 
-  convertError:
+  convertSignerError:
     let accounts = await signer.provider.listAccounts()
     if accounts.len > 0:
       return accounts[0]
 
-  raiseJsonRpcProviderError "no address found"
+  raiseJsonRpcSignerError "no address found"
 
 method signMessage*(
   signer: JsonRpcSigner,
-  message: seq[byte]): Future[seq[byte]] {.async: (raises:[JsonRpcProviderError]).} =
+  message: seq[byte]): Future[seq[byte]] {.async: (raises:[SignerError]).} =
 
-  convertError:
+  convertSignerError:
     let client = await signer.provider.client
     let address = await signer.getAddress()
     return await client.eth_sign(address, message)
 
 method sendTransaction*(
   signer: JsonRpcSigner,
-  transaction: Transaction): Future[TransactionResponse] {.async: (raises:[JsonRpcProviderError]).} =
+  transaction: Transaction): Future[TransactionResponse]
+  {.async: (raises:[SignerError]).} =
 
-  convertError:
+  convertSignerError:
+    echo "[jsonrpc.sendTransaction]"
     if nonce =? transaction.nonce:
       signer.updateNonce(nonce)
     let

@@ -52,7 +52,7 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner()
     let transaction = Transaction.example
     let populated = await signer.populateTransaction(transaction)
-    check !populated.sender == await signer.getAddress()
+    check !populated.`from` == await signer.getAddress()
     check !populated.gasPrice == await signer.getGasPrice()
     check !populated.nonce == await signer.getTransactionCount(BlockTag.pending)
     check !populated.gasLimit == await signer.estimateGas(transaction)

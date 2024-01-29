@@ -88,13 +88,14 @@ template raiseProviderError(msg: string) =
 func toTransaction*(past: PastTransaction): Transaction =
   Transaction(
     `from`: some past.`from`,
-    gasPrice: some past.gasPrice,
-    data: past.input,
-    nonce: some past.nonce,
     to: past.to,
-    `type`: past.`type`,
+    data: past.input,
+    value: past.value,
+    nonce: some past.nonce,
+    chainId: past.chainId,
+    gasPrice: some past.gasPrice,
     gasLimit: some past.gas,
-    chainId: past.chainId
+    `type`: past.`type`
   )
 
 method getBlockNumber*(
@@ -246,7 +247,9 @@ proc ensureSuccess(
 proc confirm*(
   tx: TransactionResponse,
   confirmations = EthersDefaultConfirmations,
-  timeout = EthersReceiptTimeoutBlks): Future[TransactionReceipt] {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
+  timeout = EthersReceiptTimeoutBlks): Future[TransactionReceipt]
+  {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
+
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
   ## A timeout, in blocks, can be specified that will raise an error if too many
