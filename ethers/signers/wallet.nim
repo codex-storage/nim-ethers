@@ -10,6 +10,8 @@ export keys
 export WalletError
 export signing
 
+{.push raises: [].}
+
 var rng {.threadvar.}: ref HmacDrbgContext
 
 proc getRng: ref HmacDrbgContext =
@@ -27,26 +29,32 @@ proc new*(_: type Wallet, privateKey: PrivateKey): Wallet =
   let publicKey = privateKey.toPublicKey()
   let address = Address.init(publicKey.toCanonicalAddress())
   Wallet(privateKey: privateKey, publicKey: publicKey, address: address)
+
 proc new*(_: type Wallet, privateKey: PrivateKey, provider: Provider): Wallet =
   let wallet = Wallet.new(privateKey)
   wallet.provider = some provider
   wallet
+
 proc new*(_: type Wallet, privateKey: string): ?!Wallet =
   let keyResult = PrivateKey.fromHex(privateKey)
   if keyResult.isErr:
     return failure newException(WalletError, "invalid key: " & $keyResult.error)
   success Wallet.new(keyResult.get())
+
 proc new*(_: type Wallet, privateKey: string, provider: Provider): ?!Wallet =
   let wallet = ? Wallet.new(privateKey)
   wallet.provider = some provider
   success wallet
+
 proc connect*(wallet: Wallet, provider: Provider) =
   wallet.provider = some provider
+
 proc createRandom*(_: type Wallet): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
   result.address = Address.init(result.publicKey.toCanonicalAddress())
+
 proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
@@ -54,12 +62,12 @@ proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result.address = Address.init(result.publicKey.toCanonicalAddress())
   result.provider = some provider
 
-method provider*(wallet: Wallet): Provider {.raises: [SignerError].} =
+method provider*(wallet: Wallet): Provider {.gcsafe, raises: [SignerError].} =
   without provider =? wallet.provider:
     raiseWalletError "Wallet has no provider"
   provider
 
-method getAddress(wallet: Wallet): Future[Address] {.async: (raises:[ProviderError]).} =
+method getAddress*(wallet: Wallet): Future[Address] {.async.} =
   return wallet.address
 
 proc signTransaction*(wallet: Wallet,
@@ -71,9 +79,10 @@ proc signTransaction*(wallet: Wallet,
 
 method sendTransaction*(
   wallet: Wallet,
-  transaction: Transaction): Future[TransactionResponse] {.async: (raises:[ProviderError]).} =
+  transaction: Transaction): Future[TransactionResponse] {.async.} =
 
-  let signed = await signTransaction(wallet, transaction)
-  if nonce =? transaction.nonce:
-    wallet.updateNonce(nonce)
-  return await provider(wallet).sendTransaction(signed)
+  convertError:
+    let signed = await signTransaction(wallet, transaction)
+    if nonce =? transaction.nonce:
+      wallet.updateNonce(nonce)
+    return await provider(wallet).sendTransaction(signed)

@@ -1,3 +1,4 @@
+import pkg/questionable
 import ./basics
 import ./provider
 
@@ -39,20 +40,20 @@ method provider*(
   doAssert false, "not implemented"
 
 method getAddress*(
-  signer: Signer): Future[Address] {.base, async: (raises:[SignerError]).} =
+  signer: Signer): Future[Address] {.base, async.} =
 
   doAssert false, "not implemented"
 
 method signMessage*(
   signer: Signer,
-  message: seq[byte]): Future[seq[byte]] {.base, async: (raises:[SignerError]).} =
+  message: seq[byte]): Future[seq[byte]] {.base, async: (raises: [SignerError]).} =
 
   doAssert false, "not implemented"
 
 method sendTransaction*(
   signer: Signer,
   transaction: Transaction): Future[TransactionResponse]
-  {.base, async: (raises:[SignerError]).} =
+  {.base, async.} =
 
   doAssert false, "not implemented"
 
@@ -177,7 +178,7 @@ method populateTransaction*(
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.async, base.} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
@@ -187,5 +188,6 @@ method cancelTransaction*(
     raiseSignerError "transaction must have nonce"
 
   var cancelTx = Transaction(to: sender, value: 0.u256, nonce: some nonce)
-  cancelTx = await signer.populateTransaction(cancelTx)
-  return await signer.sendTransaction(cancelTx)
+  convertError:
+    cancelTx = await signer.populateTransaction(cancelTx)
+    return await signer.sendTransaction(cancelTx)

@@ -304,11 +304,11 @@ template convertSignerError(body) =
   except CatchableError as error:
     raise newException(JsonRpcSignerError, error.msg)
 
-method provider*(signer: JsonRpcSigner): Provider {.gcsafe.} =
+method provider*(signer: JsonRpcSigner): Provider {.gcsafe, raises: [SignerError].} =
   signer.provider
 
 method getAddress*(
-  signer: JsonRpcSigner): Future[Address] {.async: (raises:[SignerError]).} =
+  signer: JsonRpcSigner): Future[Address] {.async.} =
 
   if address =? signer.address:
     return address
@@ -331,8 +331,7 @@ method signMessage*(
 
 method sendTransaction*(
   signer: JsonRpcSigner,
-  transaction: Transaction): Future[TransactionResponse]
-  {.async: (raises:[SignerError]).} =
+  transaction: Transaction): Future[TransactionResponse] {.async.} =
 
   convertSignerError:
     echo "[jsonrpc.sendTransaction]"
