@@ -128,8 +128,11 @@ method populateTransaction*(
   transaction: Transaction): Future[Transaction]
   {.base, async: (raises: [CancelledError, AsyncLockError, SignerError]).} =
 
-  echo "[signer.populatetransaction] signer type: ", typeof signer
-  if sender =? transaction.`from` and sender != await signer.getAddress():
+  var address: Address
+  convertError:
+    address = await signer.getAddress()
+
+  if sender =? transaction.`from` and sender != address:
     raiseSignerError("from address mismatch")
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
@@ -143,7 +146,7 @@ method populateTransaction*(
 
   try:
     if transaction.`from`.isNone:
-      populated.`from` = some(await signer.getAddress())
+      populated.`from` = some(address)
     if transaction.chainId.isNone:
       populated.chainId = some(await signer.getChainId())
     if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
@@ -157,12 +160,12 @@ method populateTransaction*(
       populated.nonce = some(await signer.getNonce())
       try:
         populated.gasLimit = some(await signer.estimateGas(populated))
-      except ProviderError as e:
-        signer.decreaseNonce()
-        raiseSignerError(e.msg)
       except EstimateGasError as e:
         signer.decreaseNonce()
         raise e
+      except ProviderError as e:
+        signer.decreaseNonce()
+        raiseSignerError(e.msg)
 
     else:
       if transaction.nonce.isNone:
