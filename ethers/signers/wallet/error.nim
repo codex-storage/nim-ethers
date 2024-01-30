@@ -1,4 +1,3 @@
-import ../../basics
 import ../../signer
 
 type
@@ -7,7 +6,7 @@ type
 func raiseWalletError*(message: string) {.raises: [WalletError].}=
   raise newException(WalletError, message)
 
-template convertError(body) =
+template convertError*(body) =
   try:
     body
   except CatchableError as error:

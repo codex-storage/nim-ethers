@@ -45,7 +45,6 @@ proc raiseJsonRpcProviderError(
   if json =? JsonNode.fromJson(message):
     if "message" in json:
       message = json{"message"}.getStr
-  echo "JsonRpcProviderError: ", message
   raise newException(JsonRpcProviderError, message)
 
 template convertError(body) =
@@ -108,11 +107,8 @@ proc callImpl(
   args: JsonNode): Future[JsonNode] {.async: (raises: [JsonRpcProviderError]).} =
 
   without response =? (await client.call(call, %args)).catch, error:
-    echo "[jsonrpc.callImpl] error during call: ", error.msg
     raiseJsonRpcProviderError error.msg
-  echo "[jsonrpc.callImpl] response: ", response.string
   without json =? JsonNode.fromJson(response.string), error:
-    echo "[jsonrpc.callImpl] error after parsing json: ", error.msg
     raiseJsonRpcProviderError "Failed to parse response: " & error.msg
   json
 
@@ -271,17 +267,14 @@ method unsubscribe*(
   convertError:
     let subscriptions = subscription.subscriptions
     let id = subscription.id
-    echo "[jsonrpc.unsubscribe] subscription id: ", $id
     await subscriptions.unsubscribe(id)
 
 method close*(
   provider: JsonRpcProvider) {.async: (raises:[ProviderError]).} =
 
   convertError:
-    echo "[JsonRpcProvider.close]"
     let client = await provider.client
     let subscriptions = await provider.subscriptions
-    echo "[JsonRpcProvider.closing subscriptions]"
     await subscriptions.close()
     await client.close()
 
@@ -334,7 +327,6 @@ method sendTransaction*(
   transaction: Transaction): Future[TransactionResponse] {.async.} =
 
   convertSignerError:
-    echo "[jsonrpc.sendTransaction]"
     if nonce =? transaction.nonce:
       signer.updateNonce(nonce)
     let

@@ -235,10 +235,8 @@ proc fromJson*[T: ref object or object](
 
 proc parse*(json: string): ?!JsonNode =
   try:
-    echo "[json.parse] json: ", json
     return parseJson(json).catch
   except Exception as e:
-    echo "[json.parse] exception: ", e.msg
     return err newException(CatchableError, e.msg)
 
 proc fromJson*[T: ref object or object](
@@ -252,14 +250,12 @@ proc fromJson*(
   _: type JsonNode,
   json: string
 ): ?!JsonNode =
-  echo "[JsonNode.fromJson] json: ", json
   return parse(json)
 
 proc fromJson*[T: ref object or object](
   _: type T,
   json: string
 ): ?!T =
-  echo "[T.fromJson] T: ", T, ", json string: ", json
   let json = ? parse(json)
   T.fromJson(json)
 

@@ -40,11 +40,6 @@ template mapFailure*[T, V, E](
 
   exp.mapErr(proc (e: V): ref CatchableError = (ref exc)(msg: e.msg))
 
-proc expectFields(json: JsonNode, expectedFields: varargs[string]) =
-  for fieldName in expectedFields:
-    if not json.hasKey(fieldName):
-      raiseSerializationError("'" & fieldName & "' field not found in " & $json)
-
 # Address
 
 func `%`*(address: Address): JsonNode =
@@ -57,45 +52,6 @@ func fromJson(_: type Address, json: JsonNode): ?!Address =
       "Failed to convert '" & $json & "' to Address: " & error.msg)
   success address
 
-
-# proc readValue*(
-#   r: var JsonReader[JrpcConv],
-#   result: var Address) {.raises: [SerializationError, IOError].} =
-
-#   let json = r.readValue(JsonNode)
-#   result = Address.fromJson(json).getOrRaise(SerializationError)
-
-# proc writeValue*(
-#   writer: var JsonWriter[JrpcConv],
-#   value: Address
-# ) {.raises:[IOError].} =
-#   writer.writeValue(%value)
-
-# Filter
-# func `%`*(filter: Filter): JsonNode =
-#   %*{
-#     "fromBlock": filter.fromBlock,
-#     "toBlock": filter.toBlock
-#   }
-
-# proc writeValue*(
-#   writer: var JsonWriter[JrpcConv],
-#   value: Filter
-# ) {.raises:[IOError].} =
-#   writer.writeValue(%value)
-
-# EventFilter
-# func `%`*(filter: EventFilter): JsonNode =
-#   %*{
-#     "address": filter.address,
-#     "topics": filter.topics
-#   }
-# proc writeValue*(
-#   writer: var JsonWriter[JrpcConv],
-#   value: EventFilter
-# ) {.raises:[IOError].} =
-#   writer.writeValue(%value)
-
 # UInt256
 
 func `%`*(integer: UInt256): JsonNode =
@@ -105,25 +61,6 @@ func fromJson*(_: type UInt256, json: JsonNode): ?!UInt256 =
   without result =? UInt256.fromHex(json.getStr()).catch, error:
     return UInt256.failure error.msg
   success result
-
-# proc writeValue*(
-#     w: var JsonWriter, value: StUint) {.inline, raises: [IOError].} =
-#   echo "writing UInt256 value to hex: ", value.toString, ", in hex: ", value.toHex
-#   w.writeValue %value
-
-# proc readValue*(
-#     r: var JsonReader, value: var StUint
-# ) {.inline, raises: [IOError, SerializationError].} =
-#   let json = r.readValue(JsonNode)
-#   value = typeof(value).fromJson(json).getOrRaise(SerializationError)
-
-# TransactionHash
-
-# proc readValue*(
-#     r: var JsonReader, value: var TransactionHash
-# ) {.inline, raises: [IOError, SerializationError].} =
-#   let json = r.readValue(JsonNode)
-#   value = TransactionHash.fromJson(json).getOrRaise(SerializationError)
 
 # Transaction
 
@@ -146,29 +83,7 @@ func `%`*(transaction: Transaction): JsonNode =
   if gasLimit =? transaction.gasLimit:
     result["gas"] = %gasLimit
 
-# proc writeValue*(
-#   writer: var JsonWriter[JrpcConv],
-#   value: Transaction
-# ) {.raises:[IOError].} =
-#   writer.writeValue(%value)
-
-# Block
-
-# proc readValue*(r: var JsonReader[JrpcConv], result: var Option[Block])
-#                {.raises: [SerializationError, IOError].} =
-#   var json = r.readValue(JsonNode)
-#   if json.isNil or json.kind == JNull:
-#     result = none Block
-
-#   result = Option[Block].fromJson(json).getOrRaise(SerializationError)
-
 # BlockTag
-
-# proc writeValue*(
-#   writer: var JsonWriter[JrpcConv],
-#   value: BlockTag
-# ) {.raises:[IOError].} =
-#   writer.writeValue($value)
 
 func `%`*(tag: BlockTag): JsonNode =
   % $tag
@@ -202,24 +117,10 @@ proc fromJson*[E: TransactionStatus | TransactionType](
   let integer = ? fromHex[int](json.str).catch.mapFailure(SerializationError)
   success T(integer)
 
-# proc readValue*(r: var JsonReader[JrpcConv],
-#                 result: var BlockTag) {.raises:[SerializationError, IOError].} =
-#   var json = r.readValue(JsonNode)
-#   result = BlockTag.fromJson(json).getOrRaise(SerializationError)
-
-# PastTransaction
-
-# proc readValue*(r: var JsonReader[JrpcConv], result: var Option[PastTransaction])
-#                {.raises: [SerializationError, IOError].} =
-#   var json = r.readValue(JsonNode)
-#   result = Option[PastTransaction].fromJson(json).getOrRaise(SerializationError)
-
-# TransactionReceipt
-
-# proc readValue*(r: var JsonReader[JrpcConv], result: var Option[TransactionReceipt])
-#                {.raises: [SerializationError, IOError].} =
-#   var json = r.readValue(JsonNode)
-#   result = Option[TransactionReceipt].fromJson(json).getOrRaise(SerializationError)
+# Generic conversions to use nim-json instead of nim-json-serialization for
+# json rpc serialization purposes
+#  writeValue => `%`
+#  readValue  => fromJson
 
 proc writeValue*[T: not JsonNode](
   writer: var JsonWriter[JrpcConv],
@@ -232,9 +133,4 @@ proc readValue*[T: not JsonNode](
   result: var T) {.raises: [SerializationError, IOError].} =
 
   var json = r.readValue(JsonNode)
-  # when T of JsonNode:
-  #   result = json
-  #   return
-  # echo "[conversions.readValue] converting '", json, "' into ", T
-  static: echo "[conversions.readValue] converting into ", T
   result = T.fromJson(json).getOrRaise(SerializationError)

@@ -27,18 +27,19 @@ func init*(subscriptions: JsonRpcSubscriptions) =
   subscriptions.client.onProcessMessage =
     proc(client: RpcClient,
          line: string): Result[bool, string] {.gcsafe, raises: [].} =
-      # if json =? JrpcConv.decode(line, JsonNode).catch:
       if json =? JsonNode.fromJson(line):
         if "method" in json:
           let methodName = json{"method"}.getStr()
           if methodName in subscriptions.methodHandlers:
             let handler = subscriptions.methodHandlers.getOrDefault(methodName)
             if not handler.isNil:
-              echo "[subscriptions] processing method handler with params ", json{"params"}
               handler(json{"params"} or newJArray())
-              return ok false # false = do not continue processing message using json_rpc's default processing handler
+              # false = do not continue processing message using json_rpc's
+              # default processing handler
+              return ok false
 
-      return ok true # true = continue processing message using json_rpc's default message handler
+      # true = continue processing message using json_rpc's default message handler
+      return ok true
 
 
 proc setMethodHandler(
@@ -117,7 +118,6 @@ proc new*(_: type JsonRpcSubscriptions,
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
     if id =? arguments{"subscription"}.catch and
        callback =? subscriptions.getCallback(id):
-      echo "[subscription handler] calling callback for id ", id
       callback(id, arguments)
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
   subscriptions
@@ -128,7 +128,6 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                       {.async.} =
   proc callback(id, arguments: JsonNode) {.raises: [].} =
     if blck =? Block.fromJson(arguments{"result"}):
-      echo "[subscription.subscribeBlocks callback] calling onBlock callback with Block"
       onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
