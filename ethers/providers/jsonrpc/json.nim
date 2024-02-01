@@ -333,9 +333,9 @@ proc fromJson*[T: ref object or object](
 
 proc fromJson*(
   _: type JsonNode,
-  json: string
+  jsn: string
 ): ?!JsonNode =
-  return parse(json)
+  return json.parseJson(jsn)
 
 proc fromJson*[T: ref object or object](
   _: type T,
