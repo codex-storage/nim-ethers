@@ -1,12 +1,14 @@
 
-import std/json except `%`, `%*`
+import std/json as stdjson except `%`, `%*`
 import std/macros
 import std/options
+import std/sequtils
+import std/sets
 import std/strutils
 # import std/strformat
 import std/tables
 import std/typetraits
-import pkg/chronicles
+import pkg/chronicles except toJson
 import pkg/contractabi
 import pkg/stew/byteutils
 import pkg/stint
@@ -15,21 +17,52 @@ import pkg/questionable/results
 
 import ../../basics
 
-export json except `%`, `%*`
+export stdjson except `%`, `%*`, parseJson
+export chronicles except toJson
+export sets
 
 {.push raises: [].}
 
 logScope:
-  topics = "json serialization"
+  topics = "json de/serialization"
 
 type
-  SerializationError = object of EthersError
-  UnexpectedKindError = object of SerializationError
+  SerdeError* = object of EthersError
+  UnexpectedKindError* = object of SerdeError
+  DeserializeMode* = enum
+    Default,  ## objects can have more or less fields than json
+    OptIn,    ## json must have fields marked with {.serialize.}
+    Strict    ## object fields and json fields must match exactly
 
-template serialize* {.pragma.}
+# template serializeAll* {.pragma.}
+template serialize*(key = "", ignore = false) {.pragma.}
+template deserialize*(key = "", mode = DeserializeMode.Default) {.pragma.}
 
-proc mapErrTo[T, E1: CatchableError, E2: CatchableError](r: Result[T, E1], _: type E2): ?!T =
-  r.mapErr(proc (e: E1): E2 = E2(msg: e.msg))
+template expectEmptyPragma(value, pragma, msg) =
+  static:
+    when value.hasCustomPragma(pragma):
+      const params = value.getCustomPragmaVal(pragma)
+      for param in params.fields:
+        if param != typeof(param).default:
+          raiseAssert(msg)
+
+template expectMissingPragmaParam(value, pragma, name, msg) =
+  static:
+    when value.hasCustomPragma(pragma):
+      const params = value.getCustomPragmaVal(pragma)
+      for paramName, paramValue in params.fieldPairs:
+        if paramName == name and paramValue != typeof(paramValue).default:
+          raiseAssert(msg)
+
+proc mapErrTo[E1: ref CatchableError, E2: SerdeError](
+  e1: E1,
+  _: type E2,
+  msg: string = e1.msg): ref E2 =
+
+  return newException(E2, msg, e1)
+
+proc newSerdeError(msg: string): ref SerdeError =
+  newException(SerdeError, msg)
 
 proc newUnexpectedKindError(
   expectedType: type,
@@ -40,7 +73,7 @@ proc newUnexpectedKindError(
              else: $json.kind
   newException(UnexpectedKindError,
     "deserialization to " & $expectedType & " failed: expected " &
-    expectedKinds & "but got " & $kind)
+    expectedKinds & " but got " & $kind)
 
 proc newUnexpectedKindError(
   expectedType: type,
@@ -71,24 +104,34 @@ template expectJsonKind*(
 ) =
   expectJsonKind(expectedType, {expectedKind}, json)
 
+proc fieldKeys[T](obj: T): seq[string] =
+  for name, _ in fieldPairs(when type(T) is ref: obj[] else: obj):
+    result.add name
+
+func keysNotIn[T](json: JsonNode, obj: T): HashSet[string] =
+  let jsonKeys = json.keys.toSeq.toHashSet
+  let objKeys = obj.fieldKeys.toHashSet
+  difference(jsonKeys, objKeys)
+
 proc fromJson*(
   T: type enum,
   json: JsonNode
 ): ?!T =
   expectJsonKind(string, JString, json)
-  catch parseEnum[T](json.str)
+  without val =? parseEnum[T](json.str).catch, error:
+    return failure error.mapErrTo(SerdeError)
+  return success val
 
 proc fromJson*(
   _: type string,
   json: JsonNode
 ): ?!string =
   if json.isNil:
-    let err = newException(ValueError, "'json' expected, but was nil")
-    return failure(err)
+    return failure newSerdeError("'json' expected, but was nil")
   elif json.kind == JNull:
     return success("null")
   elif json.isNil or json.kind != JString:
-    return failure(newUnexpectedKindError(string, JString, json))
+    return failure newUnexpectedKindError(string, JString, json)
   catch json.getStr
 
 proc fromJson*(
@@ -113,7 +156,8 @@ proc fromJson*[T: SomeInteger](
     expectJsonKind(T, {JInt, JString}, json)
     case json.kind
     of JString:
-      let x = parseBiggestUInt(json.str)
+      without x =? parseBiggestUInt(json.str).catch, error:
+        return failure newSerdeError(error.msg)
       return success cast[T](x)
     else:
       return success T(json.num)
@@ -201,41 +245,82 @@ proc fromJson*[T](
     arr.add(? T.fromJson(elem))
   success arr
 
+template getDeserializationKey(fieldName, fieldValue): string =
+  when fieldValue.hasCustomPragma(deserialize):
+    fieldValue.expectMissingPragmaParam(deserialize, "mode",
+                                    "Cannot set 'mode' on field defintion.")
+    let (key, mode) = fieldValue.getCustomPragmaVal(deserialize)
+    if key != "": key
+    else: fieldName
+  else: fieldName
+
+template getDeserializationMode(T): DeserializeMode =
+  when T.hasCustomPragma(deserialize):
+    T.expectMissingPragmaParam(deserialize, "key",
+                               "Cannot set 'key' on object definition.")
+    T.getCustomPragmaVal(deserialize)[1] # mode = second pragma param
+  else:
+    DeserializeMode.Default
+
 proc fromJson*[T: ref object or object](
   _: type T,
   json: JsonNode
 ): ?!T =
+
   when T is JsonNode:
     return success T(json)
 
   expectJsonKind(T, JObject, json)
   var res = when type(T) is ref: T.new() else: T.default
+  let mode = T.getDeserializationMode()
 
-  # Leave this in, it's good for debugging:
-  trace "deserializing object", to = $T, json
   for name, value in fieldPairs(when type(T) is ref: res[] else: res):
-
     logScope:
       field = $T & "." & name
+      mode
 
-    if name in json and
-       jsonVal =? json{name}.catch and
-       not jsonVal.isNil:
+    let key = getDeserializationKey(name, value)
+    var skip = false # workaround for 'continue' not supported in a 'fields' loop
+
+    if mode == Strict and key notin json:
+      return failure newSerdeError("object field missing in json: " & key)
+
+    if mode == OptIn:
+      if not value.hasCustomPragma(deserialize):
+        debug "object field not marked as 'deserialize', skipping", name = name
+        # use skip as workaround for 'continue' not supported in a 'fields' loop
+        skip = true
+      elif key notin json:
+        return failure newSerdeError("object field missing in json: " & key)
+
+    if key in json and
+       jsonVal =? json{key}.catch and
+       not jsonVal.isNil and
+       not skip:
 
       without parsed =? type(value).fromJson(jsonVal), e:
-        error "error deserializing field",
+        warn "failed to deserialize field",
+          `type` = $typeof(value),
           json = jsonVal,
           error = e.msg
         return failure(e)
       value = parsed
 
-    else:
-      debug "object field does not exist in json, skipping", json
+    elif mode == DeserializeMode.Default:
+      debug "object field missing in json, skipping", key, json
+
+    # ensure there's no extra fields in json
+    if mode == DeserializeMode.Strict:
+      let extraFields = json.keysNotIn(res)
+      if extraFields.len > 0:
+        return failure newSerdeError("json field(s) missing in object: " & $extraFields)
+
   success(res)
 
-proc parse*(json: string): ?!JsonNode =
+proc parseJson*(json: string): ?!JsonNode =
+  ## fix for nim raising Exception
   try:
-    return parseJson(json).catch
+    return stdjson.parseJson(json).catch
   except Exception as e:
     return err newException(CatchableError, e.msg)
 
@@ -254,10 +339,10 @@ proc fromJson*(
 
 proc fromJson*[T: ref object or object](
   _: type T,
-  json: string
+  jsn: string
 ): ?!T =
-  let json = ? parse(json)
-  T.fromJson(json)
+  let jsn = ? json.parseJson(jsn) # full qualification required in-module only
+  T.fromJson(jsn)
 
 func `%`*(s: string): JsonNode = newJString(s)
 
@@ -301,18 +386,34 @@ func `%`*[T](table: Table[string, T]|OrderedTable[string, T]): JsonNode =
 func `%`*[T](opt: Option[T]): JsonNode =
   if opt.isSome: %(opt.get) else: newJNull()
 
-func `%`*[T: object](obj: T): JsonNode =
-  let jsonObj = newJObject()
-  for name, value in obj.fieldPairs:
-    when value.hasCustomPragma(serialize):
-      jsonObj[name] = %value
-  jsonObj
 
-func `%`*[T: ref object](obj: T): JsonNode =
+func `%`*[T: object or ref object](obj: T): JsonNode =
+
+  # T.expectMissingPragma(serialize, "Invalid pragma on object definition.")
+
   let jsonObj = newJObject()
-  for name, value in obj[].fieldPairs:
-    when value.hasCustomPragma(serialize):
-      jsonObj[name] = %(value)
+  let o = when T is ref object: obj[]
+          else: obj
+
+  T.expectEmptyPragma(serialize, "Cannot specify 'key' or 'ignore' on object defition")
+
+  const serializeAllFields = T.hasCustomPragma(serialize)
+
+  for name, value in o.fieldPairs:
+    # TODO: move to %
+    # value.expectMissingPragma(deserializeMode, "Invalid pragma on field definition.")
+    # static:
+    const serializeField = value.hasCustomPragma(serialize)
+    when serializeField:
+      let (keyOverride, ignore) = value.getCustomPragmaVal(serialize)
+      if not ignore:
+        let key = if keyOverride != "": keyOverride
+                  else: name
+        jsonObj[key] = %value
+
+    elif serializeAllFields:
+      jsonObj[name] = %value
+
   jsonObj
 
 proc `%`*(o: enum): JsonNode = % $o
