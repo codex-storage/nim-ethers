@@ -40,7 +40,7 @@ method provider*(
   doAssert false, "not implemented"
 
 method getAddress*(
-  signer: Signer): Future[Address] {.base, async.} =
+  signer: Signer): Future[Address] {.base, async: (raises:[SignerError]).} =
 
   doAssert false, "not implemented"
 
@@ -53,7 +53,7 @@ method signMessage*(
 method sendTransaction*(
   signer: Signer,
   transaction: Transaction): Future[TransactionResponse]
-  {.base, async.} =
+  {.base, async: (raises:[SignerError]).} =
 
   doAssert false, "not implemented"
 

@@ -67,7 +67,9 @@ method provider*(wallet: Wallet): Provider {.gcsafe, raises: [SignerError].} =
     raiseWalletError "Wallet has no provider"
   provider
 
-method getAddress*(wallet: Wallet): Future[Address] {.async.} =
+method getAddress*(
+  wallet: Wallet): Future[Address] {.async: (raises:[SignerError]).} =
+
   return wallet.address
 
 proc signTransaction*(wallet: Wallet,
@@ -79,7 +81,8 @@ proc signTransaction*(wallet: Wallet,
 
 method sendTransaction*(
   wallet: Wallet,
-  transaction: Transaction): Future[TransactionResponse] {.async.} =
+  transaction: Transaction): Future[TransactionResponse]
+  {.async: (raises:[SignerError]).} =
 
   convertError:
     let signed = await signTransaction(wallet, transaction)

@@ -11,10 +11,14 @@ func new*(_: type MockSigner, provider: Provider): MockSigner =
 method provider*(signer: MockSigner): Provider =
   signer.provider
 
-method getAddress*(signer: MockSigner): Future[Address] {.async.} =
+method getAddress*(
+  signer: MockSigner): Future[Address] {.async: (raises:[SignerError]).} =
+
   return signer.address
 
-method sendTransaction*(signer: MockSigner,
-                        transaction: Transaction):
-                       Future[TransactionResponse] {.async.} =
+method sendTransaction*(
+  signer: MockSigner,
+  transaction: Transaction): Future[TransactionResponse]
+  {.async: (raises:[SignerError]).} =
+
   signer.transactions.add(transaction)

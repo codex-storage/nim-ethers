@@ -301,7 +301,7 @@ method provider*(signer: JsonRpcSigner): Provider {.gcsafe, raises: [SignerError
   signer.provider
 
 method getAddress*(
-  signer: JsonRpcSigner): Future[Address] {.async.} =
+  signer: JsonRpcSigner): Future[Address] {.async: (raises:[SignerError]).} =
 
   if address =? signer.address:
     return address
@@ -324,7 +324,8 @@ method signMessage*(
 
 method sendTransaction*(
   signer: JsonRpcSigner,
-  transaction: Transaction): Future[TransactionResponse] {.async.} =
+  transaction: Transaction): Future[TransactionResponse]
+  {.async: (raises:[SignerError]).} =
 
   convertSignerError:
     if nonce =? transaction.nonce:
