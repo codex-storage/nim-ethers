@@ -53,7 +53,7 @@ template convertError(body) =
   except JsonRpcError as error:
     raiseJsonRpcProviderError(error.msg)
   except CatchableError as error:
-    raise newException(JsonRpcProviderError, error.msg)
+    raiseJsonRpcProviderError(error.msg)
 
 # Provider
 
@@ -72,20 +72,21 @@ proc new*(
   var client: RpcClient
   var subscriptions: JsonRpcSubscriptions
 
-  proc initialize {.async.} =
-    case parseUri(url).scheme
-    of "ws", "wss":
-      let websocket = newRpcWebSocketClient(getHeaders = jsonHeaders)
-      await websocket.connect(url)
-      client = websocket
-      subscriptions = JsonRpcSubscriptions.new(websocket)
-    else:
-      let http = newRpcHttpClient(getHeaders = jsonHeaders)
-      await http.connect(url)
-      client = http
-      subscriptions = JsonRpcSubscriptions.new(http,
-                                               pollingInterval = pollingInterval)
-    subscriptions.init()
+  proc initialize {.async: (raises:[JsonRpcProviderError]).} =
+    convertError:
+      case parseUri(url).scheme
+      of "ws", "wss":
+        let websocket = newRpcWebSocketClient(getHeaders = jsonHeaders)
+        await websocket.connect(url)
+        client = websocket
+        subscriptions = JsonRpcSubscriptions.new(websocket)
+      else:
+        let http = newRpcHttpClient(getHeaders = jsonHeaders)
+        await http.connect(url)
+        client = http
+        subscriptions = JsonRpcSubscriptions.new(http,
+                                                pollingInterval = pollingInterval)
+      subscriptions.init()
 
   proc awaitClient: Future[RpcClient] {.async:(raises:[JsonRpcProviderError]).} =
     convertError:
@@ -97,9 +98,8 @@ proc new*(
       await initialized
       return subscriptions
 
-  convertError:
-    initialized = initialize()
-    return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
+  initialized = initialize()
+  return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
 
 proc callImpl(
   client: RpcClient,
