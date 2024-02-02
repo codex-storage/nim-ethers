@@ -1,6 +1,6 @@
 import std/tables
 import std/uri
-import pkg/chronicles except `%`
+import pkg/chronicles
 import pkg/eth/common/eth_types_json_serialization
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors

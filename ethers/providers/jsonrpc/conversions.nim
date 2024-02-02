@@ -1,8 +1,5 @@
-# import std/json
 import std/strformat
 import std/strutils
-import std/sugar
-# import pkg/eth/common/eth_types_json_serialization
 import pkg/chronicles except fromJson, `%`, `%*`, toJson
 import pkg/json_rpc/jsonmarshal
 import pkg/questionable/results
@@ -17,14 +14,7 @@ export jsonmarshal
 export json
 export chronicles except fromJson, `%`, `%*`, toJson
 
-# {.push raises: [].}
-
-type JsonSerializationError = object of EthersError
-
-func toException*(v: ref CatchableError): ref SerializationError = (ref SerializationError)(msg: v.msg)
-
-template raiseSerializationError(message: string) =
-  raise newException(JsonSerializationError, message)
+{.push raises: [].}
 
 proc getOrRaise*[T, E](self: ?!T, exc: typedesc[E]): T {.raises: [E].} =
   let val = self.valueOr:
@@ -117,10 +107,10 @@ proc fromJson*[E: TransactionStatus | TransactionType](
   let integer = ? fromHex[int](json.str).catch.mapFailure(SerializationError)
   success T(integer)
 
-# Generic conversions to use nim-json instead of nim-json-serialization for
-# json rpc serialization purposes
-#  writeValue => `%`
-#  readValue  => fromJson
+## Generic conversions to use nim-json instead of nim-json-serialization for
+## json rpc serialization purposes
+##  writeValue => `%`
+##  readValue  => fromJson
 
 proc writeValue*[T: not JsonNode](
   writer: var JsonWriter[JrpcConv],
