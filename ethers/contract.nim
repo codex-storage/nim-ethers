@@ -138,12 +138,21 @@ func getParameterTuple(procedure: NimNode): NimNode =
       tupl.add name
   return tupl
 
+func isGetter(procedure: NimNode): bool =
+  let pragmas = procedure[4]
+  for pragma in pragmas:
+    if pragma.eqIdent "getter":
+      return true
+  false
+
 func isConstant(procedure: NimNode): bool =
   let pragmas = procedure[4]
   for pragma in pragmas:
     if pragma.eqIdent "view":
       return true
     elif pragma.eqIdent "pure":
+      return true
+    elif pragma.eqIdent "getter":
       return true
   false
 
@@ -166,6 +175,7 @@ func addContractCall(procedure: var NimNode) =
   let function = $basename(procedure[0])
   let parameters = getParameterTuple(procedure)
   let returnType = procedure[3][0]
+  let isGetter = procedure.isGetter
 
   procedure.addOverrides()
 
@@ -173,7 +183,7 @@ func addContractCall(procedure: var NimNode) =
     if returnType.kind == nnkEmpty:
       quote:
         await call(`contract`, `function`, `parameters`, overrides)
-    elif returnType.isMultipleReturn:
+    elif returnType.isMultipleReturn or isGetter:
       quote:
         return await call(
           `contract`, `function`, `parameters`, `returnType`, overrides
@@ -193,7 +203,10 @@ func addContractCall(procedure: var NimNode) =
     else:
       quote:
         when typeof(result) isnot Confirmable:
-          {.error: "unexpected return type, missing {.view.} or {.pure.} ?".}
+          {.error:
+            "unexpected return type, " &
+            "missing {.view.}, {.pure.} or {.getter.} ?"
+          .}
         return await send(`contract`, `function`, `parameters`, overrides)
 
   procedure[6] =
@@ -229,6 +242,7 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
 template view* {.pragma.}
 template pure* {.pragma.}
+template getter* {.pragma.}
 
 proc subscribe*[E: Event](contract: Contract,
                           _: type E,

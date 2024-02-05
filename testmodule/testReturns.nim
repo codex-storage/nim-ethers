@@ -53,3 +53,11 @@ suite "Contract return values":
     let values = await contract.getDynamics()
     check values.a == ("1", 2.u256)
     check values.b == ("3", 4.u256)
+
+  test "handles static size struct as a public state variable":
+    proc staticVariable(contract: TestReturns): Static {.contract, getter.}
+    check (await contract.staticVariable()) == (1.u256, 2.u256)
+
+  test "handles dynamic size struct as a public state variable":
+    proc dynamicVariable(contract: TestReturns): Dynamic {.contract, getter.}
+    check (await contract.dynamicVariable()) == ("3", 4.u256)
