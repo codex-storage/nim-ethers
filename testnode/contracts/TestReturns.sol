@@ -11,6 +11,9 @@ contract TestReturns {
     uint256 b;
   }
 
+  StaticStruct public staticVariable = StaticStruct(1, 2);
+  DynamicStruct public dynamicVariable = DynamicStruct("3", 4);
+
   function getStatic() external pure returns (StaticStruct memory) {
     return StaticStruct(1, 2);
   }
