@@ -78,13 +78,10 @@ proc createTransaction(contract: Contract,
     gasLimit: overrides.gasLimit,
   )
 
-proc decodeResponse(T: type, multiple: static bool, bytes: seq[byte]): T =
-  when multiple:
-    without decoded =? AbiDecoder.decode(bytes, T):
-      raiseContractError "unable to decode return value as " & $T
-    return decoded
-  else:
-    return decodeResponse((T,), true, bytes)[0]
+proc decodeResponse(T: type, bytes: seq[byte]): T =
+  without decoded =? AbiDecoder.decode(bytes, T):
+    raiseContractError "unable to decode return value as " & $T
+  return decoded
 
 proc call(provider: Provider,
           transaction: Transaction,
@@ -110,7 +107,6 @@ proc call(contract: Contract,
           function: string,
           parameters: tuple,
           ReturnType: type,
-          returnMultiple: static bool,
           overrides = TransactionOverrides()): Future[ReturnType] {.async.} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
@@ -118,7 +114,7 @@ proc call(contract: Contract,
     transaction.sender = some(await signer.getAddress())
 
   let response = await contract.provider.call(transaction, overrides)
-  return decodeResponse(ReturnType, returnMultiple, response)
+  return decodeResponse(ReturnType, response)
 
 proc send(contract: Contract,
           function: string,
@@ -170,7 +166,6 @@ func addContractCall(procedure: var NimNode) =
   let function = $basename(procedure[0])
   let parameters = getParameterTuple(procedure)
   let returnType = procedure[3][0]
-  let returnMultiple = returnType.isMultipleReturn.newLit
 
   procedure.addOverrides()
 
@@ -178,10 +173,18 @@ func addContractCall(procedure: var NimNode) =
     if returnType.kind == nnkEmpty:
       quote:
         await call(`contract`, `function`, `parameters`, overrides)
-    else:
+    elif returnType.isMultipleReturn:
       quote:
         return await call(
-          `contract`, `function`, `parameters`, `returnType`, `returnMultiple`, overrides)
+          `contract`, `function`, `parameters`, `returnType`, overrides
+        )
+    else:
+      quote:
+        # solidity functions return a tuple, so wrap return type in a tuple
+        let tupl = await call(
+          `contract`, `function`, `parameters`, (`returnType`,), overrides
+        )
+        return tupl[0]
 
   func send: NimNode =
     if returnType.kind == nnkEmpty:
