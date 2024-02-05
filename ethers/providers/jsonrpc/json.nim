@@ -245,14 +245,22 @@ proc fromJson*[T](
     arr.add(? T.fromJson(elem))
   success arr
 
+template getSerializationKey(fieldName, fieldValue): string =
+  when fieldValue.hasCustomPragma(serialize):
+    let (key, _) = fieldValue.getCustomPragmaVal(serialize)
+    if key != "": key
+    else: fieldName
+  else: fieldName
+
 template getDeserializationKey(fieldName, fieldValue): string =
+  let serializationKey = getSerializationKey(fieldName, fieldValue)
   when fieldValue.hasCustomPragma(deserialize):
     fieldValue.expectMissingPragmaParam(deserialize, "mode",
                                     "Cannot set 'mode' on field defintion.")
     let (key, mode) = fieldValue.getCustomPragmaVal(deserialize)
     if key != "": key
-    else: fieldName
-  else: fieldName
+    else: serializationKey # defaults to fieldName
+  else: serializationKey # defaults to fieldName
 
 template getDeserializationMode(T): DeserializeMode =
   when T.hasCustomPragma(deserialize):

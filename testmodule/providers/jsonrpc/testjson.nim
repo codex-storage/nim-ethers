@@ -374,6 +374,22 @@ suite "json serialization pragmas":
     let val = !MyObj.fromJson("""{"test":true,"field2":true}""")
     check val == MyObj(field1: true, field2: true)
 
+  test "deserialization key can be set using serialize key":
+    type MyObj = object
+      field1 {.serialize("test").}: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"test":true,"field2":true}""")
+    check val == MyObj(field1: true, field2: true)
+
+  test "deserialization key takes priority over serialize key":
+    type MyObj = object
+      field1 {.serialize("test"), deserialize("test1").}: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"test":false,"test1":true,"field2":true}""")
+    check val == MyObj(field1: true, field2: true)
+
   test "fails to deserialize object field with wrong type":
     type MyObj = object
       field1: int
