@@ -5,7 +5,6 @@ import std/options
 import std/sequtils
 import std/sets
 import std/strutils
-# import std/strformat
 import std/tables
 import std/typetraits
 import pkg/chronicles except toJson
@@ -29,29 +28,33 @@ logScope:
 type
   SerdeError* = object of EthersError
   UnexpectedKindError* = object of SerdeError
-  DeserializeMode* = enum
-    Default,  ## objects can have more or less fields than json
-    OptIn,    ## json must have fields marked with {.serialize.}
-    Strict    ## object fields and json fields must match exactly
+  SerdeMode* = enum
+    OptOut, ## serialize:   all object fields will be serialized, except fields marked with 'ignore'
+            ## deserialize: all json keys will be deserialized, no error if extra json field
+    OptIn,  ## serialize:   only object fields marked with serialize will be serialzied
+            ## deserialize: only fields marked with deserialize will be deserialized
+    Strict  ## serialize:   all object fields will be serialized, regardless if the field is marked with 'ignore'
+            ## deserialize: object fields and json fields must match exactly
+  SerdeFieldOptions = object
+    key: string
+    ignore: bool
 
-# template serializeAll* {.pragma.}
-template serialize*(key = "", ignore = false) {.pragma.}
-template deserialize*(key = "", mode = DeserializeMode.Default) {.pragma.}
+template serialize*(key = "", ignore = false, mode = SerdeMode.OptOut) {.pragma.}
+template deserialize*(key = "", ignore = false, mode = SerdeMode.OptOut) {.pragma.}
 
-template expectEmptyPragma(value, pragma, msg) =
-  static:
-    when value.hasCustomPragma(pragma):
-      const params = value.getCustomPragmaVal(pragma)
-      for param in params.fields:
-        if param != typeof(param).default:
-          raiseAssert(msg)
+proc isDefault[T](paramValue: T): bool {.compileTime.} =
+  var result = paramValue == T.default
+  when T is SerdeMode:
+    return paramValue == SerdeMode.OptOut
+  return result
 
 template expectMissingPragmaParam(value, pragma, name, msg) =
   static:
     when value.hasCustomPragma(pragma):
       const params = value.getCustomPragmaVal(pragma)
       for paramName, paramValue in params.fieldPairs:
-        if paramName == name and paramValue != typeof(paramValue).default:
+
+        if paramName == name and not paramValue.isDefault:
           raiseAssert(msg)
 
 proc mapErrTo[E1: ref CatchableError, E2: SerdeError](
@@ -112,6 +115,49 @@ func keysNotIn[T](json: JsonNode, obj: T): HashSet[string] =
   let jsonKeys = json.keys.toSeq.toHashSet
   let objKeys = obj.fieldKeys.toHashSet
   difference(jsonKeys, objKeys)
+
+template getSerdeFieldOptions(pragma, fieldName, fieldValue): SerdeFieldOptions =
+  var opts = SerdeFieldOptions(key: fieldName, ignore: false)
+  when fieldValue.hasCustomPragma(pragma):
+    fieldValue.expectMissingPragmaParam(pragma, "mode",
+      "Cannot set " & astToStr(pragma) & " 'mode' on '" & fieldName & "' field defintion.")
+    let (key, ignore, _) = fieldValue.getCustomPragmaVal(pragma)
+    opts.ignore = ignore
+    if key != "":
+      opts.key = key
+  opts
+
+template getSerdeMode(T, pragma): SerdeMode =
+  when T.hasCustomPragma(pragma):
+    T.expectMissingPragmaParam(pragma, "key",
+      "Cannot set " & astToStr(pragma) & " 'key' on '" & $T &
+      "' type definition.")
+    T.expectMissingPragmaParam(pragma, "ignore",
+      "Cannot set " & astToStr(pragma) & " 'ignore' on '" & $T &
+      "' type definition.")
+    let (_, _, mode) = T.getCustomPragmaVal(pragma)
+    mode
+  else:
+    # Default mode -- when the type is NOT annotated with a
+    # serialize/deserialize pragma.
+    #
+    # NOTE This may be different in the logic branch above, when the type is
+    # annotated with serialize/deserialize but doesn't specify a mode. The
+    # default in that case will fallback to the default mode specified in the
+    # pragma signature (currently OptOut for both serialize and deserialize)
+    #
+    # Examples:
+    # 1. type MyObj = object
+    #    Type is not annotated, mode defaults to OptOut (as specified on the
+    #    pragma signatures) for both serialization and deserializtion
+    #
+    # 2. type MyObj {.serialize, deserialize.} = object
+    #    Type is annotated, mode defaults to OptIn for serialization and OptOut
+    #    for deserialization
+    when pragma == serialize:
+      SerdeMode.OptIn
+    elif pragma == deserialize:
+      SerdeMode.OptOut
 
 proc fromJson*(
   T: type enum,
@@ -245,31 +291,6 @@ proc fromJson*[T](
     arr.add(? T.fromJson(elem))
   success arr
 
-template getSerializationKey(fieldName, fieldValue): string =
-  when fieldValue.hasCustomPragma(serialize):
-    let (key, _) = fieldValue.getCustomPragmaVal(serialize)
-    if key != "": key
-    else: fieldName
-  else: fieldName
-
-template getDeserializationKey(fieldName, fieldValue): string =
-  let serializationKey = getSerializationKey(fieldName, fieldValue)
-  when fieldValue.hasCustomPragma(deserialize):
-    fieldValue.expectMissingPragmaParam(deserialize, "mode",
-                                    "Cannot set 'mode' on field defintion.")
-    let (key, mode) = fieldValue.getCustomPragmaVal(deserialize)
-    if key != "": key
-    else: serializationKey # defaults to fieldName
-  else: serializationKey # defaults to fieldName
-
-template getDeserializationMode(T): DeserializeMode =
-  when T.hasCustomPragma(deserialize):
-    T.expectMissingPragmaParam(deserialize, "key",
-                               "Cannot set 'key' on object definition.")
-    T.getCustomPragmaVal(deserialize)[1] # mode = second pragma param
-  else:
-    DeserializeMode.Default
-
 proc fromJson*[T: ref object or object](
   _: type T,
   json: JsonNode
@@ -280,48 +301,75 @@ proc fromJson*[T: ref object or object](
 
   expectJsonKind(T, JObject, json)
   var res = when type(T) is ref: T.new() else: T.default
-  let mode = T.getDeserializationMode()
+  let mode = T.getSerdeMode(deserialize)
+
+  # ensure there's no extra fields in json
+  if mode == SerdeMode.Strict:
+    let extraFields = json.keysNotIn(res)
+    if extraFields.len > 0:
+      return failure newSerdeError("json field(s) missing in object: " & $extraFields)
 
   for name, value in fieldPairs(when type(T) is ref: res[] else: res):
+
     logScope:
       field = $T & "." & name
       mode
 
-    let key = getDeserializationKey(name, value)
+    let hasDeserializePragma = value.hasCustomPragma(deserialize)
+    let opts = getSerdeFieldOptions(deserialize, name, value)
+    let isOptionalValue = typeof(value) is Option
     var skip = false # workaround for 'continue' not supported in a 'fields' loop
 
-    if mode == Strict and key notin json:
-      return failure newSerdeError("object field missing in json: " & key)
+    case mode:
+    of Strict:
+      if opts.key notin json:
+        return failure newSerdeError("object field missing in json: " & opts.key)
+      elif opts.ignore:
+        # unable to figure out a way to make this a compile time check
+        warn "object field marked as 'ignore' while in Strict mode, field will be deserialized anyway"
 
-    if mode == OptIn:
-      if not value.hasCustomPragma(deserialize):
-        debug "object field not marked as 'deserialize', skipping", name = name
-        # use skip as workaround for 'continue' not supported in a 'fields' loop
+    of OptIn:
+      if not hasDeserializePragma:
+        debug "object field not marked as 'deserialize', skipping"
         skip = true
-      elif key notin json:
-        return failure newSerdeError("object field missing in json: " & key)
+      elif opts.ignore:
+        debug "object field marked as 'ignore', skipping"
+        skip = true
+      elif opts.key notin json and not isOptionalValue:
+        return failure newSerdeError("object field missing in json: " & opts.key)
 
-    if key in json and
-       jsonVal =? json{key}.catch and
-       not jsonVal.isNil and
-       not skip:
+    of OptOut:
+      if opts.ignore:
+        debug "object field is opted out of deserialization ('igore' is set), skipping"
+        skip = true
+      elif hasDeserializePragma and opts.key == name:
+        warn "object field marked as deserialize in OptOut mode, but 'ignore' not set, field will be deserialized"
 
-      without parsed =? type(value).fromJson(jsonVal), e:
-        warn "failed to deserialize field",
-          `type` = $typeof(value),
-          json = jsonVal,
-          error = e.msg
-        return failure(e)
-      value = parsed
+    if not skip:
 
-    elif mode == DeserializeMode.Default:
-      debug "object field missing in json, skipping", key, json
+      if isOptionalValue:
 
-    # ensure there's no extra fields in json
-    if mode == DeserializeMode.Strict:
-      let extraFields = json.keysNotIn(res)
-      if extraFields.len > 0:
-        return failure newSerdeError("json field(s) missing in object: " & $extraFields)
+        let jsonVal = json{opts.key}
+        without parsed =? typeof(value).fromJson(jsonVal), e:
+          debug "failed to deserialize field",
+            `type` = $typeof(value),
+            json = jsonVal,
+            error = e.msg
+          return failure(e)
+        value = parsed
+
+      # not Option[T]
+      elif opts.key in json and
+        jsonVal =? json{opts.key}.catch and
+        not jsonVal.isNil:
+
+        without parsed =? typeof(value).fromJson(jsonVal), e:
+          debug "failed to deserialize field",
+            `type` = $typeof(value),
+            json = jsonVal,
+            error = e.msg
+          return failure(e)
+        value = parsed
 
   success(res)
 
@@ -395,32 +443,46 @@ func `%`*[T](opt: Option[T]): JsonNode =
   if opt.isSome: %(opt.get) else: newJNull()
 
 
-func `%`*[T: object or ref object](obj: T): JsonNode =
-
-  # T.expectMissingPragma(serialize, "Invalid pragma on object definition.")
+proc `%`*[T: object or ref object](obj: T): JsonNode =
 
   let jsonObj = newJObject()
   let o = when T is ref object: obj[]
           else: obj
 
-  T.expectEmptyPragma(serialize, "Cannot specify 'key' or 'ignore' on object defition")
-
-  const serializeAllFields = T.hasCustomPragma(serialize)
+  let mode = T.getSerdeMode(serialize)
 
   for name, value in o.fieldPairs:
-    # TODO: move to %
-    # value.expectMissingPragma(deserializeMode, "Invalid pragma on field definition.")
-    # static:
-    const serializeField = value.hasCustomPragma(serialize)
-    when serializeField:
-      let (keyOverride, ignore) = value.getCustomPragmaVal(serialize)
-      if not ignore:
-        let key = if keyOverride != "": keyOverride
-                  else: name
-        jsonObj[key] = %value
 
-    elif serializeAllFields:
-      jsonObj[name] = %value
+    logScope:
+      field = $T & "." & name
+      mode
+
+    let opts = getSerdeFieldOptions(serialize, name, value)
+    const serializeField = value.hasCustomPragma(serialize)
+    var skip = false # workaround for 'continue' not supported in a 'fields' loop
+
+    case mode:
+    of OptIn:
+      if not serializeField:
+        debug "object field not marked with serialize, skipping"
+        skip = true
+      elif opts.ignore:
+        skip = true
+
+    of OptOut:
+      if opts.ignore:
+        debug "object field opted out of serialization ('ignore' is set), skipping"
+        skip = true
+      elif serializeField and opts.key == name: # all serialize params are default
+        warn "object field marked as serialize in OptOut mode, but 'ignore' not set, field will be serialized"
+
+    of Strict:
+      if opts.ignore:
+        # unable to figure out a way to make this a compile time check
+        warn "object field marked as 'ignore' while in Strict mode, field will be serialized anyway"
+
+    if not skip:
+      jsonObj[opts.key] = %value
 
   jsonObj
 
@@ -441,7 +503,7 @@ func `%`*[T: distinct](id: T): JsonNode =
   type baseType = T.distinctBase
   % baseType(id)
 
-func toJson*[T](item: T): string = $(%item)
+proc toJson*[T](item: T): string = $(%item)
 
 proc toJsnImpl(x: NimNode): NimNode =
   case x.kind

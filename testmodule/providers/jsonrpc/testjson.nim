@@ -228,6 +228,7 @@ suite "json serialization - deserialize":
     check deserialized.mystring == expected.mystring
     check deserialized.myint == expected.myint
 
+
 suite "json serialization pragmas":
 
   test "fails to compile when object marked with 'serialize' specifies options":
@@ -284,12 +285,37 @@ suite "json serialization pragmas":
 
     check compiles(%MyObj())
 
+
+suite "json serialization, mode = OptIn":
+
+  test "serializes with default mode OptIn when object not marked with serialize":
+    type MyObj = object
+      field1 {.serialize.}: bool
+      field2: bool
+
+    let obj = MyObj(field1: true, field2: true)
+    check obj.toJson == """{"field1":true}"""
+
+  test "not marking object with serialize is equivalent to marking it with serialize in OptIn mode":
+    type MyObj = object
+      field1 {.serialize.}: bool
+      field2: bool
+
+    type MyObjMarked {.serialize(mode=OptIn).} = object
+      field1 {.serialize.}: bool
+      field2: bool
+
+    let obj = MyObj(field1: true, field2: true)
+    let objMarked = MyObjMarked(field1: true, field2: true)
+    check obj.toJson == objMarked.toJson
+
   test "serializes field with key when specified":
     type MyObj = object
-      field {.serialize("test").}: bool
+      field1 {.serialize("test").}: bool
+      field2 {.serialize.}: bool
 
-    let obj = MyObj(field: true)
-    check obj.toJson == """{"test":true}"""
+    let obj = MyObj(field1: true, field2: true)
+    check obj.toJson == """{"test":true,"field2":true}"""
 
   test "does not serialize ignored field":
     type MyObj = object
@@ -299,7 +325,29 @@ suite "json serialization pragmas":
     let obj = MyObj(field1: true, field2: true)
     check obj.toJson == """{"field1":true}"""
 
-  test "serialize on object definition serializes all fields":
+
+suite "json deserialization, mode = OptIn":
+
+  test "deserializes only fields marked as deserialize when mode is OptIn":
+    type MyObj {.deserialize(mode=OptIn).} = object
+      field1: int
+      field2 {.deserialize.}: bool
+
+    let val = !MyObj.fromJson("""{"field1":true,"field2":true}""")
+    check val == MyObj(field1: 0, field2: true)
+
+  test "deserializes Optional fields when mode is OptIn":
+    type MyObj {.deserialize(mode=OptIn).} = object
+      field1 {.deserialize.}: bool
+      field2 {.deserialize.}: Option[bool]
+
+    let val = !MyObj.fromJson("""{"field1":true}""")
+    check val == MyObj(field1: true, field2: none bool)
+
+
+suite "json serialization, mode = OptOut":
+
+  test "serialize on object definition defaults to OptOut mode, serializes all fields":
     type MyObj {.serialize.} = object
       field1: bool
       field2: bool
@@ -307,7 +355,20 @@ suite "json serialization pragmas":
     let obj = MyObj(field1: true, field2: true)
     check obj.toJson == """{"field1":true,"field2":true}"""
 
-  test "ignores field when object has serialize":
+  test "not specifying serialize mode is equivalent to specifying OptOut mode":
+    type MyObj {.serialize.} = object
+      field1: bool
+      field2: bool
+
+    type MyObjMarked {.serialize(mode=OptOut).} = object
+      field1: bool
+      field2: bool
+
+    let obj = MyObj(field1: true, field2: true)
+    let objMarked = MyObjMarked(field1: true, field2: true)
+    check obj.toJson == objMarked.toJson
+
+  test "ignores field when marked with ignore":
     type MyObj {.serialize.} = object
       field1 {.serialize(ignore=true).}: bool
       field2: bool
@@ -315,13 +376,88 @@ suite "json serialization pragmas":
     let obj = MyObj(field1: true, field2: true)
     check obj.toJson == """{"field2":true}"""
 
-  test "serializes field with key when object has serialize":
+  test "serializes field with key instead of field name":
     type MyObj {.serialize.} = object
       field1 {.serialize("test").}: bool
       field2: bool
 
     let obj = MyObj(field1: true, field2: true)
     check obj.toJson == """{"test":true,"field2":true}"""
+
+
+suite "json deserialization, mode = OptOut":
+
+  test "deserializes object in OptOut mode when not marked with deserialize":
+    type MyObj = object
+      field1: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"field1":true,"field3":true}""")
+    check val == MyObj(field1: true, field2: false)
+
+  test "deserializes object field with marked json key":
+    type MyObj = object
+      field1 {.deserialize("test").}: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"test":true,"field2":true}""")
+    check val == MyObj(field1: true, field2: true)
+
+  test "fails to deserialize object field with wrong type":
+    type MyObj = object
+      field1: int
+      field2: bool
+
+    let r = MyObj.fromJson("""{"field1":true,"field2":true}""")
+    check r.isFailure
+    check r.error of UnexpectedKindError
+    check r.error.msg == "deserialization to int failed: expected {JInt} but got JBool"
+
+  test "does not deserialize ignored fields in OptOut mode":
+    type MyObj = object
+      field1 {.deserialize(ignore=true).}: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"field1":true,"field2":true}""")
+    check val == MyObj(field1: false, field2: true)
+
+  test "deserializes fields when marked with deserialize but not ignored":
+    type MyObj = object
+      field1 {.deserialize.}: bool
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"field1":true,"field2":true}""")
+    check val == MyObj(field1: true, field2: true)
+
+  test "deserializes Optional field":
+    type MyObj = object
+      field1: Option[bool]
+      field2: bool
+
+    let val = !MyObj.fromJson("""{"field2":true}""")
+    check val == MyObj(field1: none bool, field2: true)
+
+
+suite "json serialization - mode = Strict":
+
+  test "serializes all fields in Strict mode":
+    type MyObj {.serialize(mode=Strict).} = object
+      field1: bool
+      field2: bool
+
+    let obj = MyObj(field1: true, field2: true)
+    check obj.toJson == """{"field1":true,"field2":true}"""
+
+  test "ignores ignored fields in Strict mode":
+    type MyObj {.serialize(mode=Strict).} = object
+      field1 {.serialize(ignore=true).}: bool
+      field2: bool
+
+    let obj = MyObj(field1: true, field2: true)
+    check obj.toJson == """{"field1":true,"field2":true}"""
+
+
+suite "json deserialization, mode = Strict":
 
   test "deserializes matching object and json fields when mode is Strict":
     type MyObj {.deserialize(mode=Strict).} = object
@@ -350,52 +486,13 @@ suite "json serialization pragmas":
     check r.error of SerdeError
     check r.error.msg == "json field(s) missing in object: {\"field1\"}"
 
-  test "deserializes only fields marked as deserialize when mode is OptIn":
-    type MyObj {.deserialize(mode=OptIn).} = object
-      field1: int
-      field2 {.deserialize.}: bool
+  test "deserializes ignored fields in Strict mode":
+    type MyObj {.deserialize(mode=Strict).} = object
+      field1 {.deserialize(ignore=true).}: bool
+      field2: bool
 
     let val = !MyObj.fromJson("""{"field1":true,"field2":true}""")
-    check val == MyObj(field1: 0, field2: true)
-
-  test "can deserialize object in default mode when not marked with deserialize":
-    type MyObj = object
-      field1: bool
-      field2: bool
-
-    let val = !MyObj.fromJson("""{"field1":true,"field3":true}""")
-    check val == MyObj(field1: true, field2: false)
-
-  test "deserializes object field with marked json key":
-    type MyObj = object
-      field1 {.deserialize("test").}: bool
-      field2: bool
-
-    let val = !MyObj.fromJson("""{"test":true,"field2":true}""")
     check val == MyObj(field1: true, field2: true)
 
-  test "deserialization key can be set using serialize key":
-    type MyObj = object
-      field1 {.serialize("test").}: bool
-      field2: bool
 
-    let val = !MyObj.fromJson("""{"test":true,"field2":true}""")
-    check val == MyObj(field1: true, field2: true)
 
-  test "deserialization key takes priority over serialize key":
-    type MyObj = object
-      field1 {.serialize("test"), deserialize("test1").}: bool
-      field2: bool
-
-    let val = !MyObj.fromJson("""{"test":false,"test1":true,"field2":true}""")
-    check val == MyObj(field1: true, field2: true)
-
-  test "fails to deserialize object field with wrong type":
-    type MyObj = object
-      field1: int
-      field2: bool
-
-    let r = MyObj.fromJson("""{"field1":true,"field2":true}""")
-    check r.isFailure
-    check r.error of UnexpectedKindError
-    check r.error.msg == "deserialization to int failed: expected {JInt} but got JBool"
