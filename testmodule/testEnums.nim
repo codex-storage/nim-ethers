@@ -1,5 +1,6 @@
 import pkg/asynctest
 import pkg/ethers
+import pkg/serde
 import ./hardhat
 
 type

@@ -12,7 +12,6 @@ import ./jsonrpc/rpccalls
 import ./jsonrpc/conversions
 import ./jsonrpc/subscriptions
 
-export serde
 export basics
 export provider
 export chronicles

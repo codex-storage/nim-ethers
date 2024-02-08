@@ -3,6 +3,7 @@ import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
 import pkg/ethers/testing
+import pkg/serde
 import ./helpers
 
 suite "Testing helpers":
