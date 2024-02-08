@@ -3,15 +3,15 @@ import std/strutils
 import pkg/chronicles except fromJson, `%`, `%*`, toJson
 import pkg/json_rpc/jsonmarshal
 import pkg/questionable/results
+import pkg/serde
 import pkg/stew/byteutils
 import ../../basics
 import ../../transaction
 import ../../blocktag
 import ../../provider
-import ./json
 
 export jsonmarshal
-export json
+export serde
 export chronicles except fromJson, `%`, `%*`, toJson
 
 {.push raises: [].}
@@ -62,7 +62,7 @@ func `%`*(transaction: Transaction): JsonNode =
     "data": %transaction.data,
     "value": %transaction.value
   }
-  if sender =? transaction.`from`:
+  if sender =? transaction.sender:
     result["from"] = %sender
   if nonce =? transaction.nonce:
     result["nonce"] = %nonce

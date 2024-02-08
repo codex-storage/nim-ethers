@@ -84,7 +84,7 @@ method estimateGas*(
   convertError:
     address = await signer.getAddress
 
-  transaction.`from` = some(address)
+  transaction.sender = some(address)
   try:
     return await signer.provider.estimateGas(transaction)
   except ProviderError as e:
@@ -132,7 +132,7 @@ method populateTransaction*(
   convertError:
     address = await signer.getAddress()
 
-  if sender =? transaction.`from` and sender != address:
+  if sender =? transaction.sender and sender != address:
     raiseSignerError("from address mismatch")
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
@@ -145,8 +145,8 @@ method populateTransaction*(
   var populated = transaction
 
   try:
-    if transaction.`from`.isNone:
-      populated.`from` = some(address)
+    if transaction.sender.isNone:
+      populated.sender = some(address)
     if transaction.chainId.isNone:
       populated.chainId = some(await signer.getChainId())
     if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
@@ -185,7 +185,7 @@ method cancelTransaction*(
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
-  without sender =? tx.`from`:
+  without sender =? tx.sender:
     raiseSignerError "transaction must have sender"
   without nonce =? tx.nonce:
     raiseSignerError "transaction must have nonce"

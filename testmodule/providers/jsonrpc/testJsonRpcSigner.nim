@@ -52,7 +52,7 @@ suite "JsonRpcSigner":
     let signer = provider.getSigner()
     let transaction = Transaction.example
     let populated = await signer.populateTransaction(transaction)
-    check !populated.`from` == await signer.getAddress()
+    check !populated.sender == await signer.getAddress()
     check !populated.gasPrice == await signer.getGasPrice()
     check !populated.nonce == await signer.getTransactionCount(BlockTag.pending)
     check !populated.gasLimit == await signer.estimateGas(transaction)
@@ -61,7 +61,7 @@ suite "JsonRpcSigner":
   test "populate does not overwrite existing fields":
     let signer = provider.getSigner()
     var transaction = Transaction.example
-    transaction.`from` = some await signer.getAddress()
+    transaction.sender = some await signer.getAddress()
     transaction.nonce = some UInt256.example
     transaction.chainId = some await signer.getChainId()
     transaction.gasPrice = some UInt256.example
@@ -72,7 +72,7 @@ suite "JsonRpcSigner":
   test "populate fails when sender does not match signer address":
     let signer = provider.getSigner()
     var transaction = Transaction.example
-    transaction.`from` = accounts[1].some
+    transaction.sender = accounts[1].some
     expect SignerError:
       discard await signer.populateTransaction(transaction)
 

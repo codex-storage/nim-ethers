@@ -1,28 +1,28 @@
+import pkg/serde
 import pkg/stew/byteutils
 import ./basics
-import ./providers/jsonrpc/json
 
 type
   TransactionType* = enum
     Legacy = 0,
     AccessList = 1,
     Dynamic = 2
-  Transaction* = object
-    `from`* {.serialize.}: ?Address
-    to* {.serialize.}: Address
-    data* {.serialize.}: seq[byte]
-    value* {.serialize.}: UInt256
-    nonce* {.serialize.}: ?UInt256
-    chainId* {.serialize.}: ?UInt256
-    gasPrice* {.serialize.}: ?UInt256
-    maxFee* {.serialize.}: ?UInt256
-    maxPriorityFee* {.serialize.}: ?UInt256
-    gasLimit* {.serialize.}: ?UInt256
-    `type`* {.serialize.}: ?TransactionType
+  Transaction* {.serialize.} = object
+    sender* {.serialize("from").}: ?Address
+    to*: Address
+    data*: seq[byte]
+    value*: UInt256
+    nonce*: ?UInt256
+    chainId*: ?UInt256
+    gasPrice*: ?UInt256
+    maxFee*: ?UInt256
+    maxPriorityFee*: ?UInt256
+    gasLimit*: ?UInt256
+    transactionType* {.serialize("type").}: ?TransactionType
 
 func `$`*(transaction: Transaction): string =
   result = "("
-  if sender =? transaction.`from`:
+  if sender =? transaction.sender:
     result &= "from: " & $sender & ", "
   result &= "to: " & $transaction.to & ", "
   result &= "value: " & $transaction.value & ", "
@@ -35,6 +35,6 @@ func `$`*(transaction: Transaction): string =
     result &= ", gasPrice: " & $gasPrice
   if gasLimit =? transaction.gasLimit:
     result &= ", gasLimit: " & $gasLimit
-  if txType =? transaction.`type`:
+  if txType =? transaction.transactionType:
     result &= ", type: " & $txType
   result &= ")"

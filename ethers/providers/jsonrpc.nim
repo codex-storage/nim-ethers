@@ -4,15 +4,15 @@ import pkg/chronicles
 import pkg/eth/common/eth_types_json_serialization
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
+import pkg/serde
 import ../basics
 import ../provider
 import ../signer
 import ./jsonrpc/rpccalls
 import ./jsonrpc/conversions
 import ./jsonrpc/subscriptions
-import ./jsonrpc/json
 
-export json
+export serde
 export basics
 export provider
 export chronicles

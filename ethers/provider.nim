@@ -1,9 +1,9 @@
 import pkg/chronicles
+import pkg/serde
 import pkg/stew/byteutils
 import ./basics
 import ./transaction
 import ./blocktag
-import ./providers/jsonrpc/json
 
 export basics
 export transaction
@@ -15,20 +15,20 @@ type
   Provider* = ref object of RootObj
   ProviderError* = object of EthersError
   Subscription* = ref object of RootObj
-  EventFilter* = ref object of RootObj
-    address* {.serialize.}: Address
-    topics* {.serialize.}: seq[Topic]
-  Filter* = ref object of EventFilter
-    fromBlock* {.serialize.}: BlockTag
-    toBlock* {.serialize.}: BlockTag
-  FilterByBlockHash* = ref object of EventFilter
-    blockHash* {.serialize.}: BlockHash
-  Log* = object
-    blockNumber* {.serialize.}: UInt256
-    data* {.serialize.}: seq[byte]
-    logIndex* {.serialize.}: UInt256
-    removed* {.serialize.}: bool
-    topics* {.serialize.}: seq[Topic]
+  EventFilter* {.serialize.} = ref object of RootObj
+    address*: Address
+    topics*: seq[Topic]
+  Filter* {.serialize.} = ref object of EventFilter
+    fromBlock*: BlockTag
+    toBlock*: BlockTag
+  FilterByBlockHash* {.serialize.} = ref object of EventFilter
+    blockHash*: BlockHash
+  Log* {.serialize.} = object
+    blockNumber*: UInt256
+    data*: seq[byte]
+    logIndex*: UInt256
+    removed*: bool
+    topics*: seq[Topic]
   TransactionHash* = array[32, byte]
   BlockHash* = array[32, byte]
   TransactionStatus* = enum
@@ -38,43 +38,43 @@ type
   TransactionResponse* = object
     provider*: Provider
     hash* {.serialize.}: TransactionHash
-  TransactionReceipt* = object
-    `from`* {.serialize.}: ?Address
-    to* {.serialize.}: ?Address
-    contractAddress* {.serialize.}: ?Address
-    transactionIndex* {.serialize.}: UInt256
-    gasUsed* {.serialize.}: UInt256
-    logsBloom* {.serialize.}: seq[byte]
-    blockHash* {.serialize.}: ?BlockHash
-    transactionHash* {.serialize.}: TransactionHash
-    logs* {.serialize.}: seq[Log]
-    blockNumber* {.serialize.}: ?UInt256
-    cumulativeGasUsed* {.serialize.}: UInt256
-    effectiveGasPrice* {.serialize.}: ?UInt256
-    status* {.serialize.}: TransactionStatus
-    `type`* {.serialize.}: TransactionType
+  TransactionReceipt* {.serialize.} = object
+    sender* {.serialize("from"), deserialize("from").}: ?Address
+    to*: ?Address
+    contractAddress*: ?Address
+    transactionIndex*: UInt256
+    gasUsed*: UInt256
+    logsBloom*: seq[byte]
+    blockHash*: ?BlockHash
+    transactionHash*: TransactionHash
+    logs*: seq[Log]
+    blockNumber*: ?UInt256
+    cumulativeGasUsed*: UInt256
+    effectiveGasPrice*: ?UInt256
+    status*: TransactionStatus
+    transactionType* {.serialize("type"), deserialize("type").}: TransactionType
   LogHandler* = proc(log: Log) {.gcsafe, raises:[].}
   BlockHandler* = proc(blck: Block) {.gcsafe, raises:[].}
   Topic* = array[32, byte]
-  Block* = object
-    number* {.serialize.}: ?UInt256
-    timestamp* {.serialize.}: UInt256
-    hash* {.serialize.}: ?BlockHash
-  PastTransaction* = object
-    blockHash* {.serialize.}: BlockHash
-    blockNumber* {.serialize.}: UInt256
-    `from`* {.serialize.}: Address
-    gas* {.serialize.}: UInt256
-    gasPrice* {.serialize.}: UInt256
-    hash* {.serialize.}: TransactionHash
-    input* {.serialize.}: seq[byte]
-    nonce* {.serialize.}: UInt256
-    to* {.serialize.}: Address
-    transactionIndex* {.serialize.}: UInt256
-    `type`* {.serialize.}: ?TransactionType
-    chainId* {.serialize.}: ?UInt256
-    value* {.serialize.}: UInt256
-    v* {.serialize.}, r* {.serialize.}, s* {.serialize.}: UInt256
+  Block* {.serialize.} = object
+    number*: ?UInt256
+    timestamp*: UInt256
+    hash*: ?BlockHash
+  PastTransaction* {.serialize.} = object
+    blockHash*: BlockHash
+    blockNumber*: UInt256
+    sender* {.serialize("from"), deserialize("from").}: Address
+    gas*: UInt256
+    gasPrice*: UInt256
+    hash*: TransactionHash
+    input*: seq[byte]
+    nonce*: UInt256
+    to*: Address
+    transactionIndex*: UInt256
+    transactionType* {.serialize("type"), deserialize("type").}: ?TransactionType
+    chainId*: ?UInt256
+    value*: UInt256
+    v*, r*, s*: UInt256
 
 const EthersDefaultConfirmations* {.intdefine.} = 12
 const EthersReceiptTimeoutBlks* {.intdefine.} = 50 # in blocks
@@ -87,7 +87,7 @@ template raiseProviderError(msg: string) =
 
 func toTransaction*(past: PastTransaction): Transaction =
   Transaction(
-    `from`: some past.`from`,
+    sender: some past.sender,
     to: past.to,
     data: past.input,
     value: past.value,
@@ -95,7 +95,7 @@ func toTransaction*(past: PastTransaction): Transaction =
     chainId: past.chainId,
     gasPrice: some past.gasPrice,
     gasLimit: some past.gas,
-    `type`: past.`type`
+    transactionType: past.transactionType
   )
 
 method getBlockNumber*(

@@ -3,12 +3,12 @@ import std/tables
 import std/sequtils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
+import pkg/serde
 import ../../basics
 import ../../provider
 import ./rpccalls
 import ./conversions
 import ./looping
-import ./json
 
 type
   JsonRpcSubscriptions* = ref object of RootObj

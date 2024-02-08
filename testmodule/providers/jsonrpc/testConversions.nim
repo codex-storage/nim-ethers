@@ -4,6 +4,7 @@ import pkg/ethers/provider
 import pkg/ethers/providers/jsonrpc/conversions
 import pkg/questionable
 import pkg/questionable/results
+import pkg/serde
 import pkg/stew/byteutils
 
 func flatten(s: string): string =
@@ -137,7 +138,7 @@ suite "JSON Conversions":
       fail
     check tx.blockHash == BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922"))
     check tx.blockNumber == 0x22e.u256
-    check tx.`from` == Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get
+    check tx.sender == Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get
     check tx.gas == 0x4d4bb.u256
     check tx.gasPrice == 0x3b9aca07.u256
     check tx.hash == TransactionHash(array[32, byte].fromHex("0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790"))
@@ -146,7 +147,7 @@ suite "JSON Conversions":
     check tx.to == Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e").get
     check tx.transactionIndex == 0x3.u256
     check tx.value == 0.u256
-    check tx.`type` == some TransactionType.Legacy
+    check tx.transactionType == some TransactionType.Legacy
     check tx.chainId == some 0xc0de4.u256
     check tx.v == 0x181bec.u256
     check tx.r == UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a"))
@@ -156,7 +157,7 @@ suite "JSON Conversions":
     let tx = PastTransaction(
       blockHash: BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")),
       blockNumber: 0x22e.u256,
-      `from`: Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get,
+      sender: Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get,
       gas: 0x4d4bb.u256,
       gasPrice: 0x3b9aca07.u256,
       hash: TransactionHash(array[32, byte].fromHex("0xa31608907c338d6497b0c6ec81049d845c7d409490ebf78171f35143897ca790")),
@@ -168,7 +169,7 @@ suite "JSON Conversions":
       v: 0x181bec.u256,
       r: UInt256.fromBytesBE(hexToSeqByte("0x57ba18460934526333b80b0fea08737c363f3cd5fbec4a25a8a25e3e8acb362a")),
       s: UInt256.fromBytesBE(hexToSeqByte("0x33aa50bc8bd719b6b17ad0bf52006bf8943999198f2bf731eb33c118091000f2")),
-      `type`: some TransactionType.Legacy,
+      transactionType: some TransactionType.Legacy,
       chainId: some 0xc0de4.u256
     )
     let expected = """
