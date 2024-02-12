@@ -296,19 +296,21 @@ template convertSignerError(body) =
   except CatchableError as error:
     raise newException(JsonRpcSignerError, error.msg)
 
-method provider*(signer: JsonRpcSigner): Provider {.gcsafe, raises: [SignerError].} =
+method provider*(signer: JsonRpcSigner): Provider
+  {.gcsafe, raises: [SignerError].} =
+
   signer.provider
 
 method getAddress*(
-  signer: JsonRpcSigner): Future[Address] {.async: (raises:[SignerError]).} =
+  signer: JsonRpcSigner): Future[Address]
+  {.async: (raises:[ProviderError, SignerError]).} =
 
   if address =? signer.address:
     return address
 
-  convertSignerError:
-    let accounts = await signer.provider.listAccounts()
-    if accounts.len > 0:
-      return accounts[0]
+  let accounts = await signer.provider.listAccounts()
+  if accounts.len > 0:
+    return accounts[0]
 
   raiseJsonRpcSignerError "no address found"
 

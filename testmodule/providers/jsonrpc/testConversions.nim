@@ -20,14 +20,12 @@ suite "JSON Conversions":
       "timestamp":"0x6285c293"
     }
 
-    without blk1 =? Block.fromJson(json):
-      fail
+    let blk1 = !Block.fromJson(json)
     check blk1.number.isNone
 
     json["number"] = newJString("")
 
-    without blk2 =? Block.fromJson(json):
-      fail
+    let blk2 = !Block.fromJson(json)
     check blk2.number.isSome
     check blk2.number.get.isZero
 

@@ -1,17 +1,13 @@
-# import std/hashes
 import std/tables
 import std/sequtils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
-# import pkg/serde
 import ../../basics
 import ../../provider
-include ../../nimshims/hashes #as hashes_shim
+include ../../nimshims/hashes
 import ./rpccalls
 import ./conversions
 import ./looping
-
-# export hashes_shim
 
 type
   JsonRpcSubscriptions* = ref object of RootObj
@@ -78,11 +74,11 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback =
   try:
-    if subscriptions.callbacks.hasKey(id):
+    if not id.isNil and id in subscriptions.callbacks:
       subscriptions.callbacks[id].some
     else:
       SubscriptionCallback.none
-  except Exception:
+  except KeyError:
     SubscriptionCallback.none
 
 # Web sockets
@@ -92,10 +88,11 @@ type
 
 proc new*(_: type JsonRpcSubscriptions,
           client: RpcWebSocketClient): JsonRpcSubscriptions =
+
   let subscriptions = WebSocketSubscriptions(client: client)
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
-    if id =? arguments{"subscription"}.catch and
-       callback =? subscriptions.getCallback(id):
+    let id = arguments{"subscription"} or newJString("")
+    if callback =? subscriptions.getCallback(id):
       callback(id, arguments)
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
   subscriptions

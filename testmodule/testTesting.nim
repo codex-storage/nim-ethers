@@ -32,12 +32,15 @@ suite "Testing helpers":
   test "reverts only checks ProviderErrors, EstimateGasErrors":
     proc callProviderError() {.async.} =
       raise newException(ProviderError, "test")
+    proc callSignerError() {.async.} =
+      raise newException(SignerError, "test")
     proc callEstimateGasError() {.async.} =
       raise newException(EstimateGasError, "test")
     proc callEthersError() {.async.} =
       raise newException(EthersError, "test")
 
     check await callProviderError().reverts()
+    check await callSignerError().reverts()
     check await callEstimateGasError().reverts()
     expect EthersError:
       check await callEthersError().reverts()
@@ -45,12 +48,15 @@ suite "Testing helpers":
   test "reverts with reason only checks ProviderErrors, EstimateGasErrors":
     proc callProviderError() {.async.} =
       raise newException(ProviderError, revertReason)
+    proc callSignerError() {.async.} =
+      raise newException(SignerError, revertReason)
     proc callEstimateGasError() {.async.} =
       raise newException(EstimateGasError, revertReason)
     proc callEthersError() {.async.} =
       raise newException(EthersError, revertReason)
 
     check await callProviderError().reverts(revertReason)
+    check await callSignerError().reverts(revertReason)
     check await callEstimateGasError().reverts(revertReason)
     expect EthersError:
       check await callEthersError().reverts(revertReason)

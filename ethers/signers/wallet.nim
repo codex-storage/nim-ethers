@@ -68,7 +68,8 @@ method provider*(wallet: Wallet): Provider {.gcsafe, raises: [SignerError].} =
   provider
 
 method getAddress*(
-  wallet: Wallet): Future[Address] {.async: (raises:[SignerError]).} =
+  wallet: Wallet): Future[Address]
+  {.async: (raises:[ProviderError, SignerError]).} =
 
   return wallet.address
 

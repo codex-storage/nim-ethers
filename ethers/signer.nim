@@ -10,7 +10,7 @@ type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
     populateLock: AsyncLock
-  SignerError* = object of ProviderError
+  SignerError* = object of EthersError
   EstimateGasError* = object of SignerError
     transaction*: Transaction
 
@@ -40,13 +40,15 @@ method provider*(
   doAssert false, "not implemented"
 
 method getAddress*(
-  signer: Signer): Future[Address] {.base, async: (raises:[SignerError]).} =
+  signer: Signer): Future[Address]
+  {.base, async: (raises:[ProviderError, SignerError]).} =
 
   doAssert false, "not implemented"
 
 method signMessage*(
   signer: Signer,
-  message: seq[byte]): Future[seq[byte]] {.base, async: (raises: [SignerError]).} =
+  message: seq[byte]): Future[seq[byte]]
+  {.base, async: (raises: [SignerError]).} =
 
   doAssert false, "not implemented"
 
@@ -58,10 +60,10 @@ method sendTransaction*(
   doAssert false, "not implemented"
 
 method getGasPrice*(
-  signer: Signer): Future[UInt256] {.base, gcsafe, async: (raises: [SignerError]).} =
+  signer: Signer): Future[UInt256]
+  {.base, async: (raises: [ProviderError, SignerError]).} =
 
-  convertError:
-    return await signer.provider.getGasPrice()
+  return await signer.provider.getGasPrice()
 
 method getTransactionCount*(
   signer: Signer,
@@ -91,10 +93,10 @@ method estimateGas*(
     raiseEstimateGasError transaction, e
 
 method getChainId*(
-  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
+  signer: Signer): Future[UInt256]
+  {.base, async: (raises: [ProviderError, SignerError]).} =
 
-  convertError:
-    return await signer.provider.getChainId()
+  return await signer.provider.getChainId()
 
 method getNonce(
   signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
@@ -126,7 +128,7 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
 method populateTransaction*(
   signer: Signer,
   transaction: Transaction): Future[Transaction]
-  {.base, async: (raises: [CancelledError, AsyncLockError, SignerError]).} =
+  {.base, async: (raises: [CancelledError, AsyncLockError, ProviderError, SignerError]).} =
 
   var address: Address
   convertError:

@@ -27,7 +27,7 @@ proc reverts*[T](call: Future[T]): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError, EstimateGasError:
+  except ProviderError, SignerError, EstimateGasError:
     return true
 
 proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
@@ -37,7 +37,7 @@ proc reverts*[T](call: Future[T], reason: string): Future[bool] {.async.} =
     else:
       discard await call
     return false
-  except ProviderError, EstimateGasError:
+  except ProviderError, SignerError, EstimateGasError:
     let e = getCurrentException()
     var passed = reason == (ref EthersError)(e).revertReason
     if not passed and

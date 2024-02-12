@@ -76,5 +76,5 @@ method transferFrom*(token: Erc20Token,
                      spender: Address,
                      recipient: Address,
                      amount: UInt256): ?TransactionResponse {.base, contract.}
-  ## Moves `amount` tokens from sender to `to` using the allowance
+  ## Moves `amount` tokens from `spender` to `recipient` using the allowance
   ## mechanism. `amount` is then deducted from the caller's allowance.

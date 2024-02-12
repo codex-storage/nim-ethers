@@ -12,7 +12,8 @@ method provider*(signer: MockSigner): Provider =
   signer.provider
 
 method getAddress*(
-  signer: MockSigner): Future[Address] {.async: (raises:[SignerError]).} =
+  signer: MockSigner): Future[Address]
+  {.async: (raises:[ProviderError, SignerError]).} =
 
   return signer.address
 
