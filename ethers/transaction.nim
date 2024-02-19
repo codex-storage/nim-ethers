@@ -1,3 +1,4 @@
+import pkg/serde
 import pkg/stew/byteutils
 import ./basics
 
@@ -6,8 +7,8 @@ type
     Legacy = 0,
     AccessList = 1,
     Dynamic = 2
-  Transaction* = object
-    sender*: ?Address
+  Transaction* {.serialize.} = object
+    sender* {.serialize("from").}: ?Address
     to*: Address
     data*: seq[byte]
     value*: UInt256
@@ -17,7 +18,7 @@ type
     maxFee*: ?UInt256
     maxPriorityFee*: ?UInt256
     gasLimit*: ?UInt256
-    transactionType*: ?TransactionType
+    transactionType* {.serialize("type").}: ?TransactionType
 
 func `$`*(transaction: Transaction): string =
   result = "("

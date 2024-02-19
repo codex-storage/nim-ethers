@@ -4,6 +4,7 @@ import pkg/chronos
 import pkg/json_rpc/rpcclient
 import ../../basics
 import ../../provider
+include ../../nimshims/hashes
 import ./rpccalls
 import ./conversions
 import ./looping
@@ -12,7 +13,40 @@ type
   JsonRpcSubscriptions* = ref object of RootObj
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
+    methodHandlers: Table[string, MethodHandler]
+  MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
+
+{.push raises:[].}
+
+template `or`(a: JsonNode, b: typed): JsonNode =
+  if a.isNil: b else: a
+
+func start*(subscriptions: JsonRpcSubscriptions) =
+  subscriptions.client.onProcessMessage =
+    proc(client: RpcClient,
+         line: string): Result[bool, string] {.gcsafe, raises: [].} =
+      if json =? JsonNode.fromJson(line):
+        if "method" in json:
+          let methodName = json{"method"}.getStr()
+          if methodName in subscriptions.methodHandlers:
+            let handler = subscriptions.methodHandlers.getOrDefault(methodName)
+            if not handler.isNil:
+              handler(json{"params"} or newJArray())
+              # false = do not continue processing message using json_rpc's
+              # default processing handler
+              return ok false
+
+      # true = continue processing message using json_rpc's default message handler
+      return ok true
+
+
+proc setMethodHandler(
+  subscriptions: JsonRpcSubscriptions,
+  `method`: string,
+  handler: MethodHandler
+) =
+  subscriptions.methodHandlers[`method`] = handler
 
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
@@ -40,11 +74,11 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback =
   try:
-    if subscriptions.callbacks.hasKey(id):
+    if not id.isNil and id in subscriptions.callbacks:
       subscriptions.callbacks[id].some
     else:
       SubscriptionCallback.none
-  except Exception:
+  except KeyError:
     SubscriptionCallback.none
 
 # Web sockets
@@ -54,20 +88,21 @@ type
 
 proc new*(_: type JsonRpcSubscriptions,
           client: RpcWebSocketClient): JsonRpcSubscriptions =
+
   let subscriptions = WebSocketSubscriptions(client: client)
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
-    if id =? arguments["subscription"].catch and
-       callback =? subscriptions.getCallback(id):
+    let id = arguments{"subscription"} or newJString("")
+    if callback =? subscriptions.getCallback(id):
       callback(id, arguments)
-  client.setMethodHandler("eth_subscription", subscriptionHandler)
+  subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
   subscriptions
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
                       Future[JsonNode]
                       {.async.} =
-  proc callback(id, arguments: JsonNode) =
-    if blck =? Block.fromJson(arguments["result"]).catch:
+  proc callback(id, arguments: JsonNode) {.raises: [].} =
+    if blck =? Block.fromJson(arguments{"result"}):
       onBlock(blck)
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
@@ -79,13 +114,13 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
                     Future[JsonNode]
                     {.async.} =
   proc callback(id, arguments: JsonNode) =
-    if log =? Log.fromJson(arguments["result"]).catch:
+    if log =? Log.fromJson(arguments{"result"}):
       onLog(log)
   let id = await subscriptions.client.eth_subscribe("logs", filter)
   subscriptions.callbacks[id] = callback
   return id
 
-method unsubscribe(subscriptions: WebSocketSubscriptions,
+method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
                   {.async.} =
   subscriptions.callbacks.del(id)
@@ -140,7 +175,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
       discard
 
   proc callback(id, change: JsonNode) =
-    if hash =? BlockHash.fromJson(change).catch:
+    if hash =? BlockHash.fromJson(change):
       asyncSpawn getBlock(hash)
 
   let id = await subscriptions.client.eth_newBlockFilter()
@@ -154,14 +189,14 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
                     {.async.} =
 
   proc callback(id, change: JsonNode) =
-    if log =? Log.fromJson(change).catch:
+    if log =? Log.fromJson(change):
       onLog(log)
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback
   return id
 
-method unsubscribe(subscriptions: PollingSubscriptions,
+method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
   subscriptions.callbacks.del(id)

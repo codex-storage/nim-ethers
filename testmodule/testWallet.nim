@@ -1,4 +1,5 @@
 import pkg/asynctest
+import pkg/serde
 import pkg/stew/byteutils
 import ../ethers
 

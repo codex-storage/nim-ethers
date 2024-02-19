@@ -64,6 +64,7 @@ suite "Web socket subscriptions":
     client = newRpcWebSocketClient()
     await client.connect("ws://localhost:8545")
     subscriptions = JsonRpcSubscriptions.new(client)
+    subscriptions.start()
 
   teardown:
     await subscriptions.close()
@@ -81,6 +82,7 @@ suite "HTTP polling subscriptions":
     await client.connect("http://localhost:8545")
     subscriptions = JsonRpcSubscriptions.new(client,
                                              pollingInterval = 100.millis)
+    subscriptions.start()
 
   teardown:
     await subscriptions.close()

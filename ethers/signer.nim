@@ -1,14 +1,15 @@
+import pkg/questionable
 import ./basics
 import ./provider
 
 export basics
 
+{.push raises: [].}
+
 type
   Signer* = ref object of RootObj
     lastSeenNonce: ?UInt256
     populateLock: AsyncLock
-
-type
   SignerError* = object of EthersError
   EstimateGasError* = object of SignerError
     transaction*: Transaction
@@ -19,50 +20,87 @@ template raiseSignerError(message: string, parent: ref ProviderError = nil) =
 proc raiseEstimateGasError(
   transaction: Transaction,
   parent: ref ProviderError = nil
-) =
+) {.raises: [EstimateGasError] .} =
   let e = (ref EstimateGasError)(
     msg: "Estimate gas failed",
     transaction: transaction,
     parent: parent)
   raise e
 
-method provider*(signer: Signer): Provider {.base, gcsafe.} =
+template convertError(body) =
+  try:
+    body
+  except EthersError as error:
+    raiseSignerError(error.msg)
+  except CatchableError as error:
+    raiseSignerError(error.msg)
+
+method provider*(
+  signer: Signer): Provider {.base, gcsafe, raises: [SignerError].} =
   doAssert false, "not implemented"
 
-method getAddress*(signer: Signer): Future[Address] {.base, gcsafe.} =
+method getAddress*(
+  signer: Signer): Future[Address]
+  {.base, async: (raises:[ProviderError, SignerError]).} =
+
   doAssert false, "not implemented"
 
-method signMessage*(signer: Signer,
-                    message: seq[byte]): Future[seq[byte]] {.base, async.} =
+method signMessage*(
+  signer: Signer,
+  message: seq[byte]): Future[seq[byte]]
+  {.base, async: (raises: [SignerError]).} =
+
   doAssert false, "not implemented"
 
-method sendTransaction*(signer: Signer,
-                        transaction: Transaction): Future[TransactionResponse] {.base, async.} =
+method sendTransaction*(
+  signer: Signer,
+  transaction: Transaction): Future[TransactionResponse]
+  {.base, async: (raises:[SignerError]).} =
+
   doAssert false, "not implemented"
 
-method getGasPrice*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
-  signer.provider.getGasPrice()
+method getGasPrice*(
+  signer: Signer): Future[UInt256]
+  {.base, async: (raises: [ProviderError, SignerError]).} =
 
-method getTransactionCount*(signer: Signer,
-                            blockTag = BlockTag.latest):
-                           Future[UInt256] {.base, async.} =
-  let address = await signer.getAddress()
-  return await signer.provider.getTransactionCount(address, blockTag)
+  return await signer.provider.getGasPrice()
 
-method estimateGas*(signer: Signer,
-                    transaction: Transaction,
-                    blockTag = BlockTag.latest): Future[UInt256] {.base, async.} =
+method getTransactionCount*(
+  signer: Signer,
+  blockTag = BlockTag.latest): Future[UInt256]
+  {.base, async: (raises:[SignerError]).} =
+
+  convertError:
+    let address = await signer.getAddress()
+    return await signer.provider.getTransactionCount(address, blockTag)
+
+method estimateGas*(
+  signer: Signer,
+  transaction: Transaction,
+  blockTag = BlockTag.latest): Future[UInt256]
+  {.base, async: (raises:[SignerError]).} =
+
   var transaction = transaction
-  transaction.sender = some(await signer.getAddress)
+  var address: Address
+
+  convertError:
+    address = await signer.getAddress
+
+  transaction.sender = some(address)
   try:
     return await signer.provider.estimateGas(transaction)
   except ProviderError as e:
     raiseEstimateGasError transaction, e
 
-method getChainId*(signer: Signer): Future[UInt256] {.base, gcsafe.} =
-  signer.provider.getChainId()
+method getChainId*(
+  signer: Signer): Future[UInt256]
+  {.base, async: (raises: [ProviderError, SignerError]).} =
 
-method getNonce(signer: Signer): Future[UInt256] {.base, gcsafe, async.} =
+  return await signer.provider.getChainId()
+
+method getNonce(
+  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
+
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
   if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
@@ -87,11 +125,16 @@ method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
   if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
     signer.lastSeenNonce = some lastSeen - 1
 
-method populateTransaction*(signer: Signer,
-                            transaction: Transaction):
-                           Future[Transaction] {.base, async.} =
+method populateTransaction*(
+  signer: Signer,
+  transaction: Transaction): Future[Transaction]
+  {.base, async: (raises: [CancelledError, AsyncLockError, ProviderError, SignerError]).} =
 
-  if sender =? transaction.sender and sender != await signer.getAddress():
+  var address: Address
+  convertError:
+    address = await signer.getAddress()
+
+  if sender =? transaction.sender and sender != address:
     raiseSignerError("from address mismatch")
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
@@ -105,7 +148,7 @@ method populateTransaction*(signer: Signer,
 
   try:
     if transaction.sender.isNone:
-      populated.sender = some(await signer.getAddress())
+      populated.sender = some(address)
     if transaction.chainId.isNone:
       populated.chainId = some(await signer.getChainId())
     if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
@@ -119,10 +162,12 @@ method populateTransaction*(signer: Signer,
       populated.nonce = some(await signer.getNonce())
       try:
         populated.gasLimit = some(await signer.estimateGas(populated))
-      except ProviderError, EstimateGasError:
-        let e = getCurrentException()
+      except EstimateGasError as e:
         signer.decreaseNonce()
         raise e
+      except ProviderError as e:
+        signer.decreaseNonce()
+        raiseSignerError(e.msg)
 
     else:
       if transaction.nonce.isNone:
@@ -138,7 +183,7 @@ method populateTransaction*(signer: Signer,
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.async, base.} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
@@ -148,5 +193,6 @@ method cancelTransaction*(
     raiseSignerError "transaction must have nonce"
 
   var cancelTx = Transaction(to: sender, value: 0.u256, nonce: some nonce)
-  cancelTx = await signer.populateTransaction(cancelTx)
-  return await signer.sendTransaction(cancelTx)
+  convertError:
+    cancelTx = await signer.populateTransaction(cancelTx)
+    return await signer.sendTransaction(cancelTx)

@@ -1,4 +1,3 @@
-import std/json
 import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
@@ -97,5 +96,5 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         discard await provider.getBlock(BlockTag.latest)
       expect JsonRpcProviderError:
         discard await provider.subscribe(proc(_: Block) = discard)
-      expect JsonRpcProviderError:
+      expect JsonRpcSignerError:
         discard await provider.getSigner().sendTransaction(Transaction.example)
