@@ -22,7 +22,7 @@ type
 template `or`(a: JsonNode, b: typed): JsonNode =
   if a.isNil: b else: a
 
-func init*(subscriptions: JsonRpcSubscriptions) =
+func start*(subscriptions: JsonRpcSubscriptions) =
   subscriptions.client.onProcessMessage =
     proc(client: RpcClient,
          line: string): Result[bool, string] {.gcsafe, raises: [].} =

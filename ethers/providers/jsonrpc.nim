@@ -85,7 +85,7 @@ proc new*(
         client = http
         subscriptions = JsonRpcSubscriptions.new(http,
                                                 pollingInterval = pollingInterval)
-      subscriptions.init()
+      subscriptions.start()
 
   proc awaitClient: Future[RpcClient] {.async:(raises:[JsonRpcProviderError]).} =
     convertError:
