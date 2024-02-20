@@ -98,3 +98,8 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         discard await provider.subscribe(proc(_: Block) = discard)
       expect JsonRpcSignerError:
         discard await provider.getSigner().sendTransaction(Transaction.example)
+
+    test "syncing":
+      let isSyncing = await provider.isSyncing()
+      check not isSyncing
+
