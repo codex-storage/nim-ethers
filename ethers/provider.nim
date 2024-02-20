@@ -157,6 +157,9 @@ method subscribe*(provider: Provider,
 method unsubscribe*(subscription: Subscription) {.base, async.} =
   doAssert false, "not implemented"
 
+method isSyncing*(provider: Provider): Future[bool] {.base, async.} =
+  doAssert false, "not implemented"
+
 proc replay*(provider: Provider, tx: Transaction, blockNumber: UInt256) {.async.} =
   # Replay transaction at block. Useful for fetching revert reasons, which will
   # be present in the raised error message. The replayed block number should
