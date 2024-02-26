@@ -55,7 +55,7 @@ method estimateGas*(signer: Signer,
   var transaction = transaction
   transaction.sender = some(await signer.getAddress)
   try:
-    return await signer.provider.estimateGas(transaction)
+    return await signer.provider.estimateGas(transaction, blockTag)
   except ProviderError as e:
     raiseEstimateGasError transaction, e
 
@@ -118,7 +118,7 @@ method populateTransaction*(signer: Signer,
       # stuck transactions
       populated.nonce = some(await signer.getNonce())
       try:
-        populated.gasLimit = some(await signer.estimateGas(populated))
+        populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
       except ProviderError, EstimateGasError:
         let e = getCurrentException()
         signer.decreaseNonce()
@@ -128,7 +128,7 @@ method populateTransaction*(signer: Signer,
       if transaction.nonce.isNone:
         populated.nonce = some(await signer.getNonce())
       if transaction.gasLimit.isNone:
-        populated.gasLimit = some(await signer.estimateGas(populated))
+        populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
 
   finally:
     signer.populateLock.release()
