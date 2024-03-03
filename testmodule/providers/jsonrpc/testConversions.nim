@@ -150,7 +150,7 @@ suite "JSON Conversions":
     }
 
     let tx = PastTransaction.fromJson(json)
-    check tx.blockHash == BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922"))
+    check tx.blockHash == BlockHash.fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")
     check tx.blockNumber == 0x22e.u256
     check tx.sender == Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get
     check tx.gas == 0x4d4bb.u256
@@ -169,7 +169,7 @@ suite "JSON Conversions":
 
   test "PastTransaction serializes correctly":
     let tx = PastTransaction(
-      blockHash: BlockHash(array[32, byte].fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")),
+      blockHash: BlockHash.fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922"),
       blockNumber: 0x22e.u256,
       sender: Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get,
       gas: 0x4d4bb.u256,
