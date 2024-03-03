@@ -140,6 +140,19 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       check (await token.balanceOf(accounts[0], beforeMint)) == 0
       check (await token.balanceOf(accounts[0], afterMint)) == 100
 
+    test "can simulate transactions for different block heights":
+      let block1 = await provider.getBlockNumber()
+      let signer = provider.getSigner(accounts[0])
+      discard await token.connect(signer).mint(accounts[0], 100.u256)
+      let block2 = await provider.getBlockNumber()
+
+      let beforeMint = CallOverrides(blockTag: some BlockTag.init(block1))
+      let afterMint = CallOverrides(blockTag: some BlockTag.init(block2))
+
+      expect ProviderError:
+        discard await token.transfer(accounts[1], 50.u256, beforeMint)
+      discard await token.transfer(accounts[1], 50.u256, afterMint)
+
     test "receives events when subscribed":
       var transfers: seq[Transfer]
 
