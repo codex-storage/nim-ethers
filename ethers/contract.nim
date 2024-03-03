@@ -131,7 +131,7 @@ proc send(contract: Contract,
     let txResp = await signer.sendTransaction(populated)
     return txResp.some
   else:
-    await call(contract, function, parameters)
+    await call(contract, function, parameters, overrides)
     return TransactionResponse.none
 
 func getParameterTuple(procedure: NimNode): NimNode =
