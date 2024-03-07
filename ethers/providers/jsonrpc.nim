@@ -270,6 +270,8 @@ method unsubscribe*(
 
 method isSyncing*(provider: JsonRpcProvider): Future[bool] {.async.} =
   let response = await provider.send("eth_syncing")
+  if response.kind == JsonNodeKind.JObject:
+    return true
   return response.getBool()
 
 method close*(
