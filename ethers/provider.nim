@@ -14,6 +14,7 @@ export blocktag
 type
   Provider* = ref object of RootObj
   ProviderError* = object of EthersError
+    data*: ?seq[byte]
   Subscription* = ref object of RootObj
   EventFilter* {.serialize.} = ref object of RootObj
     address*: Address
