@@ -1,13 +1,30 @@
+import std/strutils
 import pkg/stew/byteutils
+import ../../basics
 import ../../provider
 import ./conversions
 
+{.push raises:[].}
+
 type JsonRpcProviderError* = object of ProviderError
 
-func new(_: type JsonRpcProviderError, json: JsonNode): ref JsonRpcProviderError =
+func extractErrorData(json: JsonNode): ?seq[byte] =
+  if json.kind == JObject:
+    if "message" in json and "data" in json:
+      let message = json{"message"}.getStr()
+      let hex = json{"data"}.getStr()
+      if "reverted" in message and hex.startsWith("0x"):
+        if data =? hexToSeqByte(hex).catch:
+          return some data
+    for key in json.keys:
+      if data =? extractErrorData(json{key}):
+        return some data
+
+func new*(_: type JsonRpcProviderError, json: JsonNode): ref JsonRpcProviderError =
   let error = (ref JsonRpcProviderError)()
   if "message" in json:
     error.msg = json{"message"}.getStr
+  error.data = extractErrorData(json)
   error
 
 proc raiseJsonRpcProviderError*(
