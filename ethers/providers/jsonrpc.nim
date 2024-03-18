@@ -11,10 +11,12 @@ import ../signer
 import ./jsonrpc/rpccalls
 import ./jsonrpc/conversions
 import ./jsonrpc/subscriptions
+import ./jsonrpc/errors
 
 export basics
 export provider
 export chronicles
+export errors.JsonRpcProviderError
 
 {.push raises: [].}
 
@@ -26,7 +28,6 @@ type
     client: Future[RpcClient]
     subscriptions: Future[JsonRpcSubscriptions]
 
-  JsonRpcProviderError* = object of ProviderError
   JsonRpcSubscription* = ref object of Subscription
     subscriptions: JsonRpcSubscriptions
     id: JsonNode
@@ -36,23 +37,6 @@ type
     provider: JsonRpcProvider
     address: ?Address
   JsonRpcSignerError* = object of SignerError
-
-proc raiseJsonRpcProviderError(
-  message: string) {.raises: [JsonRpcProviderError].} =
-
-  var message = message
-  if json =? JsonNode.fromJson(message):
-    if "message" in json:
-      message = json{"message"}.getStr
-  raise newException(JsonRpcProviderError, message)
-
-template convertError(body) =
-  try:
-    body
-  except JsonRpcError as error:
-    raiseJsonRpcProviderError(error.msg)
-  except CatchableError as error:
-    raiseJsonRpcProviderError(error.msg)
 
 # Provider
 
