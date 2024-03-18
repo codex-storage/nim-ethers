@@ -54,24 +54,6 @@ method approve*(token: Erc20Token,
                 amount: UInt256): ?TransactionResponse {.base, contract.}
   ## Sets `amount` as the allowance of `spender` over the caller's tokens.
 
-method increaseAllowance*(token: Erc20Token,
-                spender: Address,
-                addedValue: UInt256): ?TransactionResponse {.base, contract.}
-  ## Atomically increases the allowance granted to spender by the caller.
-  ## This is an alternative to approve that can be used as a mitigation for problems described in IERC20.approve.
-  ## Emits an Approval event indicating the updated allowance.
-  ##
-  ## WARNING: THIS IS NON-STANDARD ERC-20 FUNCTION, DOUBLE CHECK THAT YOUR TOKEN HAS IT!
-
-method decreaseAllowance*(token: Erc20Token,
-                spender: Address,
-                addedValue: UInt256): ?TransactionResponse {.base, contract.}
-  ## Atomically decreases the allowance granted to spender by the caller.
-  ## This is an alternative to approve that can be used as a mitigation for problems described in IERC20.approve.
-  ## Emits an Approval event indicating the updated allowance.
-  ##
-  ## WARNING: THIS IS NON-STANDARD ERC-20 FUNCTION, DOUBLE CHECK THAT YOUR TOKEN HAS IT!
-
 method transferFrom*(token: Erc20Token,
                      spender: Address,
                      recipient: Address,
