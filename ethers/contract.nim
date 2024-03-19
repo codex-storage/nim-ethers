@@ -8,11 +8,13 @@ import ./basics
 import ./provider
 import ./signer
 import ./events
+import ./errors
 import ./fields
 
 export basics
 export provider
 export events
+export errors
 
 logScope:
   topics = "ethers contract"
@@ -138,6 +140,17 @@ func getParameterTuple(procedure: NimNode): NimNode =
       tupl.add name
   return tupl
 
+func getErrorTypes(procedure: NimNode): NimNode =
+  let pragmas = procedure[4]
+  var tupl = newNimNode(nnkTupleConstr)
+  for pragma in pragmas:
+    if pragma.kind == nnkExprColonExpr:
+      if pragma[0].eqIdent "errors":
+        pragma[1].expectKind(nnkBracket)
+        for error in pragma[1]:
+          tupl.add error
+  tupl
+
 func isGetter(procedure: NimNode): bool =
   let pragmas = procedure[4]
   for pragma in pragmas:
@@ -215,6 +228,13 @@ func addContractCall(procedure: var NimNode) =
     else:
       send()
 
+func addErrorHandling(procedure: var NimNode) =
+  let body = procedure[6]
+  let errors = getErrorTypes(procedure)
+  procedure[6] = quote do:
+    convertCustomErrors[`errors`]:
+      `body`
+
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]
   if returntype.kind != nnkEmpty:
@@ -236,6 +256,7 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
   var contractcall = copyNimTree(procedure)
   contractcall.addContractCall()
+  contractcall.addErrorHandling()
   contractcall.addFuture()
   contractcall.addAsyncPragma()
   contractcall
