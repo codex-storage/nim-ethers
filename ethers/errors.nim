@@ -15,3 +15,14 @@ func decode*[E: SolidityError](_: type E, data: seq[byte]): ?!(ref E) =
   if selector.toArray[0..<4] != data[0..<4]:
     return failure "unable to decode " & name & ": signature doesn't match"
   success (ref E)()
+
+template convertCustomErrors*[ErrorTypes: tuple](body: untyped): untyped =
+  try:
+    body
+  except ProviderError as error:
+    block:
+      if data =? error.data:
+        for e in ErrorTypes.default.fields:
+          if error =? typeof(e).decode(data):
+            raise error
+      raise error
