@@ -80,6 +80,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       let hash = TransactionHash.example
       let tx = TransactionResponse(provider: provider, hash: hash)
       let confirming = tx.confirm(confirmations = 2, timeout = 5)
+      await sleepAsync(100.millis) # wait for confirm to subscribe to new blocks
       await provider.mineBlocks(5)
       expect EthersError:
         discard await confirming
