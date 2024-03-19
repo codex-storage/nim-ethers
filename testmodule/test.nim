@@ -7,5 +7,6 @@ import ./testWallet
 import ./testTesting
 import ./testErc20
 import ./testGasEstimation
+import ./testErrorDecoding
 
 {.warning[UnusedImport]:off.}
