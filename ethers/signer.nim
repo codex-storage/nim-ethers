@@ -11,27 +11,15 @@ type
     lastSeenNonce: ?UInt256
     populateLock: AsyncLock
   SignerError* = object of EthersError
-  EstimateGasError* = object of SignerError
-    transaction*: Transaction
 
 template raiseSignerError(message: string, parent: ref ProviderError = nil) =
   raise newException(SignerError, message, parent)
 
-proc raiseEstimateGasError(
-  transaction: Transaction,
-  parent: ref ProviderError = nil
-) {.raises: [EstimateGasError] .} =
-  let e = (ref EstimateGasError)(
-    msg: "Estimate gas failed",
-    transaction: transaction,
-    parent: parent)
-  raise e
-
 template convertError(body) =
   try:
     body
-  except EthersError as error:
-    raiseSignerError(error.msg)
+  except ProviderError as error:
+    raise error # do not convert provider errors
   except CatchableError as error:
     raiseSignerError(error.msg)
 
@@ -68,7 +56,7 @@ method getGasPrice*(
 method getTransactionCount*(
   signer: Signer,
   blockTag = BlockTag.latest): Future[UInt256]
-  {.base, async: (raises:[SignerError]).} =
+  {.base, async: (raises:[SignerError, ProviderError]).} =
 
   convertError:
     let address = await signer.getAddress()
@@ -78,19 +66,11 @@ method estimateGas*(
   signer: Signer,
   transaction: Transaction,
   blockTag = BlockTag.latest): Future[UInt256]
-  {.base, async: (raises:[SignerError]).} =
+  {.base, async: (raises:[SignerError, ProviderError]).} =
 
   var transaction = transaction
-  var address: Address
-
-  convertError:
-    address = await signer.getAddress
-
-  transaction.sender = some(address)
-  try:
-    return await signer.provider.estimateGas(transaction, blockTag)
-  except ProviderError as e:
-    raiseEstimateGasError transaction, e
+  transaction.sender = some(await signer.getAddress())
+  return await signer.provider.estimateGas(transaction, blockTag)
 
 method getChainId*(
   signer: Signer): Future[UInt256]
@@ -99,7 +79,7 @@ method getChainId*(
   return await signer.provider.getChainId()
 
 method getNonce(
-  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError]).} =
+  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError, ProviderError]).} =
 
   var nonce = await signer.getTransactionCount(BlockTag.pending)
 
@@ -183,7 +163,7 @@ method populateTransaction*(
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.base, async: (raises: [SignerError]).} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError, ProviderError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
