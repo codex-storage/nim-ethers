@@ -14,7 +14,8 @@ import ./fields
 export basics
 export provider
 export events
-export errors
+export errors.SolidityError
+export errors.errors
 
 logScope:
   topics = "ethers contract"
