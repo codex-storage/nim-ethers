@@ -29,6 +29,8 @@ func decode*[E: SolidityError](_: type E, data: seq[byte]): ?!(ref E) =
       return failure "unable to decode " & $E & ": " & error.msg
     success (ref E)(arguments: arguments)
   else:
+    if data.len > 4:
+      return failure "unable to decode " & $E & ": unread trailing bytes found"
     success (ref E)()
 
 func encode*[E: SolidityError](_: type AbiEncoder, error: ref E): seq[byte] =
