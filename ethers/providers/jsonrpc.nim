@@ -324,9 +324,9 @@ method signMessage*(
 method sendTransaction*(
   signer: JsonRpcSigner,
   transaction: Transaction): Future[TransactionResponse]
-  {.async: (raises:[SignerError]).} =
+  {.async: (raises:[SignerError, ProviderError]).} =
 
-  convertSignerError:
+  convertError:
     if nonce =? transaction.nonce:
       signer.updateNonce(nonce)
     let

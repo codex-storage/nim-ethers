@@ -43,7 +43,7 @@ method signMessage*(
 method sendTransaction*(
   signer: Signer,
   transaction: Transaction): Future[TransactionResponse]
-  {.base, async: (raises:[SignerError]).} =
+  {.base, async: (raises:[SignerError, ProviderError]).} =
 
   doAssert false, "not implemented"
 
