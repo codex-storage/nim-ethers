@@ -199,9 +199,17 @@ method estimateGas*(
   transaction: Transaction,
   blockTag = BlockTag.latest): Future[UInt256] {.async: (raises:[ProviderError]).} =
 
-  convertError:
-    let client = await provider.client
-    return await client.eth_estimateGas(transaction, blockTag)
+  try:
+    convertError:
+      let client = await provider.client
+      return await client.eth_estimateGas(transaction, blockTag)
+  except ProviderError as error:
+    raise (ref EstimateGasError)(
+      msg: "Estimate gas failed: " & error.msg,
+      data: error.data,
+      transaction: transaction,
+      parent: error
+    )
 
 method getChainId*(
   provider: JsonRpcProvider): Future[UInt256] {.async: (raises:[ProviderError]).} =
