@@ -10,6 +10,14 @@ suite "Contract custom errors":
     SimpleError = object of SolidityError
     ErrorWithArguments = object of SolidityError
       arguments: tuple[one: UInt256, two: bool]
+    ErrorWithStaticStruct = object of SolidityError
+      arguments: tuple[one: Static, two: Static]
+    ErrorWithDynamicStruct = object of SolidityError
+      arguments: tuple[one: Dynamic, two: Dynamic]
+    ErrorWithDynamicAndStaticStruct = object of SolidityError
+      arguments: tuple[one: Dynamic, two: Static]
+    Static = (UInt256, UInt256)
+    Dynamic = (string, UInt256)
 
   var contract: TestCustomErrors
   var provider: JsonRpcProvider
@@ -43,3 +51,36 @@ suite "Contract custom errors":
     except ErrorWithArguments as error:
       check error.arguments.one == 1
       check error.arguments.two == true
+
+  test "handles error with static struct arguments":
+    proc revertsErrorWithStaticStruct(contract: TestCustomErrors)
+      {.contract, pure, errors:[ErrorWithStaticStruct].}
+
+    try:
+      await contract.revertsErrorWithStaticStruct()
+      fail()
+    except ErrorWithStaticStruct as error:
+      check error.arguments.one == (1.u256, 2.u256)
+      check error.arguments.two == (3.u256, 4.u256)
+
+  test "handles error with dynamic struct arguments":
+    proc revertsErrorWithDynamicStruct(contract: TestCustomErrors)
+      {.contract, pure, errors:[ErrorWithDynamicStruct].}
+
+    try:
+      await contract.revertsErrorWithDynamicStruct()
+      fail()
+    except ErrorWithDynamicStruct as error:
+      check error.arguments.one == ("1", 2.u256)
+      check error.arguments.two == ("3", 4.u256)
+
+  test "handles error with dynamic and static struct arguments":
+    proc revertsErrorWithDynamicAndStaticStruct(contract: TestCustomErrors)
+      {.contract, pure, errors:[ErrorWithDynamicAndStaticStruct].}
+
+    try:
+      await contract.revertsErrorWithDynamicAndStaticStruct()
+      fail()
+    except ErrorWithDynamicAndStaticStruct as error:
+      check error.arguments.one == ("1", 2.u256)
+      check error.arguments.two == (3.u256, 4.u256)
