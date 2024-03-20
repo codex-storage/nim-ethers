@@ -202,33 +202,6 @@ proc replay*(
   trace "replaying transaction", gasLimit = tx.gasLimit, tx = $tx
   discard await provider.call(tx, BlockTag.init(blockNumber))
 
-method getRevertReason*(
-  provider: Provider,
-  hash: TransactionHash,
-  blockNumber: UInt256): Future[?string] {.base, async: (raises: [ProviderError]).} =
-
-  without pastTx =? await provider.getTransaction(hash):
-    return none string
-
-  try:
-    await provider.replay(pastTx.toTransaction, blockNumber)
-    return none string
-  except ProviderError as e:
-    # should contain the revert reason
-    return some e.msg
-
-method getRevertReason*(
-  provider: Provider,
-  receipt: TransactionReceipt): Future[?string] {.base, async: (raises: [ProviderError]).} =
-
-  if receipt.status != TransactionStatus.Failure:
-    return none string
-
-  without blockNumber =? receipt.blockNumber:
-    return none string
-
-  return await provider.getRevertReason(receipt.transactionHash, blockNumber - 1)
-
 proc ensureSuccess(
   provider: Provider,
   receipt: TransactionReceipt) {.async: (raises: [ProviderError]).} =
@@ -237,18 +210,18 @@ proc ensureSuccess(
   ## If no revert reason was obtained
 
   # TODO: handle TransactionStatus.Invalid?
-  if receipt.status == TransactionStatus.Failure:
-    logScope:
-      transactionHash = receipt.transactionHash.to0xHex
+  if receipt.status != TransactionStatus.Failure:
+    return
 
-    trace "transaction failed, replaying transaction to get revert reason"
+  without blockNumber =? receipt.blockNumber and
+          pastTx =? await provider.getTransaction(receipt.transactionHash):
+    raiseProviderError("Transaction reverted with unknown reason")
 
-    if revertReason =? await provider.getRevertReason(receipt):
-      trace "transaction revert reason obtained", revertReason
-      raiseProviderError(revertReason)
-    else:
-      trace "transaction replay completed, no revert reason obtained"
-      raiseProviderError("Transaction reverted with unknown reason")
+  try:
+    await provider.replay(pastTx.toTransaction, blockNumber)
+    raiseProviderError("Transaction reverted with unknown reason")
+  except ProviderError as error:
+    raise error
 
 proc confirm*(
   tx: TransactionResponse,
