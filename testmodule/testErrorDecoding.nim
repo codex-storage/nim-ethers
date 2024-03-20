@@ -34,6 +34,18 @@ suite "Decoding of custom errors":
     let decoded = SimpleError.decode(invalid)
     check decoded.isFailure
 
+  test "returns failure when there are trailing bytes":
+    let invalid = @[0xc2'u8, 0xbb, 0x94, 0x7c, 0x0] # one byte too many
+    let decoded = SimpleError.decode(invalid)
+    check decoded.isFailure
+
+  test "returns failure when there are trailing bytes after arguments":
+    let error = (ref ErrorWithArguments)(arguments: (1.u256, true))
+    let encoded = AbiEncoder.encode(error)
+    let invalid = encoded & @[0x0'u8] # one byte too many
+    let decoded = ErrorWithArguments.decode(invalid)
+    check decoded.isFailure
+
   test "decoding only works for SolidityErrors":
     type InvalidError = ref object of CatchableError
     const works = compiles:
