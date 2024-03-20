@@ -8,6 +8,8 @@ suite "Contract custom errors":
   type
     TestCustomErrors = ref object of Contract
     SimpleError = object of SolidityError
+    ErrorWithArguments = object of SolidityError
+      arguments: tuple[one: UInt256, two: bool]
 
   var contract: TestCustomErrors
   var provider: JsonRpcProvider
@@ -30,3 +32,14 @@ suite "Contract custom errors":
 
     expect SimpleError:
       await contract.revertsSimpleError()
+
+  test "handles error with arguments":
+    proc revertsErrorWithArguments(contract: TestCustomErrors)
+      {.contract, pure, errors:[ErrorWithArguments].}
+
+    try:
+      await contract.revertsErrorWithArguments()
+      fail()
+    except ErrorWithArguments as error:
+      check error.arguments.one == 1
+      check error.arguments.two == true

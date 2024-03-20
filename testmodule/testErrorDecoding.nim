@@ -1,16 +1,28 @@
 import std/unittest
 import pkg/questionable/results
+import pkg/contractabi
 import pkg/ethers/errors
 
 suite "Decoding of custom errors":
 
-  type SimpleError = object of SolidityError
+  type
+    SimpleError = object of SolidityError
+    ErrorWithArguments = object of SolidityError
+      arguments: tuple[one: UInt256, two: bool]
 
   test "decodes a simple error":
     let decoded = SimpleError.decode(@[0xc2'u8, 0xbb, 0x94, 0x7c])
     check decoded is ?!(ref SimpleError)
     check decoded.isSuccess
     check (!decoded) != nil
+
+  test "decodes error with arguments":
+    let expected = (ref ErrorWithArguments)(arguments: (1.u256, true))
+    let encoded = AbiEncoder.encode(expected)
+    let decoded = ErrorWithArguments.decode(encoded)
+    check decoded.isSuccess
+    check (!decoded).arguments.one == 1.u256
+    check (!decoded).arguments.two == true
 
   test "returns failure when decoding fails":
     let invalid = @[0xc2'u8, 0xbb, 0x94, 0x0] # last byte is wrong
