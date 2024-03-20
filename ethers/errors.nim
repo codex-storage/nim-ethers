@@ -27,11 +27,13 @@ func decode*[E: SolidityError](_: type E, data: seq[byte]): ?!(ref E) =
   when compiles(E.arguments):
     without arguments =? E.decodeArguments(data), error:
       return failure "unable to decode " & $E & ": " & error.msg
-    success (ref E)(arguments: arguments)
+    let message = "EVM reverted: " & $E & $arguments
+    success (ref E)(msg: message, arguments: arguments)
   else:
     if data.len > 4:
       return failure "unable to decode " & $E & ": unread trailing bytes found"
-    success (ref E)()
+    let message = "EVM reverted: " & $E & "()"
+    success (ref E)(msg: message)
 
 func encode*[E: SolidityError](_: type AbiEncoder, error: ref E): seq[byte] =
   result = @(E.selector.toArray)

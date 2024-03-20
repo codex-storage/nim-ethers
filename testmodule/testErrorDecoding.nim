@@ -1,4 +1,5 @@
 import std/unittest
+import std/strutils
 import pkg/questionable/results
 import pkg/contractabi
 import pkg/ethers/errors
@@ -14,7 +15,7 @@ suite "Decoding of custom errors":
     let decoded = SimpleError.decode(@[0xc2'u8, 0xbb, 0x94, 0x7c])
     check decoded is ?!(ref SimpleError)
     check decoded.isSuccess
-    check (!decoded) != nil
+    check (!decoded).msg.contains("SimpleError()")
 
   test "decodes error with arguments":
     let expected = (ref ErrorWithArguments)(arguments: (1.u256, true))
@@ -23,6 +24,7 @@ suite "Decoding of custom errors":
     check decoded.isSuccess
     check (!decoded).arguments.one == 1.u256
     check (!decoded).arguments.two == true
+    check (!decoded).msg.contains("ErrorWithArguments(one: 1, two: true)")
 
   test "returns failure when decoding fails":
     let invalid = @[0xc2'u8, 0xbb, 0x94, 0x0] # last byte is wrong
@@ -51,4 +53,3 @@ suite "Decoding of custom errors":
     const works = compiles:
       InvalidError.decode(@[0x1'u8, 0x2, 0x3, 0x4])
     check not works
-
