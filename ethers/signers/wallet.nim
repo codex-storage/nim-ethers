@@ -83,10 +83,9 @@ proc signTransaction*(wallet: Wallet,
 method sendTransaction*(
   wallet: Wallet,
   transaction: Transaction): Future[TransactionResponse]
-  {.async: (raises:[SignerError]).} =
+  {.async: (raises:[SignerError, ProviderError]).} =
 
-  convertError:
-    let signed = await signTransaction(wallet, transaction)
-    if nonce =? transaction.nonce:
-      wallet.updateNonce(nonce)
-    return await provider(wallet).sendTransaction(signed)
+  let signed = await signTransaction(wallet, transaction)
+  if nonce =? transaction.nonce:
+    wallet.updateNonce(nonce)
+  return await provider(wallet).sendTransaction(signed)

@@ -97,7 +97,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
         discard await provider.getBlock(BlockTag.latest)
       expect JsonRpcProviderError:
         discard await provider.subscribe(proc(_: Block) = discard)
-      expect JsonRpcSignerError:
+      expect JsonRpcProviderError:
         discard await provider.getSigner().sendTransaction(Transaction.example)
 
     test "syncing":
