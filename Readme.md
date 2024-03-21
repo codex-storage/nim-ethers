@@ -146,6 +146,43 @@ When you're no longer interested in these events, you can unsubscribe:
 await subscription.unsubscribe()
 ```
 
+Custom errors
+-------------
+
+Solidity's [custom errors][4] are supported. To use them, you declare their type
+and indicate in which contract functions they can occur. For instance, this is
+how you would define the "InsufficientBalance" error to match the definition in
+[this Solidity example][5]:
+
+```nim
+type
+  InsufficientBalance = object of SolidityError
+    arguments: tuple[available: UInt256, required: UInt256]
+```
+
+Notice that `InsufficientBalance` inherits from `SoldityError`, and that it has
+an `arguments` tuple whose fields match the definition in Solidity.
+
+You can use the `{.errors.}` pragma to declare that this error may occur in a
+contract function:
+
+```nim
+proc transfer*(token: Erc20Token, recipient: Address, amount: UInt256)
+  {.contract, errors:[InsufficientBalance].}
+```
+
+This allows you to write error handling code for the `transfer` function like
+this:
+
+```nim
+try:
+  await token.transfer(recipient, 100.u256)
+except InsufficientBalance as error:
+  echo "insufficient balance"
+  echo "available balance: ", error.arguments.available
+  echo "required balance: ", error.arguments.required
+```
+
 Utilities
 ---------
 
@@ -175,3 +212,5 @@ affiliation) and [nim-web3][1] developers.
 [1]: https://github.com/status-im/nim-web3
 [2]: https://github.com/nim-lang/nimble
 [3]: https://docs.soliditylang.org/en/v0.8.11/contracts.html#state-mutability
+[4]: https://docs.soliditylang.org/en/v0.8.25/contracts.html#errors-and-the-revert-statement
+[5]: https://soliditylang.org/blog/2021/04/21/custom-errors/
