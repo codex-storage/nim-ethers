@@ -84,3 +84,30 @@ suite "Contract custom errors":
     except ErrorWithDynamicAndStaticStruct as error:
       check error.arguments.one == ("1", 2.u256)
       check error.arguments.two == (3.u256, 4.u256)
+
+  test "handles gas estimation errors":
+    proc revertsTransaction(contract: TestCustomErrors)
+      {.contract, errors:[ErrorWithArguments].}
+
+    let contract = contract.connect(provider.getSigner())
+    try:
+      await contract.revertsTransaction()
+      fail()
+    except ErrorWithArguments as error:
+      check error.arguments.one == 1.u256
+      check error.arguments.two == true
+
+  test "handles transaction submission errors":
+    proc revertsTransaction(contract: TestCustomErrors)
+      {.contract, errors:[ErrorWithArguments].}
+
+     # skip gas estimation
+    let overrides = TransactionOverrides(gasLimit: some 1000000.u256)
+
+    let contract = contract.connect(provider.getSigner())
+    try:
+      await contract.revertsTransaction(overrides = overrides)
+      fail()
+    except ErrorWithArguments as error:
+      check error.arguments.one == 1.u256
+      check error.arguments.two == true
