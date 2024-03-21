@@ -41,4 +41,11 @@ contract TestCustomErrors {
       StaticStruct(3, 4)
     );
   }
+
+  string private state;
+
+  function revertsTransaction() public {
+    state = "updated state";
+    revert ErrorWithArguments(1, true);
+  }
 }
