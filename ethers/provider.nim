@@ -1,9 +1,9 @@
 import pkg/chronicles
 import pkg/serde
-import pkg/stew/byteutils
 import ./basics
 import ./transaction
 import ./blocktag
+import ./errors
 
 export basics
 export transaction
@@ -41,6 +41,9 @@ type
   TransactionResponse* = object
     provider*: Provider
     hash* {.serialize.}: TransactionHash
+    convertCustomErrors*: ConvertCustomErrors
+  ConvertCustomErrors* =
+    proc(error: ref ProviderError): ref EthersError {.gcsafe, raises:[].}
   TransactionReceipt* {.serialize.} = object
     sender* {.serialize("from"), deserialize("from").}: ?Address
     to*: ?Address
@@ -267,7 +270,11 @@ proc confirm*(
 
     if txBlockNumber + confirmations.u256 <= blockNumber + 1:
       await subscription.unsubscribe()
-      await tx.provider.ensureSuccess(receipt)
+      try:
+        await tx.provider.ensureSuccess(receipt)
+      except ProviderError as error:
+        if convert =? tx.convertCustomErrors:
+          raise convert(error)
       return receipt
 
 proc confirm*(

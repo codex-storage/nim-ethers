@@ -111,3 +111,27 @@ suite "Contract custom errors":
     except ErrorWithArguments as error:
       check error.arguments.one == 1.u256
       check error.arguments.two == true
+
+  test "handles transaction confirmation errors":
+    proc revertsTransaction(contract: TestCustomErrors): ?TransactionResponse
+      {.contract, errors:[ErrorWithArguments].}
+
+     # skip gas estimation
+    let overrides = TransactionOverrides(gasLimit: some 1000000.u256)
+
+    # ensure that transaction is not immediately checked by hardhat
+    discard await provider.send("evm_setAutomine", @[%false])
+
+    let contract = contract.connect(provider.getSigner())
+    try:
+      let future = contract.revertsTransaction(overrides = overrides).confirm(0)
+      await sleepAsync(100.millis) # wait for transaction to be submitted
+      discard await provider.send("evm_mine", @[]) # mine the transaction
+      discard await future # wait for confirmation
+      fail()
+    except ErrorWithArguments as error:
+      check error.arguments.one == 1.u256
+      check error.arguments.two == true
+
+    # re-enable auto mining
+    discard await provider.send("evm_setAutomine", @[%true])
