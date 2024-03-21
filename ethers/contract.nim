@@ -9,6 +9,7 @@ import ./provider
 import ./signer
 import ./events
 import ./errors
+import ./errors/conversion
 import ./fields
 
 export basics
@@ -122,12 +123,14 @@ proc call(contract: Contract,
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = TransactionOverrides()):
+          overrides = TransactionOverrides(),
+          convertCustomErrors: ConvertCustomErrors = nil):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
     let populated = await signer.populateTransaction(transaction)
-    let txResp = await signer.sendTransaction(populated)
+    var txResp = await signer.sendTransaction(populated)
+    txResp.convertCustomErrors = convertCustomErrors
     return txResp.some
   else:
     await call(contract, function, parameters, overrides)
@@ -150,7 +153,10 @@ func getErrorTypes(procedure: NimNode): NimNode =
         pragma[1].expectKind(nnkBracket)
         for error in pragma[1]:
           tupl.add error
-  tupl
+  if tupl.len == 0:
+    quote do: tuple[]
+  else:
+    tupl
 
 func isGetter(procedure: NimNode): bool =
   let pragmas = procedure[4]
@@ -192,6 +198,7 @@ func addContractCall(procedure: var NimNode) =
   let isGetter = procedure.isGetter
 
   procedure.addOverrides()
+  let errors = getErrorTypes(procedure)
 
   func call: NimNode =
     if returnType.kind == nnkEmpty:
@@ -221,7 +228,8 @@ func addContractCall(procedure: var NimNode) =
             "unexpected return type, " &
             "missing {.view.}, {.pure.} or {.getter.} ?"
           .}
-        return await send(`contract`, `function`, `parameters`, overrides)
+        let convert = customErrorConversion(`errors`)
+        return await send(`contract`, `function`, `parameters`, overrides, convert)
 
   procedure[6] =
     if procedure.isConstant:
@@ -233,8 +241,14 @@ func addErrorHandling(procedure: var NimNode) =
   let body = procedure[6]
   let errors = getErrorTypes(procedure)
   procedure[6] = quote do:
-    convertCustomErrors[`errors`]:
+    try:
       `body`
+    except ProviderError as error:
+      if data =? error.data:
+        let convert = customErrorConversion(`errors`)
+        raise convert(error)
+      else:
+        raise error
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]
