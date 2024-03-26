@@ -28,7 +28,7 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
 
     test "sends raw messages to the provider":
       let response = await provider.send("evm_mine")
-      check response == %"0x0"
+      check response == %"0"
 
     test "returns block number":
       let blocknumber1 = await provider.getBlockNumber()
