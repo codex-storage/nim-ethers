@@ -20,6 +20,6 @@ method getAddress*(
 method sendTransaction*(
   signer: MockSigner,
   transaction: Transaction): Future[TransactionResponse]
-  {.async: (raises:[SignerError]).} =
+  {.async: (raises:[SignerError, ProviderError]).} =
 
   signer.transactions.add(transaction)

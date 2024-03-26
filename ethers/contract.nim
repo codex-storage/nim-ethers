@@ -8,11 +8,15 @@ import ./basics
 import ./provider
 import ./signer
 import ./events
+import ./errors
+import ./errors/conversion
 import ./fields
 
 export basics
 export provider
 export events
+export errors.SolidityError
+export errors.errors
 
 logScope:
   topics = "ethers contract"
@@ -119,12 +123,14 @@ proc call(contract: Contract,
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = TransactionOverrides()):
+          overrides = TransactionOverrides(),
+          convertCustomErrors: ConvertCustomErrors = nil):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
     let populated = await signer.populateTransaction(transaction)
-    let txResp = await signer.sendTransaction(populated)
+    var txResp = await signer.sendTransaction(populated)
+    txResp.convertCustomErrors = convertCustomErrors
     return txResp.some
   else:
     await call(contract, function, parameters, overrides)
@@ -137,6 +143,20 @@ func getParameterTuple(procedure: NimNode): NimNode =
     for name in parameter[0..^3]:
       tupl.add name
   return tupl
+
+func getErrorTypes(procedure: NimNode): NimNode =
+  let pragmas = procedure[4]
+  var tupl = newNimNode(nnkTupleConstr)
+  for pragma in pragmas:
+    if pragma.kind == nnkExprColonExpr:
+      if pragma[0].eqIdent "errors":
+        pragma[1].expectKind(nnkBracket)
+        for error in pragma[1]:
+          tupl.add error
+  if tupl.len == 0:
+    quote do: tuple[]
+  else:
+    tupl
 
 func isGetter(procedure: NimNode): bool =
   let pragmas = procedure[4]
@@ -178,6 +198,7 @@ func addContractCall(procedure: var NimNode) =
   let isGetter = procedure.isGetter
 
   procedure.addOverrides()
+  let errors = getErrorTypes(procedure)
 
   func call: NimNode =
     if returnType.kind == nnkEmpty:
@@ -207,13 +228,27 @@ func addContractCall(procedure: var NimNode) =
             "unexpected return type, " &
             "missing {.view.}, {.pure.} or {.getter.} ?"
           .}
-        return await send(`contract`, `function`, `parameters`, overrides)
+        let convert = customErrorConversion(`errors`)
+        return await send(`contract`, `function`, `parameters`, overrides, convert)
 
   procedure[6] =
     if procedure.isConstant:
       call()
     else:
       send()
+
+func addErrorHandling(procedure: var NimNode) =
+  let body = procedure[6]
+  let errors = getErrorTypes(procedure)
+  procedure[6] = quote do:
+    try:
+      `body`
+    except ProviderError as error:
+      if data =? error.data:
+        let convert = customErrorConversion(`errors`)
+        raise convert(error)
+      else:
+        raise error
 
 func addFuture(procedure: var NimNode) =
   let returntype = procedure[3][0]
@@ -236,6 +271,7 @@ macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
 
   var contractcall = copyNimTree(procedure)
   contractcall.addContractCall()
+  contractcall.addErrorHandling()
   contractcall.addFuture()
   contractcall.addAsyncPragma()
   contractcall
