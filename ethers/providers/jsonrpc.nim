@@ -327,7 +327,7 @@ method signMessage*(
   convertSignerError:
     let client = await signer.provider.client
     let address = await signer.getAddress()
-    return await client.eth_sign(address, message)
+    return await client.personal_sign(message, address)
 
 method sendTransaction*(
   signer: JsonRpcSigner,

@@ -1,4 +1,5 @@
 proc net_version(): string
+proc personal_sign(message: seq[byte], account: Address): seq[byte]
 proc eth_accounts: seq[Address]
 proc eth_blockNumber: UInt256
 proc eth_call(transaction: Transaction, blockTag: BlockTag): seq[byte]
@@ -13,7 +14,6 @@ proc eth_chainId(): UInt256
 proc eth_sendTransaction(transaction: Transaction): TransactionHash
 proc eth_sendRawTransaction(data: seq[byte]): TransactionHash
 proc eth_getTransactionReceipt(hash: TransactionHash): ?TransactionReceipt
-proc eth_sign(account: Address, message: seq[byte]): seq[byte]
 proc eth_subscribe(name: string, filter: EventFilter): JsonNode
 proc eth_subscribe(name: string): JsonNode
 proc eth_unsubscribe(id: JsonNode): bool

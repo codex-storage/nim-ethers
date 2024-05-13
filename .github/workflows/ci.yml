@@ -18,7 +18,7 @@ jobs:
     - name: Install NodeJS
       uses: actions/setup-node@v2
       with:
-        node-version: '14'
+        node-version: '18'
     - name: Install test node
       working-directory: testnode
       run: npm install
