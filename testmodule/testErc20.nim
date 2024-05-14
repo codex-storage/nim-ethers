@@ -9,7 +9,7 @@ import ./hardhat
 type
   TestToken = ref object of Erc20Token
 
-method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
+method mint(token: TestToken, holder: Address, amount: UInt256): Confirmable {.base, contract.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
 

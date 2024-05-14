@@ -113,7 +113,7 @@ suite "Contract custom errors":
       check error.arguments.two == true
 
   test "handles transaction confirmation errors":
-    proc revertsTransaction(contract: TestCustomErrors): ?TransactionResponse
+    proc revertsTransaction(contract: TestCustomErrors): Confirmable
       {.contract, errors:[ErrorWithArguments].}
 
      # skip gas estimation

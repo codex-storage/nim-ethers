@@ -13,7 +13,7 @@ import ./mocks
 type
   TestToken = ref object of Erc20Token
 
-method mint(token: TestToken, holder: Address, amount: UInt256): ?TransactionResponse {.base, contract.}
+method mint(token: TestToken, holder: Address, amount: UInt256): Confirmable {.base, contract.}
 method myBalance(token: TestToken): UInt256 {.base, contract, view.}
 
 for url in ["ws://localhost:8545", "http://localhost:8545"]:
@@ -71,24 +71,15 @@ for url in ["ws://localhost:8545", "http://localhost:8545"]:
       await token.mint(accounts[1], 100.u256)
       check (await balanceOf(token, accounts[1])) == 100.u256
 
-    test "can call non-constant functions with a ?TransactionResponse return type":
-      token = TestToken.new(token.address, provider.getSigner())
-      proc mint(token: TestToken,
-                holder: Address,
-                amount: UInt256): ?TransactionResponse {.contract.}
-      let txResp = await token.mint(accounts[1], 100.u256)
-      check txResp is (?TransactionResponse)
-      check txResp.isSome
-
     test "can call non-constant functions with a Confirmable return type":
 
       token = TestToken.new(token.address, provider.getSigner())
       proc mint(token: TestToken,
                 holder: Address,
                 amount: UInt256): Confirmable {.contract.}
-      let txResp = await token.mint(accounts[1], 100.u256)
-      check txResp is Confirmable
-      check txResp.isSome
+      let confirmable = await token.mint(accounts[1], 100.u256)
+      check confirmable is Confirmable
+      check confirmable.response.isSome
 
     test "fails to compile when function has an implementation":
       let works = compiles:

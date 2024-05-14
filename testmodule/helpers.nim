@@ -7,7 +7,7 @@ type
 method doRevert*(
   self: TestHelpers,
   revertReason: string
-): ?TransactionResponse {.base, contract.}
+): Confirmable {.base, contract.}
 
 proc new*(_: type TestHelpers, signer: Signer): TestHelpers =
   let deployment = readDeployment()

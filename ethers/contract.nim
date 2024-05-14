@@ -37,7 +37,8 @@ type
     blockTag*: ?BlockTag
 
   ContractError* = object of EthersError
-  Confirmable* = ?TransactionResponse
+  Confirmable* = object
+    response*: ?TransactionResponse
   EventHandler*[E: Event] = proc(event: E) {.gcsafe, raises:[].}
 
 func new*(ContractType: type Contract,
@@ -229,7 +230,8 @@ func addContractCall(procedure: var NimNode) =
             "missing {.view.}, {.pure.} or {.getter.} ?"
           .}
         let convert = customErrorConversion(`errors`)
-        return await send(`contract`, `function`, `parameters`, overrides, convert)
+        let response = await send(`contract`, `function`, `parameters`, overrides, convert)
+        Confirmable(response: response)
 
   procedure[6] =
     if procedure.isConstant:
@@ -294,7 +296,7 @@ proc subscribe*[E: Event](contract: Contract,
 
   contract.provider.subscribe(filter, logHandler)
 
-proc confirm*(tx: Future[?TransactionResponse],
+proc confirm*(tx: Future[Confirmable],
               confirmations: int = EthersDefaultConfirmations,
               timeout: int = EthersReceiptTimeoutBlks):
              Future[TransactionReceipt] {.async.} =
@@ -303,7 +305,7 @@ proc confirm*(tx: Future[?TransactionResponse],
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
   ##          .confirm(3)`
-  without response =? (await tx):
+  without response =? (await tx).response:
     raise newException(
       EthersError,
       "Transaction hash required. Possibly was a call instead of a send?"
