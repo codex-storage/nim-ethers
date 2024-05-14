@@ -41,9 +41,6 @@ type
   TransactionResponse* = object
     provider*: Provider
     hash* {.serialize.}: TransactionHash
-    convertCustomErrors*: ConvertCustomErrors
-  ConvertCustomErrors* =
-    proc(error: ref ProviderError): ref EthersError {.gcsafe, raises:[].}
   TransactionReceipt* {.serialize.} = object
     sender* {.serialize("from"), deserialize("from").}: ?Address
     to*: ?Address
@@ -270,11 +267,7 @@ proc confirm*(
 
     if txBlockNumber + confirmations.u256 <= blockNumber + 1:
       await subscription.unsubscribe()
-      try:
-        await tx.provider.ensureSuccess(receipt)
-      except ProviderError as error:
-        if convert =? tx.convertCustomErrors:
-          raise convert(error)
+      await tx.provider.ensureSuccess(receipt)
       return receipt
 
 proc confirm*(
