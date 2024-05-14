@@ -35,10 +35,10 @@ type
     gasLimit*: ?UInt256
   CallOverrides* = ref object of TransactionOverrides
     blockTag*: ?BlockTag
-
   ContractError* = object of EthersError
   Confirmable* = object
     response*: ?TransactionResponse
+    convert*: ConvertCustomErrors
   EventHandler*[E: Event] = proc(event: E) {.gcsafe, raises:[].}
 
 func new*(ContractType: type Contract,
@@ -124,14 +124,12 @@ proc call(contract: Contract,
 proc send(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = TransactionOverrides(),
-          convertCustomErrors: ConvertCustomErrors = nil):
+          overrides = TransactionOverrides()):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
     let transaction = createTransaction(contract, function, parameters, overrides)
     let populated = await signer.populateTransaction(transaction)
     var txResp = await signer.sendTransaction(populated)
-    txResp.convertCustomErrors = convertCustomErrors
     return txResp.some
   else:
     await call(contract, function, parameters, overrides)
@@ -229,9 +227,9 @@ func addContractCall(procedure: var NimNode) =
             "unexpected return type, " &
             "missing {.view.}, {.pure.} or {.getter.} ?"
           .}
+        let response = await send(`contract`, `function`, `parameters`, overrides)
         let convert = customErrorConversion(`errors`)
-        let response = await send(`contract`, `function`, `parameters`, overrides, convert)
-        Confirmable(response: response)
+        Confirmable(response: response, convert: convert)
 
   procedure[6] =
     if procedure.isConstant:
@@ -296,6 +294,21 @@ proc subscribe*[E: Event](contract: Contract,
 
   contract.provider.subscribe(filter, logHandler)
 
+proc confirm(tx: Confirmable, confirmations, timeout: int):
+  Future[TransactionReceipt] {.async.} =
+
+  without response =? tx.response:
+    raise newException(
+      EthersError,
+      "Transaction hash required. Possibly was a call instead of a send?"
+    )
+
+  try:
+    return await response.confirm(confirmations, timeout)
+  except ProviderError as error:
+    let convert = tx.convert
+    raise convert(error)
+
 proc confirm*(tx: Future[Confirmable],
               confirmations: int = EthersDefaultConfirmations,
               timeout: int = EthersReceiptTimeoutBlks):
@@ -305,13 +318,7 @@ proc confirm*(tx: Future[Confirmable],
   ## `await token.connect(signer0)
   ##          .mint(accounts[1], 100.u256)
   ##          .confirm(3)`
-  without response =? (await tx).response:
-    raise newException(
-      EthersError,
-      "Transaction hash required. Possibly was a call instead of a send?"
-    )
-
-  return await response.confirm(confirmations, timeout)
+  return await (await tx).confirm(confirmations, timeout)
 
 proc queryFilter[E: Event](contract: Contract,
                             _: type E,
