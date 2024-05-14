@@ -46,17 +46,17 @@ method allowance*(token: Erc20Token,
 
 method transfer*(token: Erc20Token,
                  recipient: Address,
-                 amount: UInt256): ?TransactionResponse {.base, contract.}
+                 amount: UInt256): Confirmable {.base, contract.}
   ## Moves `amount` tokens from the caller's account to `recipient`.
 
 method approve*(token: Erc20Token,
                 spender: Address,
-                amount: UInt256): ?TransactionResponse {.base, contract.}
+                amount: UInt256): Confirmable {.base, contract.}
   ## Sets `amount` as the allowance of `spender` over the caller's tokens.
 
 method increaseAllowance*(token: Erc20Token,
                 spender: Address,
-                addedValue: UInt256): ?TransactionResponse {.base, contract.}
+                addedValue: UInt256): Confirmable {.base, contract.}
   ## Atomically increases the allowance granted to spender by the caller.
   ## This is an alternative to approve that can be used as a mitigation for problems described in IERC20.approve.
   ## Emits an Approval event indicating the updated allowance.
@@ -65,7 +65,7 @@ method increaseAllowance*(token: Erc20Token,
 
 method decreaseAllowance*(token: Erc20Token,
                 spender: Address,
-                addedValue: UInt256): ?TransactionResponse {.base, contract.}
+                addedValue: UInt256): Confirmable {.base, contract.}
   ## Atomically decreases the allowance granted to spender by the caller.
   ## This is an alternative to approve that can be used as a mitigation for problems described in IERC20.approve.
   ## Emits an Approval event indicating the updated allowance.
@@ -75,6 +75,6 @@ method decreaseAllowance*(token: Erc20Token,
 method transferFrom*(token: Erc20Token,
                      spender: Address,
                      recipient: Address,
-                     amount: UInt256): ?TransactionResponse {.base, contract.}
+                     amount: UInt256): Confirmable {.base, contract.}
   ## Moves `amount` tokens from `spender` to `recipient` using the allowance
   ## mechanism. `amount` is then deducted from the caller's allowance.
