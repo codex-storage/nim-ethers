@@ -42,6 +42,13 @@ contract TestCustomErrors {
     );
   }
 
+  function revertsMultipleErrors(bool simple) public pure {
+    if (simple) {
+      revert SimpleError();
+    }
+    revert ErrorWithArguments(1, false);
+  }
+
   string private state;
 
   function revertsTransaction() public {
