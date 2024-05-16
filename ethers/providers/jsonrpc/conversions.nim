@@ -47,11 +47,6 @@ func fromJson(_: type Address, json: JsonNode): ?!Address =
 func `%`*(integer: UInt256): JsonNode =
   %("0x" & toHex(integer))
 
-func fromJson*(_: type UInt256, json: JsonNode): ?!UInt256 =
-  without result =? UInt256.fromHex(json.getStr()).catch, error:
-    return UInt256.failure error.msg
-  success result
-
 # Transaction
 
 # TODO: add option that ignores none Option[T]

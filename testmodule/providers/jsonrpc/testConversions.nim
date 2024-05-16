@@ -26,8 +26,7 @@ suite "JSON Conversions":
     json["number"] = newJString("")
 
     let blk2 = !Block.fromJson(json)
-    check blk2.number.isSome
-    check blk2.number.get.isZero
+    check blk2.number.isNone
 
   test "missing block hash in Block isNone":
 
@@ -78,8 +77,7 @@ suite "JSON Conversions":
     json["blockNumber"] = newJString("")
     without receipt2 =? TransactionReceipt.fromJson(json):
       fail
-    check receipt2.blockNumber.isSome
-    check receipt2.blockNumber.get.isZero
+    check receipt2.blockNumber.isNone
 
   test "missing block hash in TransactionReceipt isNone":
     let json = %*{
