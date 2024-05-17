@@ -223,3 +223,14 @@ suite "JSON Conversions":
       "gasPrice": 0x3b9aca07.u256,
       "gas": 0x52277.u256
     }
+
+  test "correctly deserializes BlockTag":
+    check !BlockTag.fromJson(newJString("earliest")) == BlockTag.earliest
+    check !BlockTag.fromJson(newJString("latest")) == BlockTag.latest
+    check !BlockTag.fromJson(newJString("pending")) == BlockTag.pending
+    check !BlockTag.fromJson(newJString("0x1")) == BlockTag.init(1.u256)
+
+  test "fails to deserialize BlockTag from an empty string":
+    let res = BlockTag.fromJson(newJString(""))
+    check res.error of SerializationError
+    check res.error.msg == "Failed to convert '\"\"' to BlockTag: must be one of 'earliest', 'latest', 'pending'"

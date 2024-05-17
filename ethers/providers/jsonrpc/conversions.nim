@@ -81,7 +81,7 @@ func `%`*(tag: BlockTag): JsonNode =
 func fromJson*(_: type BlockTag, json: JsonNode): ?!BlockTag =
   expectJsonKind(BlockTag, JString, json)
   let jsonVal = json.getStr
-  if jsonVal[0..1].toLowerAscii == "0x":
+  if jsonVal.len >= 2 and jsonVal[0..1].toLowerAscii == "0x":
     without blkNum =? UInt256.fromHex(jsonVal).catch, error:
       return BlockTag.failure error.msg
     return success BlockTag.init(blkNum)
