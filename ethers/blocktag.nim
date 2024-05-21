@@ -34,3 +34,10 @@ func `$`*(blockTag: BlockTag): string =
     blockTag.stringValue
   of numberBlockTag:
     "0x" & blockTag.numberValue.toHex
+
+func `==`*(a, b: BlockTag): bool =
+  case a.kind
+    of stringBlockTag:
+      a.stringValue == b.stringValue
+    of numberBlockTag:
+      a.numberValue == b.numberValue
