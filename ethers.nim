@@ -9,3 +9,5 @@ export signer
 export jsonrpc
 export contract
 export wallet
+
+let something = 2
