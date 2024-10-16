@@ -12,7 +12,7 @@ requires "json_rpc >= 0.4.0 & < 0.5.0"
 requires "serde >= 1.2.1 & < 1.3.0"
 requires "stint"
 requires "stew"
-requires "eth"
+requires "eth#c482b4c5b658a77cc96b49d4a397aa6d98472ac7"
 
 task test, "Run the test suite":
   exec "nimble install -d -y"
