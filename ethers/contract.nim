@@ -126,10 +126,17 @@ proc send(contract: Contract,
           overrides = TransactionOverrides()):
          Future[?TransactionResponse] {.async.} =
   if signer =? contract.signer:
-    let transaction = createTransaction(contract, function, parameters, overrides)
-    let populated = await signer.populateTransaction(transaction)
-    let txResp = await signer.sendTransaction(populated)
-    return txResp.some
+
+    var params: seq[string] = @[]
+    for param in parameters.fields:
+      params.add $param
+
+    withLock(signer):
+      var transaction = createTransaction(contract, function, parameters, overrides)
+      transaction = await signer.populateTransaction(transaction)
+      trace "sending transaction", function, params
+      let txResp = await signer.sendTransaction(transaction)
+      return txResp.some
   else:
     await call(contract, function, parameters, overrides)
     return TransactionResponse.none
