@@ -5,7 +5,6 @@ export basics
 
 type
   Signer* = ref object of RootObj
-    lastSeenNonce: ?UInt256
     populateLock: AsyncLock
 
 type
@@ -75,24 +74,6 @@ template withLock*(signer: Signer, body: untyped) =
   finally:
     signer.populateLock.release()
 
-
-
-method updateNonce*(
-  signer: Signer,
-  nonce: UInt256
-) {.base, gcsafe.} =
-
-  without lastSeen =? signer.lastSeenNonce:
-    signer.lastSeenNonce = some nonce
-    return
-
-  if nonce > lastSeen:
-    signer.lastSeenNonce = some nonce
-
-method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
-  if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
-    signer.lastSeenNonce = some lastSeen - 1
-
 method populateTransaction*(signer: Signer,
                             transaction: Transaction):
                            Future[Transaction] {.base, async.} =
@@ -126,7 +107,6 @@ method populateTransaction*(signer: Signer,
       populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
     except ProviderError, EstimateGasError:
       let e = getCurrentException()
-      signer.decreaseNonce()
       raise e
 
   else:

@@ -260,8 +260,6 @@ method signMessage*(signer: JsonRpcSigner,
 method sendTransaction*(signer: JsonRpcSigner,
                         transaction: Transaction): Future[TransactionResponse] {.async.} =
   convertError:
-    if nonce =? transaction.nonce:
-      signer.updateNonce(nonce)
     let
       client = await signer.provider.client
       hash = await client.eth_sendTransaction(transaction)
