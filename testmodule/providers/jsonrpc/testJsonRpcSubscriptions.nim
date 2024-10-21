@@ -142,7 +142,10 @@ suite "HTTP polling subscriptions - filter not found":
 
     await sleepAsync(300.millis)
     mockServer.invalidateFilter(id)
-    await sleepAsync(300.millis)
-    check mockServer.newFilterCounter == 2
+    check eventually mockServer.newFilterCounter == 2
+    check mockServer.filters[id] == false
+    check mockServer.filters.len() == 2
     await subscriptions.unsubscribe(jsonId)
+    check mockServer.filters.len() == 1
+
 

@@ -36,7 +36,7 @@ proc start*(server: MockRpcHttpServer) =
     if(not hasKey(server.filters, id)):
       raise (ref ApplicationError)(code: -32000, msg: "filter not found")
 
-    del(server.filters, id)
+    server.filters.del(id)
     return true
 
   server.srv.start()
