@@ -125,7 +125,7 @@ proc send(contract: Contract,
           function: string,
           parameters: tuple,
           overrides = TransactionOverrides()):
-         Future[?TransactionResponse] {.async.} =
+         Future[?TransactionResponse] {.async: (raises: [AsyncLockError]).} =
   if signer =? contract.signer:
 
     var params: seq[string] = @[]
