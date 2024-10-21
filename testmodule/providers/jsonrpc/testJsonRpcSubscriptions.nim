@@ -1,8 +1,13 @@
 import std/json
 import pkg/asynctest
+import pkg/serde
 import pkg/json_rpc/rpcclient
+import pkg/json_rpc/rpcserver
 import ethers/provider
 import ethers/providers/jsonrpc/subscriptions
+
+import ../../examples
+import ./rpc_mock
 
 suite "JsonRpcSubscriptions":
 
@@ -89,3 +94,55 @@ suite "HTTP polling subscriptions":
     await client.close()
 
   subscriptionTests(subscriptions, client)
+
+suite "HTTP polling subscriptions - filter not found":
+
+  var subscriptions: JsonRpcSubscriptions
+  var client: RpcHttpClient
+  var mockServer: MockRpcHttpServer
+
+  setup:
+    mockServer = MockRpcHttpServer.new()
+    mockServer.start()
+
+    client = newRpcHttpClient()
+    await client.connect("http://" & $mockServer.localAddress()[0])
+
+    subscriptions = JsonRpcSubscriptions.new(client,
+                                             pollingInterval = 100.millis)
+    subscriptions.start()
+
+  teardown:
+    await subscriptions.close()
+    await client.close()
+    await mockServer.stop()
+
+  test "filter not found error recreates filter":
+    let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    let emptyHandler = proc(log: Log) = discard
+
+    check mockServer.newFilterCounter == 0
+    let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
+    let id = string.fromJson(jsonId).tryGet
+    check mockServer.newFilterCounter == 1
+
+    await sleepAsync(300.millis)
+    mockServer.invalidateFilter(id)
+    await sleepAsync(300.millis)
+    check mockServer.newFilterCounter == 2
+
+  test "recreated filter can be still unsubscribed using the original id":
+    let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    let emptyHandler = proc(log: Log) = discard
+
+    check mockServer.newFilterCounter == 0
+    let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
+    let id = string.fromJson(jsonId).tryGet
+    check mockServer.newFilterCounter == 1
+
+    await sleepAsync(300.millis)
+    mockServer.invalidateFilter(id)
+    await sleepAsync(300.millis)
+    check mockServer.newFilterCounter == 2
+    await subscriptions.unsubscribe(jsonId)
+
