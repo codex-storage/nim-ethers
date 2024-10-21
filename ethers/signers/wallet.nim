@@ -86,6 +86,4 @@ method sendTransaction*(
   {.async: (raises:[SignerError, ProviderError]).} =
 
   let signed = await signTransaction(wallet, transaction)
-  if nonce =? transaction.nonce:
-    wallet.updateNonce(nonce)
   return await provider(wallet).sendTransaction(signed)

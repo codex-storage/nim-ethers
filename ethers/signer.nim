@@ -8,7 +8,6 @@ export basics
 
 type
   Signer* = ref object of RootObj
-    lastSeenNonce: ?UInt256
     populateLock: AsyncLock
   SignerError* = object of EthersError
 
@@ -93,28 +92,10 @@ template withLock*(signer: Signer, body: untyped) =
   finally:
     signer.populateLock.release()
 
-
-
-method updateNonce*(
-  signer: Signer,
-  nonce: UInt256
-) {.base, gcsafe.} =
-
-  without lastSeen =? signer.lastSeenNonce:
-    signer.lastSeenNonce = some nonce
-    return
-
-  if nonce > lastSeen:
-    signer.lastSeenNonce = some nonce
-
-method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
-  if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
-    signer.lastSeenNonce = some lastSeen - 1
-
 method populateTransaction*(
   signer: Signer,
   transaction: Transaction): Future[Transaction]
-  {.base, async: (raises: [CancelledError, AsyncLockError, ProviderError, SignerError]).} =
+  {.base, async: (raises: [CancelledError, ProviderError, SignerError]).} =
   ## Populates a transaction with sender, chainId, gasPrice, nonce, and gasLimit.
   ## NOTE: to avoid async concurrency issues, this routine should be called with
   ## a lock if it is followed by sendTransaction. For reference, see the `send`
@@ -147,10 +128,8 @@ method populateTransaction*(
       try:
         populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
       except EstimateGasError as e:
-        signer.decreaseNonce()
         raise e
       except ProviderError as e:
-        signer.decreaseNonce()
         raiseSignerError(e.msg)
 
   else:
@@ -165,7 +144,7 @@ method populateTransaction*(
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.base, async: (raises: [SignerError, ProviderError]).} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError, CancelledError, AsyncLockError, ProviderError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 

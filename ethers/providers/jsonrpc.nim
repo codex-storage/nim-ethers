@@ -327,8 +327,6 @@ method sendTransaction*(
   {.async: (raises:[SignerError, ProviderError]).} =
 
   convertError:
-    if nonce =? transaction.nonce:
-      signer.updateNonce(nonce)
     let
       client = await signer.provider.client
       hash = await client.eth_sendTransaction(transaction)
