@@ -90,17 +90,17 @@ proc decodeResponse(T: type, bytes: seq[byte]): T =
 
 proc call(provider: Provider,
           transaction: Transaction,
-          overrides: TransactionOverrides): Future[seq[byte]] =
+          overrides: TransactionOverrides): Future[seq[byte]] {.async: (raises: [ProviderError]).} =
   if overrides of CallOverrides and
      blockTag =? CallOverrides(overrides).blockTag:
-    provider.call(transaction, blockTag)
+    await provider.call(transaction, blockTag)
   else:
-    provider.call(transaction)
+    await provider.call(transaction)
 
 proc call(contract: Contract,
           function: string,
           parameters: tuple,
-          overrides = TransactionOverrides()) {.async.} =
+          overrides = TransactionOverrides()) {.async: (raises: [ProviderError, SignerError]).} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -112,7 +112,7 @@ proc call(contract: Contract,
           function: string,
           parameters: tuple,
           ReturnType: type,
-          overrides = TransactionOverrides()): Future[ReturnType] {.async.} =
+          overrides = TransactionOverrides()): Future[ReturnType] {.async: (raises: [ProviderError, SignerError, ContractError]).} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -121,13 +121,14 @@ proc call(contract: Contract,
   let response = await contract.provider.call(transaction, overrides)
   return decodeResponse(ReturnType, response)
 
-proc send(contract: Contract,
-          function: string,
-          parameters: tuple,
-          overrides = TransactionOverrides()):
-         Future[?TransactionResponse] {.async: (raises: [AsyncLockError]).} =
-  if signer =? contract.signer:
+proc send(
+  contract: Contract,
+  function: string,
+  parameters: tuple,
+  overrides = TransactionOverrides()
+): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, CancelledError, CatchableError]).} =
 
+  if signer =? contract.signer:
     var params: seq[string] = @[]
     for param in parameters.fields:
       params.add $param
