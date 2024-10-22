@@ -218,7 +218,7 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
+  discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
   subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
-  discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
   subscriptions.subscriptionMapping.del(id)
