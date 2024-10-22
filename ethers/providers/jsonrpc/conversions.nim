@@ -1,7 +1,7 @@
 import std/strformat
 import std/strutils
 import pkg/chronicles except fromJson, `%`, `%*`, toJson
-import pkg/json_rpc/jsonmarshal
+import pkg/json_rpc/jsonmarshal except toJson
 import pkg/questionable/results
 import pkg/serde
 import pkg/stew/byteutils
@@ -10,7 +10,7 @@ import ../../transaction
 import ../../blocktag
 import ../../provider
 
-export jsonmarshal
+export jsonmarshal except toJson
 export serde
 export chronicles except fromJson, `%`, `%*`, toJson
 
@@ -90,12 +90,13 @@ func fromJson*(_: type BlockTag, json: JsonNode): ?!BlockTag =
       "' to BlockTag: must be one of 'earliest', 'latest', 'pending'")
 
 # TransactionStatus | TransactionType
+type TransactionEnums = TransactionStatus | TransactionType
 
-func `%`*(e: TransactionStatus | TransactionType): JsonNode =
+func `%`*(e: TransactionEnums): JsonNode =
   % ("0x" & e.int8.toHex(1))
 
-proc fromJson*[E: TransactionStatus | TransactionType](
-  T: type E,
+proc fromJson*(
+  T: type TransactionEnums,
   json: JsonNode
 ): ?!T =
   expectJsonKind(string, JString, json)
