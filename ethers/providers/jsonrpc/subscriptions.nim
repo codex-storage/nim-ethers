@@ -1,5 +1,6 @@
 import std/tables
 import std/sequtils
+import std/strutils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
 import ../../basics
@@ -132,16 +133,31 @@ type
   PollingSubscriptions = ref object of JsonRpcSubscriptions
     polling: Future[void]
 
+    # We need to keep around the filters that are used to create log filters on the RPC node
+    # as there might be a time when they need to be recreated as RPC node might prune/forget
+    # about them
+    filters: Table[JsonNode, EventFilter]
+
+    # Used when filters are recreated to translate from the id that user
+    # originally got returned to new filter id
+    subscriptionMapping: Table[JsonNode, JsonNode]
+
 proc new*(_: type JsonRpcSubscriptions,
           client: RpcHttpClient,
           pollingInterval = 4.seconds): JsonRpcSubscriptions =
 
   let subscriptions = PollingSubscriptions(client: client)
 
-  proc getChanges(id: JsonNode): Future[JsonNode] {.async.} =
+  proc getChanges(originalId: JsonNode): Future[JsonNode] {.async.} =
     try:
-      return await subscriptions.client.eth_getFilterChanges(id)
-    except CatchableError:
+      let mappedId = subscriptions.subscriptionMapping[originalId]
+      return await subscriptions.client.eth_getFilterChanges(mappedId)
+    except CatchableError as e:
+      if "filter not found" in e.msg:
+        let filter = subscriptions.filters[originalId]
+        let newId = await subscriptions.client.eth_newFilter(filter)
+        subscriptions.subscriptionMapping[originalId] = newId
+
       return newJArray()
 
   proc poll(id: JsonNode) {.async.} =
@@ -180,6 +196,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
 
   let id = await subscriptions.client.eth_newBlockFilter()
   subscriptions.callbacks[id] = callback
+  subscriptions.subscriptionMapping[id] = id
   return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
@@ -194,10 +211,14 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback
+  subscriptions.filters[id] = filter
+  subscriptions.subscriptionMapping[id] = id
   return id
 
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
+  discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
+  subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
-  discard await subscriptions.client.eth_uninstallFilter(id)
+  subscriptions.subscriptionMapping.del(id)
