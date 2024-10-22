@@ -129,14 +129,10 @@ proc send(
 ): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, CancelledError, CatchableError]).} =
 
   if signer =? contract.signer:
-    var params: seq[string] = @[]
-    for param in parameters.fields:
-      params.add $param
-
     withLock(signer):
       let transaction = createTransaction(contract, function, parameters, overrides)
       let populated = await signer.populateTransaction(transaction)
-      trace "sending contract transaction", function, params
+      trace "sending contract transaction", function, params = $parameters
       let txResp = await signer.sendTransaction(populated)
       return txResp.some
   else:
