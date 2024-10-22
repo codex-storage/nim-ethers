@@ -40,7 +40,7 @@ suite "JSON Conversions":
     }
 
     without blk =? Block.fromJson(blkJson["result"]):
-      fail
+      unittest.fail
     check blk.hash.isNone
 
   test "missing block number in TransactionReceipt isNone":
@@ -71,12 +71,12 @@ suite "JSON Conversions":
     }
 
     without receipt1 =? TransactionReceipt.fromJson(json):
-      fail
+      unittest.fail
     check receipt1.blockNumber.isNone
 
     json["blockNumber"] = newJString("")
     without receipt2 =? TransactionReceipt.fromJson(json):
-      fail
+      unittest.fail
     check receipt2.blockNumber.isNone
 
   test "missing block hash in TransactionReceipt isNone":
@@ -107,7 +107,7 @@ suite "JSON Conversions":
     }
 
     without receipt =? TransactionReceipt.fromJson(json):
-      fail
+      unittest.fail
     check receipt.blockHash.isNone
 
   test "correctly deserializes PastTransaction":
@@ -131,7 +131,7 @@ suite "JSON Conversions":
     }
 
     without tx =? PastTransaction.fromJson(json):
-      fail
+      unittest.fail
     check tx.blockHash == BlockHash.fromHex("0x595bffbe897e025ea2df3213c4cc52c3f3d69bc04b49011d558f1b0e70038922")
     check tx.blockNumber == 0x22e.u256
     check tx.sender == Address.init("0xe00b677c29ff8d8fe6068530e2bc36158c54dd34").get
@@ -210,7 +210,7 @@ suite "JSON Conversions":
     }
 
     without past =? PastTransaction.fromJson(json):
-      fail
+      unittest.fail
     check %past.toTransaction == %*{
       "to": !Address.init("0x92f09aa59dccb892a9f5406ddd9c0b98f02ea57e"),
       "data": hexToSeqByte("0x6368a471d26ff5c7f835c1a8203235e88846ce1a196d6e79df0eaedd1b8ed3deec2ae5c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000012a00000000000000000000000000000000000000000000000000000000000000"),
@@ -232,3 +232,23 @@ suite "JSON Conversions":
     let res = BlockTag.fromJson(newJString(""))
     check res.error of SerializationError
     check res.error.msg == "Failed to convert '\"\"' to BlockTag: must be one of 'earliest', 'latest', 'pending'"
+
+  test "correctly deserializes TransactionType":
+    check !TransactionType.fromJson(newJString("0x0")) == TransactionType.Legacy
+    check !TransactionType.fromJson(newJString("0x1")) == TransactionType.AccessList
+    check !TransactionType.fromJson(newJString("0x2")) == TransactionType.Dynamic
+
+  test "correctly serializes TransactionType":
+    check TransactionType.Legacy.toJson == "\"0x0\""
+    check TransactionType.AccessList.toJson == "\"0x1\""
+    check TransactionType.Dynamic.toJson == "\"0x2\""
+
+  test "correctly deserializes TransactionStatus":
+    check !TransactionStatus.fromJson(newJString("0x0")) == TransactionStatus.Failure
+    check !TransactionStatus.fromJson(newJString("0x1")) == TransactionStatus.Success
+    check !TransactionStatus.fromJson(newJString("0x2")) == TransactionStatus.Invalid
+
+  test "correctly serializes TransactionStatus":
+    check TransactionStatus.Failure.toJson == "\"0x0\""
+    check TransactionStatus.Success.toJson == "\"0x1\""
+    check TransactionStatus.Invalid.toJson == "\"0x2\""
