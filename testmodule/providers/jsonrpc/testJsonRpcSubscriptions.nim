@@ -1,4 +1,5 @@
 import std/json
+import std/sequtils
 import pkg/asynctest
 import pkg/serde
 import pkg/json_rpc/rpcclient
@@ -109,7 +110,7 @@ suite "HTTP polling subscriptions - filter not found":
     await client.connect("http://" & $mockServer.localAddress()[0])
 
     subscriptions = JsonRpcSubscriptions.new(client,
-                                             pollingInterval = 100.millis)
+                                             pollingInterval = 15.millis)
     subscriptions.start()
 
   teardown:
@@ -126,9 +127,9 @@ suite "HTTP polling subscriptions - filter not found":
     let id = string.fromJson(jsonId).tryGet
     check mockServer.newFilterCounter == 1
 
-    await sleepAsync(300.millis)
+    await sleepAsync(50.millis)
     mockServer.invalidateFilter(id)
-    await sleepAsync(300.millis)
+    await sleepAsync(50.millis)
     check mockServer.newFilterCounter == 2
 
   test "recreated filter can be still unsubscribed using the original id":
@@ -140,7 +141,7 @@ suite "HTTP polling subscriptions - filter not found":
     let id = string.fromJson(jsonId).tryGet
     check mockServer.newFilterCounter == 1
 
-    await sleepAsync(300.millis)
+    await sleepAsync(50.millis)
     mockServer.invalidateFilter(id)
     check eventually mockServer.newFilterCounter == 2
     check mockServer.filters[id] == false
@@ -148,4 +149,8 @@ suite "HTTP polling subscriptions - filter not found":
     await subscriptions.unsubscribe(jsonId)
     check mockServer.filters.len() == 1
 
-
+    # invalidateFilter sets the filter's value to false which will return the "filter not found"
+    # unsubscribing will actually delete the key from filters table
+    # hence after unsubscribing the only key left in the table should be the original id
+    for key in mockServer.filters.keys():
+      check key == id
