@@ -272,3 +272,44 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
         .confirm(1)
 
       check receipt.status == TransactionStatus.Success
+
+    test "can cancel procs that execute transactions":
+      let signer = provider.getSigner()
+      let token = TestToken.new(token.address, signer)
+      let countBefore = await signer.getTransactionCount(BlockTag.pending)
+
+      proc executeTx {.async.} =
+        discard await token.mint(accounts[0], 100.u256)
+
+      await executeTx().cancelAndWait()
+      let countAfter = await signer.getTransactionCount(BlockTag.pending)
+      check countBefore == countAfter
+
+    test "concurrent transactions succeed even if one is cancelled":
+      let signer = provider.getSigner()
+      let token = TestToken.new(token.address, signer)
+      let balanceBefore = await token.myBalance()
+
+      proc executeTx: Future[Confirmable] {.async.} =
+        return await token.mint(accounts[0], 100.u256)
+
+      proc executeTxWithCancellation: Future[Confirmable] {.async.} =
+        let fut = token.mint(accounts[0], 100.u256)
+        fut.cancelSoon()
+        return await fut
+
+      # emulate concurrent populateTransaction/sendTransaction calls, where the
+      # first one fails
+      let futs = await allFinished(
+        executeTxWithCancellation(),
+        executeTx(),
+        executeTx()
+      )
+      let receipt1 = await futs[1].confirm(0)
+      let receipt2 = await futs[2].confirm(0)
+
+      check receipt1.status == TransactionStatus.Success
+      check receipt2.status == TransactionStatus.Success
+
+      let balanceAfter = await token.myBalance()
+      check balanceAfter == balanceBefore + 200.u256
