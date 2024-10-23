@@ -103,58 +103,34 @@ suite "HTTP polling subscriptions - filter not found":
   var mockServer: MockRpcHttpServer
 
   setup:
-    echo "Creating MockRpcHttpServer instance"
     mockServer = MockRpcHttpServer.new()
-    echo "Starting MockRpcHttpServer..."
     mockServer.start()
-    echo "Started MockRpcHttpServer"
 
-    echo "Creating new RpcHttpClient instance..."
     client = newRpcHttpClient()
-    echo "Connecting RpcHttpClient to MockRpcHttpServer..."
     await client.connect("http://" & $mockServer.localAddress()[0])
-    echo "Connected RpcHttpClient to MockRpcHttpServer"
 
-    echo "Creating new JsonRpcSubscriptions instance..."
     subscriptions = JsonRpcSubscriptions.new(client,
                                              pollingInterval = 100.millis)
-    echo "Starting JsonRpcSubscriptions..."
     subscriptions.start()
-    echo "Started JsonRpcSubscriptions"
 
   teardown:
-    echo "Closing subscriptions..."
     await subscriptions.close()
-    echo "Closing client..."
     await client.close()
-    echo "Stopping mock server..."
     await mockServer.stop()
-    echo "Stopped mock server"
 
   test "filter not found error recreates filter":
-    echo "1"
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
-    echo "2"
     let emptyHandler = proc(log: Log) = discard
-    echo "3"
 
     check mockServer.newFilterCounter == 0
-    echo "4"
     let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
-    echo "5"
     let id = string.fromJson(jsonId).tryGet
-    echo "6"
     check mockServer.newFilterCounter == 1
-    echo "7"
 
-    await sleepAsync(200.millis)
-    echo "8"
+    await sleepAsync(300.millis)
     mockServer.invalidateFilter(id)
-    echo "9"
-    await sleepAsync(200.millis)
-    echo "10"
+    await sleepAsync(300.millis)
     check mockServer.newFilterCounter == 2
-    echo "11"
 
   test "recreated filter can be still unsubscribed using the original id":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
@@ -165,7 +141,7 @@ suite "HTTP polling subscriptions - filter not found":
     let id = string.fromJson(jsonId).tryGet
     check mockServer.newFilterCounter == 1
 
-    await sleepAsync(200.millis)
+    await sleepAsync(300.millis)
     mockServer.invalidateFilter(id)
     check eventually mockServer.newFilterCounter == 2
     check mockServer.filters[id] == false

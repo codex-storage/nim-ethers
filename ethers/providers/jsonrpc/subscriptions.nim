@@ -175,11 +175,8 @@ proc new*(_: type JsonRpcSubscriptions,
   subscriptions
 
 method close*(subscriptions: PollingSubscriptions) {.async.} =
-  echo "Cancelling subscription polling..."
   await subscriptions.polling.cancelAndWait()
-  echo "Calling Provider.close..."
   await procCall JsonRpcSubscriptions(subscriptions).close()
-  echo "Close done."
 
 method subscribeBlocks(subscriptions: PollingSubscriptions,
                        onBlock: BlockHandler):

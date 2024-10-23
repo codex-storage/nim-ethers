@@ -14,10 +14,7 @@ type MockRpcHttpServer* = ref object
   srv: RpcHttpServer
 
 proc new*(_: type MockRpcHttpServer): MockRpcHttpServer =
-  let port = rand(49152..65535)
-  let srv = newRpcHttpServer(["127.0.0.1:" & $port])
-  let filters = initTable[string, bool]()
-  MockRpcHttpServer(filters: filters, newFilterCounter: 0, srv: srv)
+  MockRpcHttpServer(filters: initTable[string, bool](), newFilterCounter: 0, srv: newRpcHttpServer(["127.0.0.1:0"]))
 
 proc invalidateFilter*(server: MockRpcHttpServer, id: string) =
   server.filters[id] = false
