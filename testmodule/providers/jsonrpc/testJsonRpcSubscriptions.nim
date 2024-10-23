@@ -117,7 +117,7 @@ suite "HTTP polling subscriptions - filter not found":
 
     echo "Creating new JsonRpcSubscriptions instance..."
     subscriptions = JsonRpcSubscriptions.new(client,
-                                             pollingInterval = 15.millis)
+                                             pollingInterval = 100.millis)
     echo "Starting JsonRpcSubscriptions..."
     subscriptions.start()
     echo "Started JsonRpcSubscriptions"
