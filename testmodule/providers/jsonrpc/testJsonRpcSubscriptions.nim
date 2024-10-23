@@ -128,18 +128,29 @@ suite "HTTP polling subscriptions - filter not found":
     await mockServer.stop()
 
   test "filter not found error recreates filter":
+    echo "1"
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    echo "2"
     let emptyHandler = proc(log: Log) = discard
+    echo "3"
 
     check mockServer.newFilterCounter == 0
+    echo "4"
     let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
+    echo "5"
     let id = string.fromJson(jsonId).tryGet
+    echo "6"
     check mockServer.newFilterCounter == 1
+    echo "7"
 
     await sleepAsync(50.millis)
+    echo "8"
     mockServer.invalidateFilter(id)
+    echo "9"
     await sleepAsync(50.millis)
+    echo "10"
     check mockServer.newFilterCounter == 2
+    echo "11"
 
   test "recreated filter can be still unsubscribed using the original id":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])

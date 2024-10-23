@@ -6,7 +6,7 @@ import std/tables
 import pkg/stew/byteutils
 import pkg/json_rpc/rpcserver except `%`, `%*`
 import pkg/json_rpc/errors
-
+import std/random
 
 type MockRpcHttpServer* = ref object
   filters*: Table[string, bool]
@@ -14,7 +14,10 @@ type MockRpcHttpServer* = ref object
   srv: RpcHttpServer
 
 proc new*(_: type MockRpcHttpServer): MockRpcHttpServer =
-  MockRpcHttpServer(filters: initTable[string, bool](), newFilterCounter: 0, srv: newRpcHttpServer(["127.0.0.1:65080"]))
+  let port = rand(65000..<66000)
+  let srv = newRpcHttpServer(["127.0.0.1:" & port])
+  let filters = initTable[string, bool]()
+  MockRpcHttpServer(filters: filters, newFilterCounter: 0, srv: srv)
 
 proc invalidateFilter*(server: MockRpcHttpServer, id: string) =
   server.filters[id] = false
