@@ -123,9 +123,13 @@ suite "HTTP polling subscriptions - filter not found":
     echo "Started JsonRpcSubscriptions"
 
   teardown:
+    echo "Closing subscriptions..."
     await subscriptions.close()
+    echo "Closing client..."
     await client.close()
+    echo "Stopping mock server..."
     await mockServer.stop()
+    echo "Stopped mock server"
 
   test "filter not found error recreates filter":
     echo "1"
