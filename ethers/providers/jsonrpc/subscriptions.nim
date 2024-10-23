@@ -218,7 +218,16 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
   subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
   subscriptions.subscriptionMapping.del(id)
+  try:
+    discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
+  except CancelledError as e:
+    raise e
+  except CatchableError as e:
+    # Ignore if uninstallation of the filter fails. If it's the last step in our
+    # cleanup, then filter changes for this filter will no longer be polled so
+    # if the filter continues to live on in geth for whatever reason then it
+    # doesn't matter.
+    discard
