@@ -220,9 +220,10 @@ method unsubscribe*(subscriptions: PollingSubscriptions,
                   {.async.} =
   subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
+  let sub = subscriptions.subscriptionMapping[id]
   subscriptions.subscriptionMapping.del(id)
   try:
-    discard await subscriptions.client.eth_uninstallFilter(subscriptions.subscriptionMapping[id])
+    discard await subscriptions.client.eth_uninstallFilter(sub)
   except CancelledError as e:
     raise e
   except CatchableError as e:
