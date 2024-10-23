@@ -147,11 +147,11 @@ suite "HTTP polling subscriptions - filter not found":
     check mockServer.newFilterCounter == 1
     echo "7"
 
-    await sleepAsync(50.millis)
+    await sleepAsync(200.millis)
     echo "8"
     mockServer.invalidateFilter(id)
     echo "9"
-    await sleepAsync(50.millis)
+    await sleepAsync(200.millis)
     echo "10"
     check mockServer.newFilterCounter == 2
     echo "11"
@@ -165,7 +165,7 @@ suite "HTTP polling subscriptions - filter not found":
     let id = string.fromJson(jsonId).tryGet
     check mockServer.newFilterCounter == 1
 
-    await sleepAsync(50.millis)
+    await sleepAsync(200.millis)
     mockServer.invalidateFilter(id)
     check eventually mockServer.newFilterCounter == 2
     check mockServer.filters[id] == false
