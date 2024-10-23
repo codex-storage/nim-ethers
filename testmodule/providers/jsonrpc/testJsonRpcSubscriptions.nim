@@ -103,15 +103,24 @@ suite "HTTP polling subscriptions - filter not found":
   var mockServer: MockRpcHttpServer
 
   setup:
+    echo "Creating MockRpcHttpServer instance"
     mockServer = MockRpcHttpServer.new()
+    echo "Starting MockRpcHttpServer..."
     mockServer.start()
+    echo "Started MockRpcHttpServer"
 
+    echo "Creating new RpcHttpClient instance..."
     client = newRpcHttpClient()
+    echo "Connecting RpcHttpClient to MockRpcHttpServer..."
     await client.connect("http://" & $mockServer.localAddress()[0])
+    echo "Connected RpcHttpClient to MockRpcHttpServer"
 
+    echo "Creating new JsonRpcSubscriptions instance..."
     subscriptions = JsonRpcSubscriptions.new(client,
                                              pollingInterval = 15.millis)
+    echo "Starting JsonRpcSubscriptions..."
     subscriptions.start()
+    echo "Started JsonRpcSubscriptions"
 
   teardown:
     await subscriptions.close()
