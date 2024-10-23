@@ -1,3 +1,4 @@
+import std/os
 import std/strformat
 import pkg/asynctest
 import pkg/chronos
@@ -94,7 +95,7 @@ suite "Testing helpers - contracts":
   let revertReason = "revert reason"
 
   setup:
-    provider = JsonRpcProvider.new("ws://127.0.0.1:8545")
+    provider = JsonRpcProvider.new("ws://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
     snapshot = await provider.send("evm_snapshot")
     accounts = await provider.listAccounts()
     helpersContract = TestHelpers.new(provider.getSigner())

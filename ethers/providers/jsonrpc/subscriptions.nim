@@ -151,11 +151,14 @@ proc new*(_: type JsonRpcSubscriptions,
   proc getChanges(originalId: JsonNode): Future[JsonNode] {.async.} =
     try:
       let mappedId = subscriptions.subscriptionMapping[originalId]
+      echo "getting changes for originalId: ", $originalId, "; mappedId: ", $mappedId
       return await subscriptions.client.eth_getFilterChanges(mappedId)
     except CatchableError as e:
       if "filter not found" in e.msg:
+        echo "filter not found - recreating; originalId: ", originalId
         let filter = subscriptions.filters[originalId]
         let newId = await subscriptions.client.eth_newFilter(filter)
+        echo "filter not found - newId: ", newId
         subscriptions.subscriptionMapping[originalId] = newId
 
       return newJArray()
@@ -168,7 +171,9 @@ proc new*(_: type JsonRpcSubscriptions,
   proc poll {.async.} =
     untilCancelled:
       for id in toSeq subscriptions.callbacks.keys:
+        echo "polling for key:", $id
         await poll(id)
+      echo "sleeping"
       await sleepAsync(pollingInterval)
 
   subscriptions.polling = poll()
@@ -221,6 +226,7 @@ method unsubscribe*(subscriptions: PollingSubscriptions,
   subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
   let sub = subscriptions.subscriptionMapping[id]
+  echo "unsubscribing; originalId: ", $id, "; mappedId: ", $sub
   subscriptions.subscriptionMapping.del(id)
   try:
     discard await subscriptions.client.eth_uninstallFilter(sub)

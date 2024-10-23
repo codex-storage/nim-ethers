@@ -1,4 +1,5 @@
 import std/json
+import std/os
 import std/sequtils
 import pkg/asynctest
 import pkg/serde
@@ -68,7 +69,7 @@ suite "Web socket subscriptions":
 
   setup:
     client = newRpcWebSocketClient()
-    await client.connect("ws://localhost:8545")
+    await client.connect("ws://"  & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
     subscriptions = JsonRpcSubscriptions.new(client)
     subscriptions.start()
 
@@ -85,7 +86,7 @@ suite "HTTP polling subscriptions":
 
   setup:
     client = newRpcHttpClient()
-    await client.connect("http://localhost:8545")
+    await client.connect("http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
     subscriptions = JsonRpcSubscriptions.new(client,
                                              pollingInterval = 100.millis)
     subscriptions.start()
