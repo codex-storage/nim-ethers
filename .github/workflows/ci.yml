@@ -1,31 +1,46 @@
 name: CI
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         nim: [1.6.20, stable]
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+
     - name: Install Nim
-      uses: iffy/install-nim@v3
+      uses: iffy/install-nim@v4
       with:
         version: ${{ matrix.nim }}
+
     - name: Install NodeJS
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: 18
+
     - name: Install test node
       working-directory: testnode
       run: npm install
+
     - name: Run test node
       working-directory: testnode
       run: npm start &
+
     - name: Build
       run: nimble install -y
+
     - name: Test
       run: nimble test -y
+
+  status:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')  || contains(needs.*.result, 'skipped') }}
+        run: exit 1
