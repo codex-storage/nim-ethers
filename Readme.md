@@ -202,6 +202,9 @@ $ npm ci
 $ npm start
 ```
 
+If you need to use different port for the RPC node, then you can start with `npm start -- --port 1111` and
+then run the tests with `ETHERS_TEST_PROVIDER=1111 nimble test`.
+
 Thanks
 ------
 
