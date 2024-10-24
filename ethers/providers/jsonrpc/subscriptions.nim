@@ -164,8 +164,14 @@ proc new*(_: type JsonRpcSubscriptions,
       raise e
     except CatchableError as e:
       if "filter not found" in e.msg:
-        let filter = subscriptions.filters[originalId]
-        let newId = await subscriptions.client.eth_newFilter(filter)
+        var newId: JsonNode
+        # If there exists filter for given ID, then the filter was a log filter
+        # otherwise it was a block filter
+        if subscriptions.filters.hasKey(originalId):
+          let filter = subscriptions.filters[originalId]
+          newId = await subscriptions.client.eth_newFilter(filter)
+        else:
+          newId = await subscriptions.client.eth_newBlockFilter()
         subscriptions.subscriptionMapping[originalId] = newId
         return await getChanges(originalId)
       else:
