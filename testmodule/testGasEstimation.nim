@@ -15,9 +15,10 @@ suite "gas estimation":
   var contract: TestGasEstimation
   var provider: JsonRpcProvider
   var snapshot: JsonNode
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
+    provider = JsonRpcProvider.new("http://" & providerUrl)
     snapshot = await provider.send("evm_snapshot")
     let deployment = readDeployment()
     let signer = provider.getSigner()

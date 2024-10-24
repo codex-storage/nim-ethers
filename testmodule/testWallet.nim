@@ -13,9 +13,10 @@ proc transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.contract.}
 suite "Wallet":
   var provider: JsonRpcProvider
   var snapshot: JsonNode
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
+    provider = JsonRpcProvider.new("http://" & providerUrl)
     snapshot = await provider.send("evm_snapshot")
 
   teardown:

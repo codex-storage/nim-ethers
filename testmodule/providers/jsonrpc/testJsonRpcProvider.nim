@@ -7,7 +7,8 @@ import pkg/stew/byteutils
 import ../../examples
 import ../../miner
 
-for url in ["ws://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"), "http://"  & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")]:
+let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+for url in ["ws://" & providerUrl, "http://"  & providerUrl]:
 
   suite "JsonRpcProvider (" & url & ")":
 

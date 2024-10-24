@@ -8,9 +8,10 @@ suite "JsonRpcSigner":
 
   var provider: JsonRpcProvider
   var accounts: seq[Address]
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
+    provider = JsonRpcProvider.new("http://" & providerUrl)
     accounts = await provider.listAccounts()
 
   teardown:
