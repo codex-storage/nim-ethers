@@ -17,6 +17,7 @@ type
     methodHandlers: Table[string, MethodHandler]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
+  SubscriptionError* = object of EthersError
 
 {.push raises:[].}
 
@@ -130,7 +131,7 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
 # Polling
 
 type
-  PollingSubscriptions = ref object of JsonRpcSubscriptions
+  PollingSubscriptions* = ref object of JsonRpcSubscriptions
     polling: Future[void]
 
     # We need to keep around the filters that are used to create log filters on the RPC node
@@ -151,17 +152,24 @@ proc new*(_: type JsonRpcSubscriptions,
   proc getChanges(originalId: JsonNode): Future[JsonNode] {.async.} =
     try:
       let mappedId = subscriptions.subscriptionMapping[originalId]
-      echo "getting changes for originalId: ", $originalId, "; mappedId: ", $mappedId
-      return await subscriptions.client.eth_getFilterChanges(mappedId)
+      let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
+      if changes.kind == JNull:
+        return newJArray()
+      elif changes.kind != JArray:
+        raise newException(SubscriptionError,
+          "HTTP polling: unexpected value returned from eth_getFilterChanges." &
+          " Expected: JArray, got: " & $changes.kind)
+      return changes
+    except CancelledError as e:
+      raise e
     except CatchableError as e:
       if "filter not found" in e.msg:
-        echo "filter not found - recreating; originalId: ", originalId
         let filter = subscriptions.filters[originalId]
         let newId = await subscriptions.client.eth_newFilter(filter)
-        echo "filter not found - newId: ", newId
         subscriptions.subscriptionMapping[originalId] = newId
-
-      return newJArray()
+        return await getChanges(originalId)
+      else:
+        raise e
 
   proc poll(id: JsonNode) {.async.} =
     for change in await getChanges(id):
@@ -171,9 +179,7 @@ proc new*(_: type JsonRpcSubscriptions,
   proc poll {.async.} =
     untilCancelled:
       for id in toSeq subscriptions.callbacks.keys:
-        echo "polling for key:", $id
         await poll(id)
-      echo "sleeping"
       await sleepAsync(pollingInterval)
 
   subscriptions.polling = poll()
@@ -226,13 +232,12 @@ method unsubscribe*(subscriptions: PollingSubscriptions,
   subscriptions.filters.del(id)
   subscriptions.callbacks.del(id)
   let sub = subscriptions.subscriptionMapping[id]
-  echo "unsubscribing; originalId: ", $id, "; mappedId: ", $sub
   subscriptions.subscriptionMapping.del(id)
   try:
     discard await subscriptions.client.eth_uninstallFilter(sub)
   except CancelledError as e:
     raise e
-  except CatchableError as e:
+  except CatchableError:
     # Ignore if uninstallation of the filter fails. If it's the last step in our
     # cleanup, then filter changes for this filter will no longer be polled so
     # if the filter continues to live on in geth for whatever reason then it

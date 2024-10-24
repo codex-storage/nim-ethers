@@ -1,6 +1,7 @@
 import std/json
 import std/os
 import std/sequtils
+import std/importutils
 import pkg/asynctest
 import pkg/serde
 import pkg/json_rpc/rpcclient
@@ -99,9 +100,11 @@ suite "HTTP polling subscriptions":
 
 suite "HTTP polling subscriptions - filter not found":
 
-  var subscriptions: JsonRpcSubscriptions
+  var subscriptions: PollingSubscriptions
   var client: RpcHttpClient
   var mockServer: MockRpcHttpServer
+
+  privateAccess(PollingSubscriptions)
 
   setup:
     mockServer = MockRpcHttpServer.new()
@@ -110,8 +113,10 @@ suite "HTTP polling subscriptions - filter not found":
     client = newRpcHttpClient()
     await client.connect("http://" & $mockServer.localAddress()[0])
 
-    subscriptions = JsonRpcSubscriptions.new(client,
-                                             pollingInterval = 100.millis)
+    subscriptions = PollingSubscriptions(
+                      JsonRpcSubscriptions.new(
+                        client,
+                        pollingInterval = 1.millis))
     subscriptions.start()
 
   teardown:
@@ -123,35 +128,26 @@ suite "HTTP polling subscriptions - filter not found":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: Log) = discard
 
-    check mockServer.newFilterCounter == 0
-    let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
-    let id = string.fromJson(jsonId).tryGet
-    check mockServer.newFilterCounter == 1
+    check subscriptions.filters.len == 0
+    check subscriptions.subscriptionMapping.len == 0
 
-    await sleepAsync(300.millis)
+    let id = await subscriptions.subscribeLogs(filter, emptyHandler)
+
+    check subscriptions.filters[id] == filter
+    check subscriptions.subscriptionMapping[id] == id
+
     mockServer.invalidateFilter(id)
-    await sleepAsync(300.millis)
-    check mockServer.newFilterCounter == 2
+
+    check eventually subscriptions.subscriptionMapping[id] != id
 
   test "recreated filter can be still unsubscribed using the original id":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: Log) = discard
-
-    check mockServer.newFilterCounter == 0
-    let jsonId = await subscriptions.subscribeLogs(filter, emptyHandler)
-    let id = string.fromJson(jsonId).tryGet
-    check mockServer.newFilterCounter == 1
-
-    await sleepAsync(300.millis)
+    let id = await subscriptions.subscribeLogs(filter, emptyHandler)
     mockServer.invalidateFilter(id)
-    check eventually mockServer.newFilterCounter == 2
-    check mockServer.filters[id] == false
-    check mockServer.filters.len() == 2
-    await subscriptions.unsubscribe(jsonId)
-    check mockServer.filters.len() == 1
+    check eventually subscriptions.subscriptionMapping[id] != id
 
-    # invalidateFilter sets the filter's value to false which will return the "filter not found"
-    # unsubscribing will actually delete the key from filters table
-    # hence after unsubscribing the only key left in the table should be the original id
-    for key in mockServer.filters.keys():
-      check key == id
+    await subscriptions.unsubscribe(id)
+
+    check not subscriptions.filters.hasKey id
+    check not subscriptions.subscriptionMapping.hasKey id
