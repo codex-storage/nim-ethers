@@ -1,3 +1,4 @@
+import std/os
 import pkg/asynctest
 import pkg/ethers
 import pkg/stew/byteutils
@@ -7,9 +8,10 @@ suite "JsonRpcSigner":
 
   var provider: JsonRpcProvider
   var accounts: seq[Address]
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new()
+    provider = JsonRpcProvider.new("http://" & providerUrl)
     accounts = await provider.listAccounts()
 
   teardown:

@@ -1,4 +1,5 @@
 import std/json
+import std/os
 import std/options
 import pkg/asynctest
 import pkg/questionable
@@ -16,7 +17,8 @@ type
 method mint(token: TestToken, holder: Address, amount: UInt256): Confirmable {.base, contract.}
 method myBalance(token: TestToken): UInt256 {.base, contract, view.}
 
-for url in ["ws://localhost:8545", "http://localhost:8545"]:
+let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
 
   suite "Contracts (" & url & ")":
 
