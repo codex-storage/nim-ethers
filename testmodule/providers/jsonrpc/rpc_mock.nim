@@ -25,6 +25,11 @@ proc start*(server: MockRpcHttpServer) =
     server.filters.add filterId
     return filterId
 
+  server.srv.router.rpc("eth_newBlockFilter") do() -> string:
+    let filterId = "0x" & (array[16, byte].example).toHex
+    server.filters.add filterId
+    return filterId
+
   server.srv.router.rpc("eth_getFilterChanges") do(id: string) -> seq[string]:
     if id notin server.filters:
       raise (ref ApplicationError)(code: -32000, msg: "filter not found")
