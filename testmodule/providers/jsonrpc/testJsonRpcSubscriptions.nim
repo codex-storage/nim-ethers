@@ -124,7 +124,7 @@ suite "HTTP polling subscriptions - filter not found":
     await client.close()
     await mockServer.stop()
 
-  test "filter not found error recreates filter":
+  test "filter not found error recreates log filter":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: Log) = discard
 
@@ -142,7 +142,7 @@ suite "HTTP polling subscriptions - filter not found":
 
     check eventually subscriptions.subscriptionMapping[id] != id
 
-  test "recreated filter can be still unsubscribed using the original id":
+  test "recreated log filter can be still unsubscribed using the original id":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: Log) = discard
     let id = await subscriptions.subscribeLogs(filter, emptyHandler)
@@ -152,4 +152,25 @@ suite "HTTP polling subscriptions - filter not found":
     await subscriptions.unsubscribe(id)
 
     check not subscriptions.filters.hasKey id
+    check not subscriptions.subscriptionMapping.hasKey id
+
+  test "filter not found error recreates block filter":
+    let emptyHandler = proc(blck: Block) = discard
+
+    check subscriptions.subscriptionMapping.len == 0
+    let id = await subscriptions.subscribeBlocks(emptyHandler)
+    check subscriptions.subscriptionMapping[id] == id
+
+    mockServer.invalidateFilter(id)
+
+    check eventually subscriptions.subscriptionMapping[id] != id
+
+  test "recreated block filter can be still unsubscribed using the original id":
+    let emptyHandler = proc(blck: Block) = discard
+    let id = await subscriptions.subscribeBlocks(emptyHandler)
+    mockServer.invalidateFilter(id)
+    check eventually subscriptions.subscriptionMapping[id] != id
+
+    await subscriptions.unsubscribe(id)
+
     check not subscriptions.subscriptionMapping.hasKey id
