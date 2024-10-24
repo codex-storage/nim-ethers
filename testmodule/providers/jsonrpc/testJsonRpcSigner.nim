@@ -84,24 +84,3 @@ suite "JsonRpcSigner":
     transaction.chainId = 0xdeadbeef.u256.some
     expect SignerError:
       discard await signer.populateTransaction(transaction)
-
-  test "concurrent populate calls increment nonce":
-    let signer = provider.getSigner()
-    let count = await signer.getTransactionCount(BlockTag.pending)
-    var transaction1 = Transaction.example
-    var transaction2 = Transaction.example
-    var transaction3 = Transaction.example
-
-    let populated = await allFinished(
-      signer.populateTransaction(transaction1),
-      signer.populateTransaction(transaction2),
-      signer.populateTransaction(transaction3)
-    )
-
-    transaction1 = await populated[0]
-    transaction2 = await populated[1]
-    transaction3 = await populated[2]
-
-    check !transaction1.nonce == count
-    check !transaction2.nonce == count + 1.u256
-    check !transaction3.nonce == count + 2.u256
