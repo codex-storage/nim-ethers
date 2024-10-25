@@ -1,5 +1,5 @@
 import std/unittest
-import std/json
+import pkg/serde
 import pkg/questionable
 import pkg/ethers/providers/jsonrpc/errors
 

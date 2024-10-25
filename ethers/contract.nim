@@ -1,4 +1,4 @@
-import std/json
+import pkg/serde
 import std/macros
 import std/sequtils
 import pkg/chronicles
