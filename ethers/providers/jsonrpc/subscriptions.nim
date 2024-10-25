@@ -3,12 +3,15 @@ import std/sequtils
 import std/strutils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
+import pkg/serde
 import ../../basics
 import ../../provider
 include ../../nimshims/hashes
 import ./rpccalls
 import ./conversions
 import ./looping
+
+export serde
 
 type
   JsonRpcSubscriptions* = ref object of RootObj
