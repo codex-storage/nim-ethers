@@ -8,7 +8,6 @@ export basics
 
 type
   Signer* = ref object of RootObj
-    lastSeenNonce: ?UInt256
     populateLock: AsyncLock
   SignerError* = object of EthersError
 
@@ -81,34 +80,26 @@ method getChainId*(
 method getNonce(
   signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError, ProviderError]).} =
 
-  var nonce = await signer.getTransactionCount(BlockTag.pending)
+  return await signer.getTransactionCount(BlockTag.pending)
 
-  if lastSeen =? signer.lastSeenNonce and lastSeen >= nonce:
-    nonce = (lastSeen + 1.u256)
-  signer.lastSeenNonce = some nonce
+template withLock*(signer: Signer, body: untyped) =
+  if signer.populateLock.isNil:
+    signer.populateLock = newAsyncLock()
 
-  return nonce
-
-method updateNonce*(
-  signer: Signer,
-  nonce: UInt256
-) {.base, gcsafe.} =
-
-  without lastSeen =? signer.lastSeenNonce:
-    signer.lastSeenNonce = some nonce
-    return
-
-  if nonce > lastSeen:
-    signer.lastSeenNonce = some nonce
-
-method decreaseNonce*(signer: Signer) {.base, gcsafe.} =
-  if lastSeen =? signer.lastSeenNonce and lastSeen > 0:
-    signer.lastSeenNonce = some lastSeen - 1
+  await signer.populateLock.acquire()
+  try:
+    body
+  finally:
+    signer.populateLock.release()
 
 method populateTransaction*(
   signer: Signer,
   transaction: Transaction): Future[Transaction]
-  {.base, async: (raises: [CancelledError, AsyncLockError, ProviderError, SignerError]).} =
+  {.base, async: (raises: [CancelledError, ProviderError, SignerError]).} =
+  ## Populates a transaction with sender, chainId, gasPrice, nonce, and gasLimit.
+  ## NOTE: to avoid async concurrency issues, this routine should be called with
+  ## a lock if it is followed by sendTransaction. For reference, see the `send`
+  ## function in contract.nim.
 
   var address: Address
   convertError:
@@ -119,20 +110,14 @@ method populateTransaction*(
   if chainId =? transaction.chainId and chainId != await signer.getChainId():
     raiseSignerError("chain id mismatch")
 
-  if signer.populateLock.isNil:
-    signer.populateLock = newAsyncLock()
-
-  await signer.populateLock.acquire()
-
   var populated = transaction
 
-  try:
-    if transaction.sender.isNone:
-      populated.sender = some(address)
-    if transaction.chainId.isNone:
-      populated.chainId = some(await signer.getChainId())
-    if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
-      populated.gasPrice = some(await signer.getGasPrice())
+  if transaction.sender.isNone:
+    populated.sender = some(address)
+  if transaction.chainId.isNone:
+    populated.chainId = some(await signer.getChainId())
+  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
+    populated.gasPrice = some(await signer.getGasPrice())
 
     if transaction.nonce.isNone and transaction.gasLimit.isNone:
       # when both nonce and gasLimit are not populated, we must ensure getNonce is
@@ -143,27 +128,23 @@ method populateTransaction*(
       try:
         populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
       except EstimateGasError as e:
-        signer.decreaseNonce()
         raise e
       except ProviderError as e:
-        signer.decreaseNonce()
         raiseSignerError(e.msg)
 
-    else:
-      if transaction.nonce.isNone:
-        populated.nonce = some(await signer.getNonce())
-      if transaction.gasLimit.isNone:
-        populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
-
-  finally:
-    signer.populateLock.release()
+  else:
+    if transaction.nonce.isNone:
+      let nonce = await signer.getNonce()
+      populated.nonce = some nonce
+    if transaction.gasLimit.isNone:
+      populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
 
   return populated
 
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.base, async: (raises: [SignerError, ProviderError]).} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError, CancelledError, AsyncLockError, ProviderError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 
@@ -172,7 +153,8 @@ method cancelTransaction*(
   without nonce =? tx.nonce:
     raiseSignerError "transaction must have nonce"
 
-  var cancelTx = Transaction(to: sender, value: 0.u256, nonce: some nonce)
-  convertError:
-    cancelTx = await signer.populateTransaction(cancelTx)
-    return await signer.sendTransaction(cancelTx)
+  withLock(signer):
+    convertError:
+      var cancelTx = Transaction(to: sender, value: 0.u256, nonce: some nonce)
+      cancelTx = await signer.populateTransaction(cancelTx)
+      return await signer.sendTransaction(cancelTx)
