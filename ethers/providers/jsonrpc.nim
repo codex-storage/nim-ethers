@@ -17,6 +17,7 @@ export basics
 export provider
 export chronicles
 export errors.JsonRpcProviderError
+export subscriptions
 
 {.push raises: [].}
 
