@@ -1,5 +1,6 @@
 import pkg/chronicles
 import pkg/serde
+import pkg/questionable
 import ./basics
 import ./transaction
 import ./blocktag
@@ -13,8 +14,6 @@ export blocktag
 
 type
   Provider* = ref object of RootObj
-  ProviderError* = object of EthersError
-    data*: ?seq[byte]
   EstimateGasError* = object of ProviderError
     transaction*: Transaction
   Subscription* = ref object of RootObj
@@ -56,8 +55,8 @@ type
     effectiveGasPrice*: ?UInt256
     status*: TransactionStatus
     transactionType* {.serialize("type"), deserialize("type").}: TransactionType
-  LogHandler* = proc(log: Log) {.gcsafe, raises:[].}
-  BlockHandler* = proc(blck: Block) {.gcsafe, raises:[].}
+  LogHandler* = proc(log: SubscriptionResult[Log]) {.gcsafe, raises:[].}
+  BlockHandler* = proc(blck: SubscriptionResult[Block]) {.gcsafe, raises:[].}
   Topic* = array[32, byte]
   Block* {.serialize.} = object
     number*: ?UInt256
@@ -227,7 +226,7 @@ proc confirm*(
   tx: TransactionResponse,
   confirmations = EthersDefaultConfirmations,
   timeout = EthersReceiptTimeoutBlks): Future[TransactionReceipt]
-  {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
+  {.async: (raises: [CancelledError, ProviderError, SubscriptionError, EthersError]).} =
 
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations).
@@ -235,13 +234,20 @@ proc confirm*(
   ## blocks have passed without the tx having been mined.
 
   var blockNumber: UInt256
+  var blockSubscriptionError: ref SubscriptionError
   let blockEvent = newAsyncEvent()
 
   proc onBlockNumber(number: UInt256) =
     blockNumber = number
     blockEvent.fire()
 
-  proc onBlock(blck: Block) =
+  proc onBlock(blckResult: SubscriptionResult[Block]) =
+    if blckResult.isErr:
+      blockSubscriptionError = blckResult.error()
+      blockEvent.fire()
+
+    let blck = blckResult.value
+
     if number =? blck.number:
       onBlockNumber(number)
 
@@ -254,6 +260,9 @@ proc confirm*(
   while true:
     await blockEvent.wait()
     blockEvent.clear()
+
+    if not isNil(blockSubscriptionError):
+      raise blockSubscriptionError
 
     if blockNumber >= finish:
       await subscription.unsubscribe()

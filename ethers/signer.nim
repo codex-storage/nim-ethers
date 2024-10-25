@@ -1,5 +1,6 @@
 import pkg/questionable
 import ./basics
+import ./errors
 import ./provider
 
 export basics
@@ -9,10 +10,6 @@ export basics
 type
   Signer* = ref object of RootObj
     populateLock: AsyncLock
-  SignerError* = object of EthersError
-
-template raiseSignerError(message: string, parent: ref ProviderError = nil) =
-  raise newException(SignerError, message, parent)
 
 template convertError(body) =
   try:

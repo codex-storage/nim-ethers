@@ -3,6 +3,7 @@ import std/macros
 import std/sequtils
 import pkg/chronicles
 import pkg/chronos
+import pkg/questionable
 import pkg/contractabi
 import ./basics
 import ./provider
@@ -35,11 +36,10 @@ type
     gasLimit*: ?UInt256
   CallOverrides* = ref object of TransactionOverrides
     blockTag*: ?BlockTag
-  ContractError* = object of EthersError
   Confirmable* = object
     response*: ?TransactionResponse
     convert*: ConvertCustomErrors
-  EventHandler*[E: Event] = proc(event: E) {.gcsafe, raises:[].}
+  EventHandler*[E: Event] = proc(event: ?!E) {.gcsafe, raises:[].}
 
 func new*(ContractType: type Contract,
           address: Address,
@@ -292,9 +292,13 @@ proc subscribe*[E: Event](contract: Contract,
   let topic = topic($E, E.fieldTypes).toArray
   let filter = EventFilter(address: contract.address, topics: @[topic])
 
-  proc logHandler(log: Log) {.raises: [].} =
+  proc logHandler(logResult: ?!Log) {.raises: [].} =
+    without log ?= logResult, err:
+      handler(failure(e))
+      return
+
     if event =? E.decode(log.data, log.topics):
-      handler(event)
+      handler(success(event))
 
   contract.provider.subscribe(filter, logHandler)
 
