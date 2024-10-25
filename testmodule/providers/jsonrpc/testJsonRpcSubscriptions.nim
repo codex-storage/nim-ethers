@@ -135,6 +135,8 @@ suite "HTTP polling subscriptions - filter not found":
 
     check subscriptions.filters[id] == filter
     check subscriptions.subscriptionMapping[id] == id
+    check subscriptions.filters.len == 1
+    check subscriptions.subscriptionMapping.len == 1
 
     mockServer.invalidateFilter(id)
 
