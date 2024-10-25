@@ -1,3 +1,4 @@
+import std/os
 import pkg/asynctest
 import pkg/chronos
 import pkg/ethers
@@ -6,7 +7,8 @@ import pkg/stew/byteutils
 import ../../examples
 import ../../miner
 
-for url in ["ws://localhost:8545", "http://localhost:8545"]:
+let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+for url in ["ws://" & providerUrl, "http://"  & providerUrl]:
 
   suite "JsonRpcProvider (" & url & ")":
 

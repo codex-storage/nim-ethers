@@ -1,3 +1,4 @@
+import std/os
 import std/strformat
 import pkg/asynctest
 import pkg/chronos
@@ -92,9 +93,10 @@ suite "Testing helpers - contracts":
   var snapshot: JsonNode
   var accounts: seq[Address]
   let revertReason = "revert reason"
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("ws://127.0.0.1:8545")
+    provider = JsonRpcProvider.new("ws://" & providerUrl)
     snapshot = await provider.send("evm_snapshot")
     accounts = await provider.listAccounts()
     helpersContract = TestHelpers.new(provider.getSigner())

@@ -1,3 +1,4 @@
+import std/os
 import pkg/asynctest
 import pkg/ethers
 import pkg/serde
@@ -14,9 +15,10 @@ suite "Contract enum parameters and return values":
   var contract: TestEnums
   var provider: JsonRpcProvider
   var snapshot: JsonNode
+  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new()
+    provider = JsonRpcProvider.new("http://" & providerUrl)
     snapshot = await provider.send("evm_snapshot")
     let deployment = readDeployment()
     contract = TestEnums.new(!deployment.address(TestEnums), provider)
