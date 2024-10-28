@@ -1,4 +1,4 @@
-import std/json
+import pkg/serde
 import std/os
 import std/options
 import pkg/asynctest

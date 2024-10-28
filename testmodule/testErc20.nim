@@ -1,5 +1,5 @@
 import std/os
-import std/json
+import pkg/serde
 import pkg/asynctest
 import pkg/questionable
 import pkg/stint

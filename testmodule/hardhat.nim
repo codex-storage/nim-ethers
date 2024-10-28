@@ -1,4 +1,4 @@
-import std/json
+import pkg/serde
 import pkg/ethers/basics
 
 type Deployment* = object

@@ -2,7 +2,7 @@
 ## `std/json.JsonNode.hash`, eg when using `JsonNode` as a `Table` key. Adds
 ## {.raises: [].} for proper exception tracking. Copied from the std/json module
 
-import std/json
+import pkg/serde
 import std/hashes
 
 {.push raises:[].}
