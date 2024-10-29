@@ -128,14 +128,14 @@ suite "HTTP polling subscriptions - filter not found":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: Log) = discard
 
-    check subscriptions.filters.len == 0
+    check subscriptions.logFilters.len == 0
     check subscriptions.subscriptionMapping.len == 0
 
     let id = await subscriptions.subscribeLogs(filter, emptyHandler)
 
-    check subscriptions.filters[id] == filter
+    check subscriptions.logFilters[id] == filter
     check subscriptions.subscriptionMapping[id] == id
-    check subscriptions.filters.len == 1
+    check subscriptions.logFilters.len == 1
     check subscriptions.subscriptionMapping.len == 1
 
     mockServer.invalidateFilter(id)
@@ -151,7 +151,7 @@ suite "HTTP polling subscriptions - filter not found":
 
     await subscriptions.unsubscribe(id)
 
-    check not subscriptions.filters.hasKey id
+    check not subscriptions.logFilters.hasKey id
     check not subscriptions.subscriptionMapping.hasKey id
 
   test "filter not found error recreates block filter":
