@@ -140,7 +140,7 @@ type
     # We need to keep around the filters that are used to create log filters on the RPC node
     # as there might be a time when they need to be recreated as RPC node might prune/forget
     # about them
-    filters: Table[JsonNode, EventFilter]
+    logFilters: Table[JsonNode, EventFilter]
 
     # Used when filters are recreated to translate from the id that user
     # originally got returned to new filter id
@@ -167,8 +167,15 @@ proc new*(_: type JsonRpcSubscriptions,
       raise e
     except CatchableError as e:
       if "filter not found" in e.msg:
-        let filter = subscriptions.filters[originalId]
-        let newId = await subscriptions.client.eth_newFilter(filter)
+        var newId: JsonNode
+        # Log filters are stored in logFilters, block filters are not persisted
+        # there is they do not need any specific data for their recreation.
+        # We use this to determine if the filter was log or block filter here.
+        if subscriptions.logFilters.hasKey(originalId):
+          let filter = subscriptions.logFilters[originalId]
+          newId = await subscriptions.client.eth_newFilter(filter)
+        else:
+          newId = await subscriptions.client.eth_newBlockFilter()
         subscriptions.subscriptionMapping[originalId] = newId
         return await getChanges(originalId)
       else:
@@ -225,14 +232,14 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback
-  subscriptions.filters[id] = filter
+  subscriptions.logFilters[id] = filter
   subscriptions.subscriptionMapping[id] = id
   return id
 
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  subscriptions.filters.del(id)
+  subscriptions.logFilters.del(id)
   subscriptions.callbacks.del(id)
   let sub = subscriptions.subscriptionMapping[id]
   subscriptions.subscriptionMapping.del(id)
