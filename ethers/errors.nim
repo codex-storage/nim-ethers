@@ -1,7 +1,23 @@
 import ./basics
 
-type SolidityError* = object of EthersError
+type
+  SolidityError* = object of EthersError
+  ContractError* = object of EthersError
+  SignerError* = object of EthersError
+  SubscriptionError* = object of EthersError
+  ProviderError* = object of EthersError
+    data*: ?seq[byte]
+
+template raiseSignerError*(message: string, parent: ref ProviderError = nil) =
+  raise newException(SignerError, message, parent)
 
 {.push raises:[].}
+
+proc toErr*[E1: ref CatchableError, E2: EthersError](
+  e1: E1,
+  _: type E2,
+  msg: string = e1.msg): ref E2 =
+
+  return newException(E2, msg, e1)
 
 template errors*(types) {.pragma.}

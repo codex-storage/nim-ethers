@@ -1,8 +1,11 @@
 import std/strutils
 import pkg/stew/byteutils
 import ../../basics
+import ../../errors
 import ../../provider
 import ./conversions
+
+export errors
 
 {.push raises:[].}
 
