@@ -293,8 +293,8 @@ proc subscribe*[E: Event](contract: Contract,
   let filter = EventFilter(address: contract.address, topics: @[topic])
 
   proc logHandler(logResult: ?!Log) {.raises: [].} =
-    without log =? logResult, err:
-      handler(failure(E, err))
+    without log =? logResult, error:
+      handler(failure(E, error))
       return
 
     if event =? E.decode(log.data, log.topics):
