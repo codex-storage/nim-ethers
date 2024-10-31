@@ -1,9 +1,12 @@
 import std/tables
 import std/sequtils
+import std/strutils
 import pkg/chronos
+import pkg/questionable
 import pkg/json_rpc/rpcclient
 import pkg/serde
 import ../../basics
+import ../../errors
 import ../../provider
 include ../../nimshims/hashes
 import ./rpccalls
@@ -17,8 +20,7 @@ type
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
-  SubscriptionCallback = proc(id, arguments: JsonNode) {.gcsafe, raises:[].}
-  SubscriptionError* = object of EthersError
+  SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
 {.push raises:[].}
 
@@ -54,7 +56,7 @@ proc setMethodHandler(
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
                        Future[JsonNode]
-                       {.async, base.} =
+                       {.async, base, raises: [CancelledError].} =
   raiseAssert "not implemented"
 
 method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
@@ -75,14 +77,16 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
     await subscriptions.unsubscribe(id)
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
-                 id: JsonNode): ?SubscriptionCallback =
+                 id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
   try:
     if not id.isNil and id in subscriptions.callbacks:
-      subscriptions.callbacks[id].some
+        try:
+          return subscriptions.callbacks[id].some
+        except: discard
     else:
-      SubscriptionCallback.none
+      return SubscriptionCallback.none
   except KeyError:
-    SubscriptionCallback.none
+    return SubscriptionCallback.none
 
 # Web sockets
 
@@ -96,17 +100,22 @@ proc new*(_: type JsonRpcSubscriptions,
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
     let id = arguments{"subscription"} or newJString("")
     if callback =? subscriptions.getCallback(id):
-      callback(id, arguments)
+      callback(id, success(arguments))
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
   subscriptions
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
                       Future[JsonNode]
-                      {.async.} =
-  proc callback(id, arguments: JsonNode) {.raises: [].} =
+                      {.async, raises: [].} =
+  proc callback(id: JsonNode, argumentsResult: ?!JsonNode) {.raises: [].} =
+    without arguments =? argumentsResult, error:
+        onBlock(failure(Block, error.toErr(SubscriptionError)))
+        return
+
     if blck =? Block.fromJson(arguments{"result"}):
-      onBlock(blck)
+      onBlock(success(blck))
+
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
   return id
@@ -116,9 +125,14 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      onLog: LogHandler):
                     Future[JsonNode]
                     {.async.} =
-  proc callback(id, arguments: JsonNode) =
+  proc callback(id: JsonNode, argumentsResult: ?!JsonNode) =
+    without arguments =? argumentsResult, error:
+      onLog(failure(Log, error.toErr(SubscriptionError)))
+      return
+
     if log =? Log.fromJson(arguments{"result"}):
-      onLog(log)
+      onLog(success(log))
+
   let id = await subscriptions.client.eth_subscribe("logs", filter)
   subscriptions.callbacks[id] = callback
   return id
@@ -150,7 +164,7 @@ proc new*(_: type JsonRpcSubscriptions,
 
   let subscriptions = PollingSubscriptions(client: client)
 
-  proc resubscribe(id: JsonNode) {.async: (raises: [CancelledError]).} =
+  proc resubscribe(id: JsonNode) {.async: (raises: [CancelledError, SubscriptionError]).} =
     try:
       var newId: JsonNode
       # Log filters are stored in logFilters, block filters are not persisted
@@ -164,34 +178,44 @@ proc new*(_: type JsonRpcSubscriptions,
       subscriptions.subscriptionMapping[id] = newId
     except CancelledError as error:
       raise error
-    except CatchableError:
-      # there's nothing further we can do here
-      discard
+    except CatchableError as e:
+      raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
 
-  proc getChanges(id: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError]).} =
+  proc getChanges(id: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError, SubscriptionError]).} =
     if mappedId =? subscriptions.subscriptionMapping.?[id]:
       try:
         let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
         if changes.kind == JArray:
           return changes
-      except JsonRpcError:
+      except JsonRpcError as e:
         await resubscribe(id)
         # TODO: we could still miss some events between losing the subscription
         # and resubscribing. We should probably adopt a strategy like ethers.js,
         # whereby we keep track of the latest block number that we've seen
         # filter changes for:
         # https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/providers/src.ts/base-provider.ts#L977
-      except CancelledError as error:
-        raise error
-      except CatchableError:
-        # there's nothing we can do here
-        discard
+
+        if not ("filter not found" in e.msg):
+          raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
+      except CancelledError as e:
+        raise e
+      except SubscriptionError as e:
+        raise e
+      except CatchableError as e:
+        raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
     return newJArray()
 
   proc poll(id: JsonNode) {.async: (raises: [CancelledError]).} =
-    for change in await getChanges(id):
-      if callback =? subscriptions.getCallback(id):
-        callback(id, change)
+    without callback =? subscriptions.getCallback(id):
+        return
+
+    try:
+      for change in await getChanges(id):
+        callback(id, success(change))
+    except CancelledError as e:
+          raise e
+    except CatchableError as e:
+      callback(id, failure(JsonNode, e))
 
   proc poll {.async: (raises: []).} =
     try:
@@ -213,16 +237,23 @@ method close*(subscriptions: PollingSubscriptions) {.async.} =
 method subscribeBlocks(subscriptions: PollingSubscriptions,
                        onBlock: BlockHandler):
                       Future[JsonNode]
-                      {.async.} =
+                      {.async, raises:[CancelledError].} =
 
-  proc getBlock(hash: BlockHash) {.async.} =
+  proc getBlock(hash: BlockHash) {.async: (raises:[]).} =
     try:
       if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
-        onBlock(blck)
-    except CatchableError:
+        onBlock(success(blck))
+    except CancelledError as e:
       discard
+    except CatchableError as e:
+      let wrappedErr = newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg, e)
+      onBlock(failure(Block, wrappedErr))
 
-  proc callback(id, change: JsonNode) =
+  proc callback(id: JsonNode, changeResult: ?!JsonNode) {.raises:[].} =
+    without change =? changeResult, error:
+        onBlock(failure(Block, error.toErr(SubscriptionError)))
+        return
+
     if hash =? BlockHash.fromJson(change):
       asyncSpawn getBlock(hash)
 
@@ -237,9 +268,13 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
                     Future[JsonNode]
                     {.async.} =
 
-  proc callback(id, change: JsonNode) =
+  proc callback(id: JsonNode, changeResult: ?!JsonNode) =
+    without change =? changeResult, error:
+        onLog(failure(Log, error.toErr(SubscriptionError)))
+        return
+
     if log =? Log.fromJson(change):
-      onLog(log)
+      onLog(success(log))
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback

@@ -131,14 +131,20 @@ You can now subscribe to Transfer events by calling `subscribe` on the contract
 instance.
 
 ```nim
-proc handleTransfer(transfer: Transfer) =
-  echo "received transfer: ", transfer
+proc handleTransfer(transferResult: ?!Transfer) =
+  if transferResult.isOk:
+    echo "received transfer: ", transferResult.value
 
 let subscription = await token.subscribe(Transfer, handleTransfer)
 ```
 
 When a Transfer event is emitted, the `handleTransfer` proc that you just
-defined will be called.
+defined will be called with a [Result](https://github.com/arnetheduck/nim-results) type
+which contains the event value.
+
+In case there is some underlying error in the event subscription, the handler will
+be called as well, but the Result will contain error instead, so do proper error
+management in your handlers.
 
 When you're no longer interested in these events, you can unsubscribe:
 

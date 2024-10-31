@@ -149,8 +149,9 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     test "receives events when subscribed":
       var transfers: seq[Transfer]
 
-      proc handleTransfer(transfer: Transfer) =
-        transfers.add(transfer)
+      proc handleTransfer(transferRes: ?!Transfer) =
+        if transfer =? transferRes:
+          transfers.add(transfer)
 
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])
@@ -171,8 +172,9 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     test "stops receiving events when unsubscribed":
       var transfers: seq[Transfer]
 
-      proc handleTransfer(transfer: Transfer) =
-        transfers.add(transfer)
+      proc handleTransfer(transferRes: ?!Transfer) =
+        if transfer =? transferRes:
+          transfers.add(transfer)
 
       let signer0 = provider.getSigner(accounts[0])
 
