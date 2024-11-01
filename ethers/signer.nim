@@ -139,7 +139,7 @@ method populateTransaction*(
     if transaction.gasLimit.isNone:
       populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
 
-  doAssert transaction.nonce.isSome, "nonce not populated!"
+  doAssert populated.nonce.isSome, "nonce not populated!"
 
   return populated
 
