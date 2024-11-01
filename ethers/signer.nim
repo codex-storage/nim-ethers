@@ -119,18 +119,18 @@ method populateTransaction*(
   if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
     populated.gasPrice = some(await signer.getGasPrice())
 
-    if transaction.nonce.isNone and transaction.gasLimit.isNone:
-      # when both nonce and gasLimit are not populated, we must ensure getNonce is
-      # followed by an estimateGas so we can determine if there was an error. If
-      # there is an error, the nonce must be decreased to prevent nonce gaps and
-      # stuck transactions
-      populated.nonce = some(await signer.getNonce())
-      try:
-        populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
-      except EstimateGasError as e:
-        raise e
-      except ProviderError as e:
-        raiseSignerError(e.msg)
+  if transaction.nonce.isNone and transaction.gasLimit.isNone:
+    # when both nonce and gasLimit are not populated, we must ensure getNonce is
+    # followed by an estimateGas so we can determine if there was an error. If
+    # there is an error, the nonce must be decreased to prevent nonce gaps and
+    # stuck transactions
+    populated.nonce = some(await signer.getNonce())
+    try:
+      populated.gasLimit = some(await signer.estimateGas(populated, BlockTag.pending))
+    except EstimateGasError as e:
+      raise e
+    except ProviderError as e:
+      raiseSignerError(e.msg)
 
   else:
     if transaction.nonce.isNone:
