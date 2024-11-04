@@ -134,6 +134,8 @@ instance.
 proc handleTransfer(transferResult: ?!Transfer) =
   if transferResult.isOk:
     echo "received transfer: ", transferResult.value
+  else:
+    echo "error during transfer: ", transferResult.error.msg
 
 let subscription = await token.subscribe(Transfer, handleTransfer)
 ```
