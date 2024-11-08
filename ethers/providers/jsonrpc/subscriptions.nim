@@ -69,7 +69,7 @@ method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
 
 method unsubscribe*(subscriptions: JsonRpcSubscriptions,
                     id: JsonNode)
-                   {.async, base.} =
+                   {.async: (raises: [CancelledError]), base.} =
   raiseAssert "not implemented"
 
 method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
@@ -128,9 +128,15 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
-                  {.async.} =
-  subscriptions.callbacks.del(id)
-  discard await subscriptions.client.eth_unsubscribe(id)
+                  {.async: (raises: [CancelledError]).} =
+  try:
+    subscriptions.callbacks.del(id)
+    discard await subscriptions.client.eth_unsubscribe(id)
+  except CancelledError as e:
+    raise e
+  except KeyError, CatchableError:
+    # Ignore if uninstallation of the filter fails.
+    discard
 
 # Polling
 
@@ -249,16 +255,16 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
-                  {.async.} =
-  subscriptions.logFilters.del(id)
-  subscriptions.callbacks.del(id)
-  let sub = subscriptions.subscriptionMapping[id]
-  subscriptions.subscriptionMapping.del(id)
+                  {.async: (raises: [CancelledError]).} =
   try:
+    subscriptions.logFilters.del(id)
+    subscriptions.callbacks.del(id)
+    let sub = subscriptions.subscriptionMapping[id]
+    subscriptions.subscriptionMapping.del(id)
     discard await subscriptions.client.eth_uninstallFilter(sub)
   except CancelledError as e:
     raise e
-  except CatchableError:
+  except KeyError, CatchableError:
     # Ignore if uninstallation of the filter fails. If it's the last step in our
     # cleanup, then filter changes for this filter will no longer be polled so
     # if the filter continues to live on in geth for whatever reason then it
