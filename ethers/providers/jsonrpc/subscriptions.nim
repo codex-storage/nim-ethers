@@ -10,6 +10,7 @@ include ../../nimshims/hashes
 import ./rpccalls
 import ./conversions
 import ./looping
+import ./then
 
 export serde
 
@@ -192,11 +193,21 @@ proc new*(_: type JsonRpcSubscriptions,
         await poll(id)
       await sleepAsync(pollingInterval)
 
-  subscriptions.polling = poll()
+  proc keepAlivePolling =
+    subscriptions.polling = poll()
+    subscriptions.polling.catch(proc(e: ref CatchableError) =
+      trace "subscription polling loop failed, restarting", error = e.msg
+      startPolling()
+      trace "subscription polling loop restarted"
+    )
+
+  keepAlivePolling()
   subscriptions
 
 method close*(subscriptions: PollingSubscriptions) {.async.} =
-  await subscriptions.polling.cancelAndWait()
+  trace "closing polling subscriptions"
+  if not subscriptions.polling.finished:
+    await subscriptions.polling.cancelAndWait()
   await procCall JsonRpcSubscriptions(subscriptions).close()
 
 method subscribeBlocks(subscriptions: PollingSubscriptions,
