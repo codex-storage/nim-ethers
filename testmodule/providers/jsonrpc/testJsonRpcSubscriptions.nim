@@ -2,7 +2,7 @@ import pkg/serde
 import std/os
 import std/sequtils
 import std/importutils
-import pkg/asynctest/chronos/unittest
+import pkg/asynctest
 import pkg/json_rpc/rpcclient except `%`, `%*`, toJson
 import pkg/json_rpc/rpcserver except `%`, `%*`, toJson
 import ethers/provider
