@@ -2,10 +2,9 @@ import pkg/serde
 import std/os
 import std/sequtils
 import std/importutils
-import pkg/asynctest
-import pkg/serde
-import pkg/json_rpc/rpcclient
-import pkg/json_rpc/rpcserver
+import pkg/asynctest/chronos/unittest
+import pkg/json_rpc/rpcclient except `%`, `%*`, toJson
+import pkg/json_rpc/rpcserver except `%`, `%*`, toJson
 import ethers/provider
 import ethers/providers/jsonrpc/subscriptions
 
@@ -103,6 +102,7 @@ suite "HTTP polling subscriptions - filter not found":
   var subscriptions: PollingSubscriptions
   var client: RpcHttpClient
   var mockServer: MockRpcHttpServer
+  var url: string
 
   privateAccess(PollingSubscriptions)
 
@@ -111,7 +111,8 @@ suite "HTTP polling subscriptions - filter not found":
     mockServer.start()
 
     client = newRpcHttpClient()
-    await client.connect("http://" & $mockServer.localAddress()[0])
+    url = "http://" & $mockServer.localAddress()[0]
+    await client.connect(url)
 
     subscriptions = PollingSubscriptions(
                       JsonRpcSubscriptions.new(
@@ -123,6 +124,30 @@ suite "HTTP polling subscriptions - filter not found":
     await subscriptions.close()
     await client.close()
     await mockServer.stop()
+
+  test "polling loop is kept alive after disconnection":
+    let log = Log(blockNumber: 999999.u256)
+
+    var latestBlock = 0.u256
+    proc callback(log: Log) =
+      trace "GOT LOG IN CALLBACK", number = log.blockNumber
+      latestBlock = log.blockNumber
+
+    let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    let emptyHandler = proc(log: Log) = discard
+
+    let id = await subscriptions.subscribeLogs(filter, callback)
+    # simulate failed requests by connecting to an invalid port
+    await client.connect("http://127.0.0.1:1")
+    await sleepAsync(5.millis) # wait for polling loop
+    trace "STARTING MOCK SERVER"
+    await client.connect(url)
+    trace "ADDING FILTER CHANGE"
+    mockServer.addFilterChange(id, log)
+
+    check eventually(latestBlock == log.blockNumber, timeout=200)
+
+    await subscriptions.unsubscribe(id)
 
   test "filter not found error recreates log filter":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
