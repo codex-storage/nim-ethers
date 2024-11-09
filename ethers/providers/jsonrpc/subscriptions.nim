@@ -202,9 +202,18 @@ proc new*(_: type JsonRpcSubscriptions,
   proc keepAlivePolling =
     subscriptions.polling = poll()
     subscriptions.polling.catch(proc(e: ref CatchableError) =
-      trace "subscription polling loop failed, restarting", error = e.msg
-      startPolling()
-      trace "subscription polling loop restarted"
+      # ignore CancelledError, no need to bubble it
+      if e of RpcPostError:
+        discard sleepAsync(pollingInterval).then(proc() =
+          trace "restarting subscription polling loop"
+          subscriptions.polling = nil # release
+          keepAlivePolling()
+          trace "subscription polling loop restarted"
+        )
+      else:
+        # What should we do here?
+        fatal "polling loop has failed", error = e.msg
+        raise newException(Defect, "polling loop has failed")
     )
 
   keepAlivePolling()
