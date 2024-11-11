@@ -1,4 +1,3 @@
-import pkg/serde
 import std/os
 import std/sequtils
 import std/importutils
@@ -106,12 +105,17 @@ suite "HTTP polling subscriptions - filter not found":
 
   privateAccess(PollingSubscriptions)
 
-  setup:
+  proc startServer() {.async.} =
     mockServer = MockRpcHttpServer.new()
     mockServer.start()
-
-    client = newRpcHttpClient()
     await client.connect("http://" & $mockServer.localAddress()[0])
+
+  proc stopServer() {.async.} =
+    await mockServer.stop()
+
+  setup:
+    client = newRpcHttpClient()
+    await startServer()
 
     subscriptions = PollingSubscriptions(
                       JsonRpcSubscriptions.new(
@@ -174,3 +178,16 @@ suite "HTTP polling subscriptions - filter not found":
     await subscriptions.unsubscribe(id)
 
     check not subscriptions.subscriptionMapping.hasKey id
+
+  test "polling continues with new filter after temporary error":
+    let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    let emptyHandler = proc(log: Log) = discard
+
+    let id = await subscriptions.subscribeLogs(filter, emptyHandler)
+
+    await stopServer()
+    mockServer.invalidateFilter(id)
+    await sleepAsync(50.milliseconds)
+    await startServer()
+
+    check eventually subscriptions.subscriptionMapping[id] != id

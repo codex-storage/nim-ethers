@@ -152,47 +152,62 @@ proc new*(_: type JsonRpcSubscriptions,
 
   let subscriptions = PollingSubscriptions(client: client)
 
-  proc getChanges(originalId: JsonNode): Future[JsonNode] {.async.} =
+  proc resubscribe(id: JsonNode) {.async: (raises: [CancelledError]).} =
     try:
-      let mappedId = subscriptions.subscriptionMapping[originalId]
-      let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
-      if changes.kind == JNull:
-        return newJArray()
-      elif changes.kind != JArray:
-        raise newException(SubscriptionError,
-          "HTTP polling: unexpected value returned from eth_getFilterChanges." &
-          " Expected: JArray, got: " & $changes.kind)
-      return changes
-    except CancelledError as e:
-      raise e
-    except CatchableError as e:
-      if "filter not found" in e.msg:
-        var newId: JsonNode
-        # Log filters are stored in logFilters, block filters are not persisted
-        # there is they do not need any specific data for their recreation.
-        # We use this to determine if the filter was log or block filter here.
-        if subscriptions.logFilters.hasKey(originalId):
-          let filter = subscriptions.logFilters[originalId]
-          newId = await subscriptions.client.eth_newFilter(filter)
-        else:
-          newId = await subscriptions.client.eth_newBlockFilter()
-        subscriptions.subscriptionMapping[originalId] = newId
-        return await getChanges(originalId)
+      var newId: JsonNode
+      # Log filters are stored in logFilters, block filters are not persisted
+      # there is they do not need any specific data for their recreation.
+      # We use this to determine if the filter was log or block filter here.
+      if subscriptions.logFilters.hasKey(id):
+        let filter = subscriptions.logFilters[id]
+        newId = await subscriptions.client.eth_newFilter(filter)
       else:
-        raise e
+        newId = await subscriptions.client.eth_newBlockFilter()
+      subscriptions.subscriptionMapping[id] = newId
+    except CancelledError as error:
+      raise error
+    except CatchableError:
+      # there's nothing further we can do here
+      discard
 
-  proc poll(id: JsonNode) {.async.} =
+  proc getChanges(id: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError]).} =
+    try:
+      let mappedId = subscriptions.subscriptionMapping[id]
+      let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
+      if changes.kind == JArray:
+        return changes
+    except KeyError as error:
+      raiseAssert "subscription mapping invalid: " & error.msg
+    except JsonRpcError:
+      await resubscribe(id)
+      # TODO: we could still miss some events between losing the subscription
+      # and resubscribing. We should probably adopt a strategy like ethers.js,
+      # whereby we keep track of the latest block number that we've seen
+      # filter changes for:
+      # https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/providers/src.ts/base-provider.ts#L977
+    except CancelledError as error:
+      raise error
+    except CatchableError:
+      # there's nothing we can do here
+      discard
+    return newJArray()
+
+  proc poll(id: JsonNode) {.async: (raises: [CancelledError]).} =
     for change in await getChanges(id):
       if callback =? subscriptions.getCallback(id):
         callback(id, change)
 
-  proc poll {.async.} =
-    untilCancelled:
-      for id in toSeq subscriptions.callbacks.keys:
-        await poll(id)
-      await sleepAsync(pollingInterval)
+  proc poll {.async: (raises: []).} =
+    try:
+      while true:
+        for id in toSeq subscriptions.callbacks.keys:
+          await poll(id)
+        await sleepAsync(pollingInterval)
+    except CancelledError:
+      discard
 
   subscriptions.polling = poll()
+  asyncSpawn subscriptions.polling
   subscriptions
 
 method close*(subscriptions: PollingSubscriptions) {.async.} =
