@@ -2,7 +2,6 @@ import ../../examples
 import ../../../ethers/provider
 import ../../../ethers/providers/jsonrpc/conversions
 
-import std/tables
 import std/sequtils
 import pkg/stew/byteutils
 import pkg/json_rpc/rpcserver except `%`, `%*`
