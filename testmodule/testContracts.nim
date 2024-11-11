@@ -305,8 +305,8 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
         executeTx(),
         executeTx()
       )
-      let receipt1 = await futs[1].confirm(0)
-      let receipt2 = await futs[2].confirm(0)
+      let receipt1 = await futs[1].confirm(1)
+      let receipt2 = await futs[2].confirm(1)
 
       check receipt1.status == TransactionStatus.Success
       check receipt2.status == TransactionStatus.Success
