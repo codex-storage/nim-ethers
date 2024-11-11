@@ -230,22 +230,27 @@ proc confirm*(
   {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
 
   ## Waits for a transaction to be mined and for the specified number of blocks
-  ## to pass since it was mined (confirmations).
+  ## to pass since it was mined (confirmations). The number of confirmations
+  ## includes the block in which the transaction was mined.
   ## A timeout, in blocks, can be specified that will raise an error if too many
   ## blocks have passed without the tx having been mined.
+
+  assert confirmations > 0
 
   var blockNumber: UInt256
   let blockEvent = newAsyncEvent()
 
-  proc onBlockNumber(number: UInt256) =
-    blockNumber = number
-    blockEvent.fire()
+  proc updateBlockNumber {.async: (raises: [ProviderError]).} =
+    let number = await tx.provider.getBlockNumber()
+    if number > blockNumber:
+      blockNumber = number
+      blockEvent.fire()
 
-  proc onBlock(blck: Block) =
-    if number =? blck.number:
-      onBlockNumber(number)
+  proc onBlock(_: Block) =
+    # ignore block parameter; hardhat may call this with pending blocks
+    asyncSpawn updateBlockNumber()
 
-  onBlockNumber(await tx.provider.getBlockNumber())
+  await updateBlockNumber()
   let subscription = await tx.provider.subscribe(onBlock)
 
   let finish = blockNumber + timeout.u256

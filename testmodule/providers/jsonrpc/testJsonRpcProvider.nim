@@ -68,13 +68,13 @@ for url in ["ws://" & providerUrl, "http://"  & providerUrl]:
       check UInt256.fromHex("0x" & txResp.hash.toHex) > 0
 
     test "can wait for a transaction to be confirmed":
-      for confirmations in 0..3:
+      for confirmations in 1..3:
         let signer = provider.getSigner()
         let transaction = Transaction.example
         let populated = await signer.populateTransaction(transaction)
         let confirming = signer.sendTransaction(populated).confirm(confirmations)
         await sleepAsync(100.millis) # wait for tx to be mined
-        await provider.mineBlocks(confirmations - 1)
+        await provider.mineBlocks(confirmations)
         let receipt = await confirming
         check receipt.blockNumber.isSome
 
