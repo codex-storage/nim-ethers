@@ -240,11 +240,15 @@ proc confirm*(
   var blockNumber: UInt256
   let blockEvent = newAsyncEvent()
 
-  proc updateBlockNumber {.async: (raises: [ProviderError]).} =
-    let number = await tx.provider.getBlockNumber()
-    if number > blockNumber:
-      blockNumber = number
-      blockEvent.fire()
+  proc updateBlockNumber {.async: (raises: []).} =
+    try:
+      let number = await tx.provider.getBlockNumber()
+      if number > blockNumber:
+        blockNumber = number
+        blockEvent.fire()
+    except ProviderError:
+      # there's nothing we can do here
+      discard
 
   proc onBlock(_: Block) =
     # ignore block parameter; hardhat may call this with pending blocks
