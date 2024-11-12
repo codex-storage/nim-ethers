@@ -171,25 +171,23 @@ proc new*(_: type JsonRpcSubscriptions,
       discard
 
   proc getChanges(id: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError]).} =
-    try:
-      let mappedId = subscriptions.subscriptionMapping[id]
-      let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
-      if changes.kind == JArray:
-        return changes
-    except KeyError as error:
-      raiseAssert "subscription mapping invalid: " & error.msg
-    except JsonRpcError:
-      await resubscribe(id)
-      # TODO: we could still miss some events between losing the subscription
-      # and resubscribing. We should probably adopt a strategy like ethers.js,
-      # whereby we keep track of the latest block number that we've seen
-      # filter changes for:
-      # https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/providers/src.ts/base-provider.ts#L977
-    except CancelledError as error:
-      raise error
-    except CatchableError:
-      # there's nothing we can do here
-      discard
+    if mappedId =? subscriptions.subscriptionMapping.?[id]:
+      try:
+        let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
+        if changes.kind == JArray:
+          return changes
+      except JsonRpcError:
+        await resubscribe(id)
+        # TODO: we could still miss some events between losing the subscription
+        # and resubscribing. We should probably adopt a strategy like ethers.js,
+        # whereby we keep track of the latest block number that we've seen
+        # filter changes for:
+        # https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/providers/src.ts/base-provider.ts#L977
+      except CancelledError as error:
+        raise error
+      except CatchableError:
+        # there's nothing we can do here
+        discard
     return newJArray()
 
   proc poll(id: JsonNode) {.async: (raises: [CancelledError]).} =
