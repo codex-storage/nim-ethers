@@ -1,6 +1,5 @@
 import std/tables
 import std/sequtils
-import std/strutils
 import pkg/chronos
 import pkg/json_rpc/rpcclient
 import pkg/serde
@@ -9,7 +8,6 @@ import ../../provider
 include ../../nimshims/hashes
 import ./rpccalls
 import ./conversions
-import ./looping
 
 export serde
 
