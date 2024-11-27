@@ -277,14 +277,14 @@ proc confirm*(
     blockEvent.clear()
 
     if blockSubscriptionResult.isErr:
-      let err = blockSubscriptionResult.error()
+      let error = blockSubscriptionResult.error()
 
-      if err of SubscriptionError:
-        raise cast[ref SubscriptionError](err)
-      elif err of CancelledError:
-        raise cast[ref CancelledError](err)
+      if error of SubscriptionError:
+        raise cast[ref SubscriptionError](error)
+      elif error of CancelledError:
+        raise cast[ref CancelledError](error)
       else:
-        raise err.toErr(ProviderError)
+        raise error.toErr(ProviderError)
 
     if blockNumber >= finish:
       await subscription.unsubscribe()

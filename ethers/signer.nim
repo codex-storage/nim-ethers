@@ -12,6 +12,9 @@ type
   Signer* = ref object of RootObj
     populateLock: AsyncLock
 
+template raiseSignerError*(message: string, parent: ref ProviderError = nil) =
+  raise newException(SignerError, message, parent)
+
 template convertError(body) =
   try:
     body

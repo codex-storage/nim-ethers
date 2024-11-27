@@ -162,7 +162,7 @@ proc new*(_: type JsonRpcSubscriptions,
 
   let subscriptions = PollingSubscriptions(client: client)
 
-  proc resubscribe(id: JsonNode) {.async: (raises: [CancelledError, SubscriptionError]).} =
+  proc resubscribe(id: JsonNode): Future[?!void] {.async: (raises: [CancelledError]).} =
     try:
       var newId: JsonNode
       # Log filters are stored in logFilters, block filters are not persisted
@@ -174,19 +174,23 @@ proc new*(_: type JsonRpcSubscriptions,
       else:
         newId = await subscriptions.client.eth_newBlockFilter()
       subscriptions.subscriptionMapping[id] = newId
-    except CancelledError as error:
-      raise error
+    except CancelledError as e:
+      raise e
     except CatchableError as e:
-      raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
+      return failure(void, e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg))
 
-  proc getChanges(id: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError, SubscriptionError]).} =
+    return success()
+
+  proc getChanges(id: JsonNode): Future[?!JsonNode] {.async: (raises: [CancelledError]).} =
     if mappedId =? subscriptions.subscriptionMapping.?[id]:
       try:
         let changes = await subscriptions.client.eth_getFilterChanges(mappedId)
         if changes.kind == JArray:
-          return changes
+          return success(changes)
       except JsonRpcError as e:
-        await resubscribe(id)
+        if error =? (await resubscribe(id)).errorOption:
+          return failure(JsonNode, error)
+
         # TODO: we could still miss some events between losing the subscription
         # and resubscribing. We should probably adopt a strategy like ethers.js,
         # whereby we keep track of the latest block number that we've seen
@@ -194,26 +198,25 @@ proc new*(_: type JsonRpcSubscriptions,
         # https://github.com/ethers-io/ethers.js/blob/f97b92bbb1bde22fcc44100af78d7f31602863ab/packages/providers/src.ts/base-provider.ts#L977
 
         if not ("filter not found" in e.msg):
-          raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
+          return failure(JsonNode, e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg))
       except CancelledError as e:
         raise e
       except SubscriptionError as e:
-        raise e
+        return failure(JsonNode, e)
       except CatchableError as e:
-        raise newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg, e)
-    return newJArray()
+        return failure(JsonNode, e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription changes: " & e.msg))
+    return success(newJArray())
 
   proc poll(id: JsonNode) {.async: (raises: [CancelledError]).} =
     without callback =? subscriptions.getCallback(id):
       return
 
-    try:
-      for change in await getChanges(id):
-        callback(id, success(change))
-    except CancelledError as e:
-      raise e
-    except CatchableError as e:
-      callback(id, failure(JsonNode, e))
+    without changes =? (await getChanges(id)), error:
+      callback(id, failure(JsonNode, error))
+      return
+
+    for change in changes:
+      callback(id, success(change))
 
   proc poll {.async: (raises: []).} =
     try:
@@ -244,8 +247,8 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
     except CancelledError as e:
       discard
     except CatchableError as e:
-      let err = e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg)
-      onBlock(failure(Block, err))
+      let error = e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg)
+      onBlock(failure(Block, error))
 
   proc callback(id: JsonNode, changeResult: ?!JsonNode) {.raises:[].} =
     without change =? changeResult, e:

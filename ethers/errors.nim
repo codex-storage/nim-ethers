@@ -8,9 +8,6 @@ type
   ProviderError* = object of EthersError
     data*: ?seq[byte]
 
-template raiseSignerError*(message: string, parent: ref ProviderError = nil) =
-  raise newException(SignerError, message, parent)
-
 {.push raises:[].}
 
 proc toErr*[E1: ref CatchableError, E2: EthersError](
