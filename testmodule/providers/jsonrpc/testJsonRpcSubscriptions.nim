@@ -49,6 +49,15 @@ template subscriptionTests(subscriptions, client) =
     discard await client.call("evm_mine", newJArray())
     await sleepAsync(100.millis)
     check count == 0
+  
+  test "unsubscribing from a non-existent subscription does not do any harm":
+    await subscriptions.unsubscribe(newJInt(0))
+  
+  test "duplicate unsubscribe is harmless":
+    proc callback(blck: Block) = discard
+    let subscription = await subscriptions.subscribeBlocks(callback)
+    await subscriptions.unsubscribe(subscription)
+    await subscriptions.unsubscribe(subscription)
 
   test "stops listening to new blocks when provider is closed":
     var count = 0
