@@ -80,11 +80,9 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
   try:
     if not id.isNil and id in subscriptions.callbacks:
-        try:
-          return subscriptions.callbacks[id].some
-        except: discard
-    else:
-      return SubscriptionCallback.none
+      try:
+        return subscriptions.callbacks[id].some
+      except: discard
   except KeyError:
     return SubscriptionCallback.none
 
@@ -110,11 +108,11 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                       {.async, raises: [].} =
   proc callback(id: JsonNode, argumentsResult: ?!JsonNode) {.raises: [].} =
     without arguments =? argumentsResult, error:
-        onBlock(failure(Block, error.toErr(SubscriptionError)))
-        return
+      onBlock(failure(Block, error.toErr(SubscriptionError)))
+      return
 
-    if blck =? Block.fromJson(arguments{"result"}):
-      onBlock(success(blck))
+    let res = Block.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
+    onBlock(res)
 
   let id = await subscriptions.client.eth_subscribe("newHeads")
   subscriptions.callbacks[id] = callback
@@ -207,13 +205,13 @@ proc new*(_: type JsonRpcSubscriptions,
 
   proc poll(id: JsonNode) {.async: (raises: [CancelledError]).} =
     without callback =? subscriptions.getCallback(id):
-        return
+      return
 
     try:
       for change in await getChanges(id):
         callback(id, success(change))
     except CancelledError as e:
-          raise e
+      raise e
     except CatchableError as e:
       callback(id, failure(JsonNode, e))
 
@@ -246,13 +244,13 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
     except CancelledError as e:
       discard
     except CatchableError as e:
-      let wrappedErr = newException(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg, e)
-      onBlock(failure(Block, wrappedErr))
+      let err = e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg)
+      onBlock(failure(Block, err))
 
   proc callback(id: JsonNode, changeResult: ?!JsonNode) {.raises:[].} =
-    without change =? changeResult, error:
-        onBlock(failure(Block, error.toErr(SubscriptionError)))
-        return
+    without change =? changeResult, e:
+      onBlock(failure(Block, e.toErr(SubscriptionError)))
+      return
 
     if hash =? BlockHash.fromJson(change):
       asyncSpawn getBlock(hash)
@@ -270,8 +268,8 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
   proc callback(id: JsonNode, changeResult: ?!JsonNode) =
     without change =? changeResult, error:
-        onLog(failure(Log, error.toErr(SubscriptionError)))
-        return
+      onLog(failure(Log, error.toErr(SubscriptionError)))
+      return
 
     if log =? Log.fromJson(change):
       onLog(success(log))

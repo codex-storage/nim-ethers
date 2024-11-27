@@ -238,7 +238,12 @@ proc confirm*(
   assert confirmations > 0
 
   var blockNumber: UInt256
-  var blockSubscriptionError: ref SubscriptionError
+
+  ## We need initialized succesfull Result, because the first iteration of the `while` loop
+  ## bellow is triggered "manually" by calling `await updateBlockNumber` and not by block
+  ## subscription. If left uninitialized then the Result is in error state and error is raised.
+  ## This result is not used for block value, but for block subscription errors.
+  var blockSubscriptionResult: ?!Block = success(Block(number: UInt256.none, timestamp: 0.u256, hash: BlockHash.none))
   let blockEvent = newAsyncEvent()
 
   proc updateBlockNumber {.async: (raises: []).} =
@@ -252,16 +257,11 @@ proc confirm*(
       discard
 
   proc onBlock(blckResult: ?!Block) =
-    without blck =? blckResult, error:
-        let err = blckResult.error()
+    blockSubscriptionResult = blckResult
 
-        if err of SubscriptionError:
-          blockSubscriptionError = cast[ref SubscriptionError](err)
-        else:
-          echo "What to do now? 😳"
-
-        blockEvent.fire()
-        return
+    if blckResult.isErr:
+      blockEvent.fire()
+      return
 
     # ignore block parameter; hardhat may call this with pending blocks
     asyncSpawn updateBlockNumber()
@@ -276,8 +276,15 @@ proc confirm*(
     await blockEvent.wait()
     blockEvent.clear()
 
-    if not isNil(blockSubscriptionError):
-      raise blockSubscriptionError
+    if blockSubscriptionResult.isErr:
+      let err = blockSubscriptionResult.error()
+
+      if err of SubscriptionError:
+        raise cast[ref SubscriptionError](err)
+      elif err of CancelledError:
+        raise cast[ref CancelledError](err)
+      else:
+        raise err.toErr(ProviderError)
 
     if blockNumber >= finish:
       await subscription.unsubscribe()
