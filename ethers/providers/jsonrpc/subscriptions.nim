@@ -80,11 +80,8 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
   try:
     if not id.isNil and id in subscriptions.callbacks:
-      try:
-        return subscriptions.callbacks[id].some
-      except: discard
-  except KeyError:
-    return SubscriptionCallback.none
+      return subscriptions.callbacks[id].some
+  except: discard
 
 # Web sockets
 
@@ -128,8 +125,8 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
       onLog(failure(Log, error.toErr(SubscriptionError)))
       return
 
-    if log =? Log.fromJson(arguments{"result"}):
-      onLog(success(log))
+    let res = Log.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
+    onLog(res)
 
   let id = await subscriptions.client.eth_subscribe("logs", filter)
   subscriptions.callbacks[id] = callback
@@ -269,13 +266,13 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
                     Future[JsonNode]
                     {.async.} =
 
-  proc callback(id: JsonNode, changeResult: ?!JsonNode) =
-    without change =? changeResult, error:
+  proc callback(id: JsonNode, argumentsResult: ?!JsonNode) =
+    without arguments =? argumentsResult, error:
       onLog(failure(Log, error.toErr(SubscriptionError)))
       return
 
-    if log =? Log.fromJson(change):
-      onLog(success(log))
+    let res = Log.fromJson(arguments).mapFailure(SubscriptionError)
+    onLog(res)
 
   let id = await subscriptions.client.eth_newFilter(filter)
   subscriptions.callbacks[id] = callback

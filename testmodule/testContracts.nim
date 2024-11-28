@@ -150,8 +150,10 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
       var transfers: seq[Transfer]
 
       proc handleTransfer(transferRes: ?!Transfer) =
-        if transfer =? transferRes:
-          transfers.add(transfer)
+        without transfer =? transferRes, error:
+          echo error.msg
+
+        transfers.add(transfer)
 
       let signer0 = provider.getSigner(accounts[0])
       let signer1 = provider.getSigner(accounts[1])

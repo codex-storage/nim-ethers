@@ -99,7 +99,7 @@ suite "HTTP polling subscriptions":
 
   subscriptionTests(subscriptions, client)
 
-suite "HTTP polling subscriptions - filter not found":
+suite "HTTP polling subscriptions - mock tests":
 
   var subscriptions: PollingSubscriptions
   var client: RpcHttpClient
@@ -193,3 +193,17 @@ suite "HTTP polling subscriptions - filter not found":
     await startServer()
 
     check eventually subscriptions.subscriptionMapping[id] != id
+
+  test "calls callback with failed result on error":
+    let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
+    var failedResultReceived = false
+
+    proc handler(log: ?!Log) =
+      if log.isErr:
+        failedResultReceived = true
+
+    let id = await subscriptions.subscribeLogs(filter, handler)
+
+    await sleepAsync(50.milliseconds)
+    mockServer.nextGetChangesReturnsError = true
+    check eventually failedResultReceived
