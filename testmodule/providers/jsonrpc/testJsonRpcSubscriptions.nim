@@ -54,7 +54,7 @@ template subscriptionTests(subscriptions, client) =
     await subscriptions.unsubscribe(newJInt(0))
   
   test "duplicate unsubscribe is harmless":
-    proc callback(blck: Block) = discard
+    proc callback(blck: ?!Block) = discard
     let subscription = await subscriptions.subscribeBlocks(callback)
     await subscriptions.unsubscribe(subscription)
     await subscriptions.unsubscribe(subscription)
