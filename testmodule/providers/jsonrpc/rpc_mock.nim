@@ -9,11 +9,12 @@ import pkg/json_rpc/errors
 
 type MockRpcHttpServer* = ref object
   filters*: seq[string]
+  nextGetChangesReturnsError*: bool
   srv: RpcHttpServer
 
 proc new*(_: type MockRpcHttpServer): MockRpcHttpServer =
   let srv = newRpcHttpServer(["127.0.0.1:0"])
-  MockRpcHttpServer(filters: @[], srv: srv)
+  MockRpcHttpServer(filters: @[], srv: srv, nextGetChangesReturnsError: false)
 
 proc invalidateFilter*(server: MockRpcHttpServer, jsonId: JsonNode) =
   server.filters.keepItIf it != jsonId.getStr
@@ -30,6 +31,9 @@ proc start*(server: MockRpcHttpServer) =
     return filterId
 
   server.srv.router.rpc("eth_getFilterChanges") do(id: string) -> seq[string]:
+    if server.nextGetChangesReturnsError:
+          raise (ref ApplicationError)(code: -32000, msg: "unknown error")
+
     if id notin server.filters:
       raise (ref ApplicationError)(code: -32000, msg: "filter not found")
 
