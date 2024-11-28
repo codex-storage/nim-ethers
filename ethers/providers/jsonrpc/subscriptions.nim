@@ -250,18 +250,18 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
                   {.async.} =
-  subscriptions.logFilters.del(id)
-  subscriptions.callbacks.del(id)
-  if subscriptions.subscriptionMapping.hasKey(id):
-    let sub = subscriptions.subscriptionMapping[id]
-    subscriptions.subscriptionMapping.del(id)
-    try:
+  try:
+    subscriptions.logFilters.del(id)
+    subscriptions.callbacks.del(id)
+    if sub =? subscriptions.subscriptionMapping.?[id]:
+      subscriptions.subscriptionMapping.del(id)
       discard await subscriptions.client.eth_uninstallFilter(sub)
-    except CancelledError as e:
+  except CancelledError as e:
       raise e
-    except CatchableError:
-      # Ignore if uninstallation of the filter fails. If it's the last step in our
-      # cleanup, then filter changes for this filter will no longer be polled so
-      # if the filter continues to live on in geth for whatever reason then it
-      # doesn't matter.
-      discard
+  except CatchableError:
+    # Ignore if uninstallation of the filter fails. If it's the last step in our
+    # cleanup, then filter changes for this filter will no longer be polled so
+    # if the filter continues to live on in geth for whatever reason then it
+    # doesn't matter.
+    discard
+    
