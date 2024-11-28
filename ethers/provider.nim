@@ -280,9 +280,9 @@ proc confirm*(
       let error = blockSubscriptionResult.error()
 
       if error of SubscriptionError:
-        raise cast[ref SubscriptionError](error)
+        raise (ref SubscriptionError)(error)
       elif error of CancelledError:
-        raise cast[ref CancelledError](error)
+        raise (ref CancelledError)(error)
       else:
         raise error.toErr(ProviderError)
 

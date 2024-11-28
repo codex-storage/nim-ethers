@@ -244,7 +244,7 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
     try:
       if blck =? (await subscriptions.client.eth_getBlockByHash(hash, false)):
         onBlock(success(blck))
-    except CancelledError as e:
+    except CancelledError:
       discard
     except CatchableError as e:
       let error = e.toErr(SubscriptionError, "HTTP polling: There was an exception while getting subscription's block: " & e.msg)
