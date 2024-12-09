@@ -76,8 +76,8 @@ method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
 
 method unsubscribe*(subscriptions: JsonRpcSubscriptions,
                     id: JsonNode)
-                   {.async: (raises: [SubscriptionError, CancelledError]), base.} =
-  raiseAssert "not implemented"
+                   {.async: (raises: [CancelledError]), base.} =
+  raiseAssert "not implemented "
 
 method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [SubscriptionError, CancelledError]), base.} =
   let ids = toSeq subscriptions.callbacks.keys
@@ -144,10 +144,15 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
-                  {.async: (raises: [SubscriptionError, CancelledError]).} =
-  convertErrorsToSubscriptionError:
+                  {.async: (raises: [CancelledError]).} =
+  try:
     subscriptions.callbacks.del(id)
     discard await subscriptions.client.eth_unsubscribe(id)
+  except CancelledError as e:
+    raise e
+  except CatchableError:
+    # Ignore if uninstallation of the subscribiton fails.
+    discard
 
 # Polling
 
@@ -295,7 +300,7 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
 
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
-                  {.async: (raises: [SubscriptionError, CancelledError]).} =
+                  {.async: (raises: [CancelledError]).} =
   try:
     subscriptions.logFilters.del(id)
     subscriptions.callbacks.del(id)
