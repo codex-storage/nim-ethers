@@ -24,6 +24,14 @@ type
 
 {.push raises:[].}
 
+template convertErrorsToSubscriptionError(body) =
+  try:
+    body
+  except CancelledError as error:
+    raise error
+  except CatchableError as error:
+    raise error.toErr(SubscriptionError)
+
 template `or`(a: JsonNode, b: typed): JsonNode =
   if a.isNil: b else: a
 
@@ -56,22 +64,22 @@ proc setMethodHandler(
 method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                         onBlock: BlockHandler):
                        Future[JsonNode]
-                       {.async, base, raises: [CancelledError].} =
+                       {.async: (raises: [SubscriptionError, CancelledError]), base,.} =
   raiseAssert "not implemented"
 
 method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
                       filter: EventFilter,
                       onLog: LogHandler):
                      Future[JsonNode]
-                     {.async, base.} =
+                     {.async: (raises: [SubscriptionError, CancelledError]), base.} =
   raiseAssert "not implemented"
 
 method unsubscribe*(subscriptions: JsonRpcSubscriptions,
                     id: JsonNode)
-                   {.async, base.} =
-  raiseAssert "not implemented"
+                   {.async: (raises: [CancelledError]), base.} =
+  raiseAssert "not implemented "
 
-method close*(subscriptions: JsonRpcSubscriptions) {.async, base.} =
+method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [SubscriptionError, CancelledError]), base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
     await subscriptions.unsubscribe(id)
@@ -102,7 +110,7 @@ proc new*(_: type JsonRpcSubscriptions,
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
                       Future[JsonNode]
-                      {.async, raises: [].} =
+                      {.async: (raises: [SubscriptionError, CancelledError]).} =
   proc callback(id: JsonNode, argumentsResult: ?!JsonNode) {.raises: [].} =
     without arguments =? argumentsResult, error:
       onBlock(failure(Block, error.toErr(SubscriptionError)))
@@ -111,15 +119,16 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     let res = Block.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
     onBlock(res)
 
-  let id = await subscriptions.client.eth_subscribe("newHeads")
-  subscriptions.callbacks[id] = callback
-  return id
+  convertErrorsToSubscriptionError:
+    let id = await subscriptions.client.eth_subscribe("newHeads")
+    subscriptions.callbacks[id] = callback
+    return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      filter: EventFilter,
                      onLog: LogHandler):
                     Future[JsonNode]
-                    {.async.} =
+                    {.async: (raises: [SubscriptionError, CancelledError]).} =
   proc callback(id: JsonNode, argumentsResult: ?!JsonNode) =
     without arguments =? argumentsResult, error:
       onLog(failure(Log, error.toErr(SubscriptionError)))
@@ -128,15 +137,22 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
     let res = Log.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
     onLog(res)
 
-  let id = await subscriptions.client.eth_subscribe("logs", filter)
-  subscriptions.callbacks[id] = callback
-  return id
+  convertErrorsToSubscriptionError:
+    let id = await subscriptions.client.eth_subscribe("logs", filter)
+    subscriptions.callbacks[id] = callback
+    return id
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
-                  {.async.} =
-  subscriptions.callbacks.del(id)
-  discard await subscriptions.client.eth_unsubscribe(id)
+                  {.async: (raises: [CancelledError]).} =
+  try:
+    subscriptions.callbacks.del(id)
+    discard await subscriptions.client.eth_unsubscribe(id)
+  except CancelledError as e:
+    raise e
+  except CatchableError:
+    # Ignore if uninstallation of the subscribiton fails.
+    discard
 
 # Polling
 
@@ -235,7 +251,7 @@ method close*(subscriptions: PollingSubscriptions) {.async.} =
 method subscribeBlocks(subscriptions: PollingSubscriptions,
                        onBlock: BlockHandler):
                       Future[JsonNode]
-                      {.async, raises:[CancelledError].} =
+                      {.async: (raises: [SubscriptionError, CancelledError]).} =
 
   proc getBlock(hash: BlockHash) {.async: (raises:[]).} =
     try:
@@ -255,16 +271,17 @@ method subscribeBlocks(subscriptions: PollingSubscriptions,
     if hash =? BlockHash.fromJson(change):
       asyncSpawn getBlock(hash)
 
-  let id = await subscriptions.client.eth_newBlockFilter()
-  subscriptions.callbacks[id] = callback
-  subscriptions.subscriptionMapping[id] = id
-  return id
+  convertErrorsToSubscriptionError:
+    let id = await subscriptions.client.eth_newBlockFilter()
+    subscriptions.callbacks[id] = callback
+    subscriptions.subscriptionMapping[id] = id
+    return id
 
 method subscribeLogs(subscriptions: PollingSubscriptions,
                      filter: EventFilter,
                      onLog: LogHandler):
                     Future[JsonNode]
-                    {.async.} =
+                    {.async: (raises: [SubscriptionError, CancelledError]).} =
 
   proc callback(id: JsonNode, argumentsResult: ?!JsonNode) =
     without arguments =? argumentsResult, error:
@@ -274,15 +291,16 @@ method subscribeLogs(subscriptions: PollingSubscriptions,
     let res = Log.fromJson(arguments).mapFailure(SubscriptionError)
     onLog(res)
 
-  let id = await subscriptions.client.eth_newFilter(filter)
-  subscriptions.callbacks[id] = callback
-  subscriptions.logFilters[id] = filter
-  subscriptions.subscriptionMapping[id] = id
-  return id
+  convertErrorsToSubscriptionError:
+    let id = await subscriptions.client.eth_newFilter(filter)
+    subscriptions.callbacks[id] = callback
+    subscriptions.logFilters[id] = filter
+    subscriptions.subscriptionMapping[id] = id
+    return id
 
 method unsubscribe*(subscriptions: PollingSubscriptions,
                    id: JsonNode)
-                  {.async.} =
+                  {.async: (raises: [CancelledError]).} =
   try:
     subscriptions.logFilters.del(id)
     subscriptions.callbacks.del(id)
