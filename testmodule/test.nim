@@ -9,5 +9,6 @@ import ./testErc20
 import ./testGasEstimation
 import ./testErrorDecoding
 import ./testCustomErrors
+import ./testBlockTag
 
 {.warning[UnusedImport]:off.}
