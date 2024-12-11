@@ -12,7 +12,8 @@ requires "json_rpc >= 0.5.0 & < 0.6.0"
 requires "serde >= 1.2.1 & < 1.3.0"
 requires "stint >= 0.8.0 & < 0.9.0"
 requires "stew >= 0.2.0 & < 0.3.0"
-requires "https://github.com/codex-storage/nim-eth-versioned >= 1.0.0 & < 2.0.0"
+# Branch update-to-nim-2-x 
+requires "https://github.com/codex-storage/nim-eth-versioned#a66e840dbe18770ba6363b0a26dc14c2079acbb9"
 
 task test, "Run the test suite":
   # exec "nimble install -d -y"
