@@ -27,7 +27,8 @@ func toSignableTransaction(transaction: Transaction): SignableTransaction =
   signable.nonce = nonce.truncate(uint64)
   signable.chainId = ChainId(chainId.truncate(uint64))
   signable.gasLimit = GasInt(gasLimit.truncate(uint64))
-  signable.to = some EthAddress(transaction.to)
+
+  signable.to = Opt.some(EthAddress(transaction.to))
   signable.value = transaction.value
   signable.payload = transaction.data
 
