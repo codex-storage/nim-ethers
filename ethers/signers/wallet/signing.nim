@@ -6,6 +6,7 @@ import ../../basics
 import ../../transaction as ethers
 import ../../provider
 import ./error
+from pkg/eth/common/eth_types import EthAddress
 
 type
   Transaction = ethers.Transaction
@@ -48,17 +49,17 @@ func sign(key: PrivateKey, transaction: SignableTransaction): seq[byte] =
 
   # Temporary V value, used to signal to the hashing function
   # that we'd like to use an EIP-155 signature
-  transaction.V = int64(uint64(transaction.chainId)) * 2 + 35
+  transaction.V = uint64(transaction.chainId) * 2 + 35
 
   let hash = transaction.txHashNoSignature().data
   let signature = key.sign(SkMessage(hash)).toRaw()
 
   transaction.R = UInt256.fromBytesBE(signature[0..<32])
   transaction.S = UInt256.fromBytesBE(signature[32..<64])
-  transaction.V = int64(signature[64])
+  transaction.V = uint64(signature[64])
 
   if transaction.txType == TxLegacy:
-    transaction.V += int64(uint64(transaction.chainId)) * 2 + 35
+    transaction.V += uint64(transaction.chainId) * 2 + 35
 
   rlp.encode(transaction)
 
