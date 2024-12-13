@@ -88,10 +88,16 @@ proc new*(
 proc callImpl(
   client: RpcClient,
   call: string,
-  args: JsonNode): Future[JsonNode] {.async: (raises: [JsonRpcProviderError]).} =
+  args: JsonNode): Future[JsonNode] {.async: (raises: [CancelledError, JsonRpcProviderError]).} =
 
-  without response =? (await client.call(call, %args)).catch, error:
-    raiseJsonRpcProviderError error.msg
+  var response: JsonString
+  try:
+    response = await client.call(call, %args)
+  except CancelledError as e:
+    raise e
+  except CatchableError as e:
+    raiseJsonRpcProviderError e.msg
+
   without json =? JsonNode.fromJson(response.string), error:
     raiseJsonRpcProviderError "Failed to parse response: " & error.msg
   json
