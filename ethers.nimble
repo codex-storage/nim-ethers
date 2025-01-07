@@ -13,7 +13,7 @@ requires "serde >= 1.2.1 & < 1.3.0"
 requires "stint >= 0.8.0 & < 0.9.0"
 requires "stew >= 0.2.0 & < 0.3.0"
 # Branch update-to-nim-2-x 
-requires "https://github.com/codex-storage/nim-eth-versioned#a66e840dbe18770ba6363b0a26dc14c2079acbb9"
+requires "https://github.com/codex-storage/nim-eth-versioned#8ba00bcca408b638551f5ac0cda449a1f566275b"
 
 task test, "Run the test suite":
   # exec "nimble install -d -y"

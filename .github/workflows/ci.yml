@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        nim: [2.0.12, stable]
+        nim: [2.0.14, stable]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
