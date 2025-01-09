@@ -1,4 +1,5 @@
 import pkg/stint
+import pkg/questionable
 
 {.push raises:[].}
 
@@ -41,3 +42,10 @@ func `==`*(a, b: BlockTag): bool =
       a.stringValue == b.stringValue
     of numberBlockTag:
       a.numberValue == b.numberValue
+
+func number*(blockTag: BlockTag): ?UInt256 =
+  case blockTag.kind
+  of stringBlockTag:
+    UInt256.none
+  of numberBlockTag:
+    blockTag.numberValue.some
