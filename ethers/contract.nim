@@ -88,19 +88,20 @@ proc decodeResponse(T: type, bytes: seq[byte]): T =
     raiseContractError "unable to decode return value as " & $T
   return decoded
 
-proc call(provider: Provider,
-          transaction: Transaction,
-          overrides: TransactionOverrides): Future[seq[byte]] {.async: (raises: [ProviderError]).} =
-  if overrides of CallOverrides and
-     blockTag =? CallOverrides(overrides).blockTag:
+proc call(
+    provider: Provider, transaction: Transaction, overrides: TransactionOverrides
+): Future[seq[byte]] {.async: (raises: [ProviderError, CancelledError]).} =
+  if overrides of CallOverrides and blockTag =? CallOverrides(overrides).blockTag:
     await provider.call(transaction, blockTag)
   else:
     await provider.call(transaction)
 
-proc call(contract: Contract,
-          function: string,
-          parameters: tuple,
-          overrides = TransactionOverrides()) {.async: (raises: [ProviderError, SignerError]).} =
+proc call(
+    contract: Contract,
+    function: string,
+    parameters: tuple,
+    overrides = TransactionOverrides(),
+) {.async: (raises: [ProviderError, SignerError, CancelledError]).} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -108,11 +109,15 @@ proc call(contract: Contract,
 
   discard await contract.provider.call(transaction, overrides)
 
-proc call(contract: Contract,
-          function: string,
-          parameters: tuple,
-          ReturnType: type,
-          overrides = TransactionOverrides()): Future[ReturnType] {.async: (raises: [ProviderError, SignerError, ContractError]).} =
+proc call(
+    contract: Contract,
+    function: string,
+    parameters: tuple,
+    ReturnType: type,
+    overrides = TransactionOverrides(),
+): Future[ReturnType] {.
+    async: (raises: [ProviderError, SignerError, ContractError, CancelledError])
+.} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -263,10 +268,23 @@ func addAsyncPragma(procedure: var NimNode) =
   let pragmas = procedure[4]
   if pragmas.kind == nnkEmpty:
     procedure[4] = newNimNode(nnkPragma)
-  procedure[4].add ident("async")
+  procedure[4].add nnkExprColonExpr.newTree(
+    newIdentNode("async"),
+    nnkTupleConstr.newTree(
+      nnkExprColonExpr.newTree(
+        newIdentNode("raises"),
+        nnkBracket.newTree(
+          newIdentNode("CancelledError"),
+          newIdentNode("ProviderError"),
+          newIdentNode("EthersError"),
+          newIdentNode("AsyncLockError"),
+          newIdentNode("CatchableError"),
+        ),
+      )
+    ),
+  )
 
-macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
-
+macro contract*(procedure: untyped{nkProcDef | nkMethodDef}): untyped =
   let parameters = procedure[3]
   let body = procedure[6]
 

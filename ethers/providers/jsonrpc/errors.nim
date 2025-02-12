@@ -40,6 +40,8 @@ proc raiseJsonRpcProviderError*(
 template convertError*(body) =
   try:
     body
+  except CancelledError as error:
+    raise error
   except JsonRpcError as error:
     raiseJsonRpcProviderError(error.msg)
   except CatchableError as error:

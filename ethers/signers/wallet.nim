@@ -69,7 +69,7 @@ method provider*(wallet: Wallet): Provider {.gcsafe, raises: [SignerError].} =
 
 method getAddress*(
   wallet: Wallet): Future[Address]
-  {.async: (raises:[ProviderError, SignerError]).} =
+  {.async: (raises:[ProviderError, SignerError, CancelledError]).} =
 
   return wallet.address
 
@@ -83,7 +83,7 @@ proc signTransaction*(wallet: Wallet,
 method sendTransaction*(
   wallet: Wallet,
   transaction: Transaction): Future[TransactionResponse]
-  {.async: (raises:[SignerError, ProviderError]).} =
+  {.async: (raises:[SignerError, ProviderError, CancelledError]).} =
 
   let signed = await signTransaction(wallet, transaction)
   return await provider(wallet).sendTransaction(signed)

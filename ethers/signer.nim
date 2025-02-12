@@ -18,6 +18,8 @@ template raiseSignerError*(message: string, parent: ref ProviderError = nil) =
 template convertError(body) =
   try:
     body
+  except CancelledError as error:
+    raise error
   except ProviderError as error:
     raise error # do not convert provider errors
   except CatchableError as error:
@@ -28,59 +30,61 @@ method provider*(
   doAssert false, "not implemented"
 
 method getAddress*(
-  signer: Signer): Future[Address]
-  {.base, async: (raises:[ProviderError, SignerError]).} =
-
+    signer: Signer
+): Future[Address] {.
+    base, async: (raises: [ProviderError, SignerError, CancelledError])
+.} =
   doAssert false, "not implemented"
 
 method signMessage*(
-  signer: Signer,
-  message: seq[byte]): Future[seq[byte]]
-  {.base, async: (raises: [SignerError]).} =
-
+    signer: Signer, message: seq[byte]
+): Future[seq[byte]] {.base, async: (raises: [SignerError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method sendTransaction*(
-  signer: Signer,
-  transaction: Transaction): Future[TransactionResponse]
-  {.base, async: (raises:[SignerError, ProviderError]).} =
-
+    signer: Signer, transaction: Transaction
+): Future[TransactionResponse] {.
+    base, async: (raises: [SignerError, ProviderError, CancelledError])
+.} =
   doAssert false, "not implemented"
 
 method getGasPrice*(
-  signer: Signer): Future[UInt256]
-  {.base, async: (raises: [ProviderError, SignerError]).} =
-
+    signer: Signer
+): Future[UInt256] {.
+    base, async: (raises: [ProviderError, SignerError, CancelledError])
+.} =
   return await signer.provider.getGasPrice()
 
 method getTransactionCount*(
-  signer: Signer,
-  blockTag = BlockTag.latest): Future[UInt256]
-  {.base, async: (raises:[SignerError, ProviderError]).} =
-
+    signer: Signer, blockTag = BlockTag.latest
+): Future[UInt256] {.
+    base, async: (raises: [SignerError, ProviderError, CancelledError])
+.} =
   convertError:
     let address = await signer.getAddress()
     return await signer.provider.getTransactionCount(address, blockTag)
 
 method estimateGas*(
-  signer: Signer,
-  transaction: Transaction,
-  blockTag = BlockTag.latest): Future[UInt256]
-  {.base, async: (raises:[SignerError, ProviderError]).} =
-
+    signer: Signer, transaction: Transaction, blockTag = BlockTag.latest
+): Future[UInt256] {.
+    base, async: (raises: [SignerError, ProviderError, CancelledError])
+.} =
   var transaction = transaction
   transaction.sender = some(await signer.getAddress())
   return await signer.provider.estimateGas(transaction, blockTag)
 
 method getChainId*(
-  signer: Signer): Future[UInt256]
-  {.base, async: (raises: [ProviderError, SignerError]).} =
-
+    signer: Signer
+): Future[UInt256] {.
+    base, async: (raises: [SignerError, ProviderError, CancelledError])
+.} =
   return await signer.provider.getChainId()
 
 method getNonce(
-  signer: Signer): Future[UInt256] {.base, async: (raises: [SignerError, ProviderError]).} =
-
+    signer: Signer
+): Future[UInt256] {.
+    base, async: (raises: [SignerError, ProviderError, CancelledError])
+.} =
   return await signer.getTransactionCount(BlockTag.pending)
 
 template withLock*(signer: Signer, body: untyped) =

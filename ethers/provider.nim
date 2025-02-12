@@ -102,96 +102,85 @@ func toTransaction*(past: PastTransaction): Transaction =
   )
 
 method getBlockNumber*(
-  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getBlock*(
-  provider: Provider,
-  tag: BlockTag): Future[?Block] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, tag: BlockTag
+): Future[?Block] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method call*(
-  provider: Provider,
-  tx: Transaction,
-  blockTag = BlockTag.latest): Future[seq[byte]] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, tx: Transaction, blockTag = BlockTag.latest
+): Future[seq[byte]] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getGasPrice*(
-  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getTransactionCount*(
-  provider: Provider,
-  address: Address,
-  blockTag = BlockTag.latest): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, address: Address, blockTag = BlockTag.latest
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getTransaction*(
-  provider: Provider,
-  txHash: TransactionHash): Future[?PastTransaction] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, txHash: TransactionHash
+): Future[?PastTransaction] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getTransactionReceipt*(
-  provider: Provider,
-  txHash: TransactionHash): Future[?TransactionReceipt] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, txHash: TransactionHash
+): Future[?TransactionReceipt] {.
+    base, async: (raises: [ProviderError, CancelledError])
+.} =
   doAssert false, "not implemented"
 
 method sendTransaction*(
-  provider: Provider,
-  rawTransaction: seq[byte]): Future[TransactionResponse] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, rawTransaction: seq[byte]
+): Future[TransactionResponse] {.
+    base, async: (raises: [ProviderError, CancelledError])
+.} =
   doAssert false, "not implemented"
 
 method getLogs*(
-  provider: Provider,
-  filter: EventFilter): Future[seq[Log]] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, filter: EventFilter
+): Future[seq[Log]] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method estimateGas*(
-  provider: Provider,
-  transaction: Transaction,
-  blockTag = BlockTag.latest): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, transaction: Transaction, blockTag = BlockTag.latest
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method getChainId*(
-  provider: Provider): Future[UInt256] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method subscribe*(
-  provider: Provider,
-  filter: EventFilter,
-  callback: LogHandler): Future[Subscription] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, filter: EventFilter, callback: LogHandler
+): Future[Subscription] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method subscribe*(
-  provider: Provider,
-  callback: BlockHandler): Future[Subscription] {.base, async: (raises:[ProviderError]).} =
-
+    provider: Provider, callback: BlockHandler
+): Future[Subscription] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 method unsubscribe*(
-  subscription: Subscription) {.base, async: (raises:[ProviderError]).} =
-
+    subscription: Subscription
+) {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
-method isSyncing*(provider: Provider): Future[bool] {.base, async.} =
+method isSyncing*(provider: Provider): Future[bool] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"
 
 proc replay*(
-  provider: Provider,
-  tx: Transaction,
-  blockNumber: UInt256) {.async: (raises:[ProviderError]).} =
+    provider: Provider, tx: Transaction, blockNumber: UInt256
+) {.async: (raises: [ProviderError, CancelledError]).} =
   # Replay transaction at block. Useful for fetching revert reasons, which will
   # be present in the raised error message. The replayed block number should
   # include the state of the chain in the block previous to the block in which
@@ -203,8 +192,8 @@ proc replay*(
   discard await provider.call(tx, BlockTag.init(blockNumber))
 
 proc ensureSuccess(
-  provider: Provider,
-  receipt: TransactionReceipt) {.async: (raises: [ProviderError]).} =
+    provider: Provider, receipt: TransactionReceipt
+) {.async: (raises: [ProviderError, CancelledError]).} =
   ## If the receipt.status is Failed, the tx is replayed to obtain a revert
   ## reason, after which a ProviderError with the revert reason is raised.
   ## If no revert reason was obtained
@@ -252,7 +241,7 @@ proc confirm*(
       if number > blockNumber:
         blockNumber = number
         blockEvent.fire()
-    except ProviderError:
+    except ProviderError, CancelledError:
       # there's nothing we can do here
       discard
 
@@ -312,5 +301,7 @@ proc confirm*(
   let txResp = await tx
   return await txResp.confirm(confirmations, timeout)
 
-method close*(provider: Provider) {.base, async: (raises:[ProviderError]).} =
+method close*(
+    provider: Provider
+) {.base, async: (raises: [ProviderError, CancelledError]).} =
   discard
