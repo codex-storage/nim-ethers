@@ -39,7 +39,7 @@ jobs:
       run: npm start &
 
     - name: Build
-      run: nimble install -y
+      run: nimble install -y --debug
 
     - name: Test
       run: nimble test -y
