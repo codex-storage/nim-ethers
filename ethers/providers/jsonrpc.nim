@@ -1,7 +1,7 @@
 import std/tables
 import std/uri
 import pkg/chronicles
-import pkg/eth/common/eth_types except Block, Log, Address
+import pkg/eth/common/eth_types except Block, Log, Address, Transaction
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
 import pkg/serde
@@ -136,7 +136,7 @@ method getBlock*(
 
 method call*(
   provider: JsonRpcProvider,
-  tx: transaction.Transaction,
+  tx: Transaction,
   blockTag = BlockTag.latest): Future[seq[byte]] {.async: (raises:[ProviderError]).} =
 
   convertError:
@@ -197,7 +197,7 @@ method getLogs*(
 
 method estimateGas*(
   provider: JsonRpcProvider,
-  transaction: transaction.Transaction,
+  transaction: Transaction,
   blockTag = BlockTag.latest): Future[UInt256] {.async: (raises:[ProviderError]).} =
 
   try:
@@ -324,7 +324,7 @@ method signMessage*(
 
 method sendTransaction*(
   signer: JsonRpcSigner,
-  transaction: transaction.Transaction): Future[TransactionResponse]
+  transaction: Transaction): Future[TransactionResponse]
   {.async: (raises:[SignerError, ProviderError]).} =
 
   convertError:
