@@ -39,7 +39,7 @@ jobs:
       run: npm start &
 
     - name: Build
-      run: nimble install -y --debug
+      run: nimble install -y --maximumtaggedversions=2
 
     - name: Test
       run: nimble test -y
