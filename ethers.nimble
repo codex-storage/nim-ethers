@@ -3,7 +3,7 @@ author = "Nim Ethers Authors"
 description = "library for interacting with Ethereum"
 license = "MIT"
 
-requires "nim >= 2.0.14"
+requires "nim >= 1.6.20"
 requires "chronicles >= 0.10.3 & < 0.11.0"
 requires "chronos >= 4.0.4 & < 4.1.0"
 requires "contractabi >= 0.7.0 & < 0.8.0"
