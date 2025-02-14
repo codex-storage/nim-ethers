@@ -27,7 +27,7 @@ type Wallet* = ref object of Signer
 
 proc new*(_: type Wallet, privateKey: PrivateKey): Wallet =
   let publicKey = privateKey.toPublicKey()
-  let address = Address.init(publicKey.toCanonicalAddress())
+  let address = Address(publicKey.toCanonicalAddress())
   Wallet(privateKey: privateKey, publicKey: publicKey, address: address)
 
 proc new*(_: type Wallet, privateKey: PrivateKey, provider: Provider): Wallet =
@@ -53,13 +53,13 @@ proc createRandom*(_: type Wallet): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
-  result.address = Address.init(result.publicKey.toCanonicalAddress())
+  result.address = Address(result.publicKey.toCanonicalAddress())
 
 proc createRandom*(_: type Wallet, provider: Provider): Wallet =
   result = Wallet()
   result.privateKey = PrivateKey.random(getRng()[])
   result.publicKey = result.privateKey.toPublicKey()
-  result.address = Address.init(result.publicKey.toCanonicalAddress())
+  result.address = Address(result.publicKey.toCanonicalAddress())
   result.provider = some provider
 
 method provider*(wallet: Wallet): Provider {.gcsafe, raises: [SignerError].} =

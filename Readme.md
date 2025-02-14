@@ -14,7 +14,13 @@ Use the [Nimble][2] package manager to add `ethers` to an existing
 project. Add the following to its .nimble file:
 
 ```nim
-requires "ethers >= 1.0.0 & < 2.0.0"
+requires "ethers >= 1.1.0 & < 2.0.0"
+```
+
+To avoid conflicts with previous versions of `contractabi`, use the following command to install dependencies:
+
+```bash
+nimble install --maximumtaggedversions=2
 ```
 
 Usage

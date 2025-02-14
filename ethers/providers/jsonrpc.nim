@@ -1,7 +1,7 @@
 import std/tables
 import std/uri
 import pkg/chronicles
-import pkg/eth/common/eth_types_json_serialization
+import pkg/eth/common/eth_types except Block, Log, Address, Transaction
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/errors
 import pkg/serde
