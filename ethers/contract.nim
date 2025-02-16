@@ -42,7 +42,6 @@ type
     response*: ?TransactionResponse
     convert*: ConvertCustomErrors
   EventHandler*[E: Event] = proc(event: ?!E) {.gcsafe, raises:[].}
-  ContractError* = object of EthersError
 
 func new*(ContractType: type Contract,
           address: Address,
