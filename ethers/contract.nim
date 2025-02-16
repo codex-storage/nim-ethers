@@ -19,6 +19,8 @@ export events
 export errors.SolidityError
 export errors.errors
 
+{.push raises: [].}
+
 logScope:
   topics = "ethers contract"
 
@@ -40,6 +42,7 @@ type
     response*: ?TransactionResponse
     convert*: ConvertCustomErrors
   EventHandler*[E: Event] = proc(event: ?!E) {.gcsafe, raises:[].}
+  ContractError* = object of EthersError
 
 func new*(ContractType: type Contract,
           address: Address,
@@ -48,10 +51,10 @@ func new*(ContractType: type Contract,
 
 func new*(ContractType: type Contract,
           address: Address,
-          signer: Signer): ContractType =
+          signer: Signer): ContractType {.raises: [SignerError].} =
   ContractType(signer: some signer, provider: signer.provider, address: address)
 
-func connect*[T: Contract](contract: T, provider: Provider | Signer): T =
+func connect*[T: Contract](contract: T, provider: Provider | Signer): T {.raises: [SignerError].} =
   T.new(contract.address, provider)
 
 func provider*(contract: Contract): Provider =
@@ -83,7 +86,7 @@ proc createTransaction(contract: Contract,
     gasLimit: overrides.gasLimit,
   )
 
-proc decodeResponse(T: type, bytes: seq[byte]): T =
+proc decodeResponse(T: type, bytes: seq[byte]): T {.raises: [ContractError].} =
   without decoded =? AbiDecoder.decode(bytes, T):
     raiseContractError "unable to decode return value as " & $T
   return decoded
@@ -131,7 +134,7 @@ proc send(
   function: string,
   parameters: tuple,
   overrides = TransactionOverrides()
-): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, CancelledError, CatchableError]).} =
+): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, SignerError, ProviderError, CancelledError]).} =
 
   if signer =? contract.signer:
     withLock(signer):
@@ -278,7 +281,6 @@ func addAsyncPragma(procedure: var NimNode) =
           newIdentNode("ProviderError"),
           newIdentNode("EthersError"),
           newIdentNode("AsyncLockError"),
-          newIdentNode("CatchableError"),
         ),
       )
     ),
