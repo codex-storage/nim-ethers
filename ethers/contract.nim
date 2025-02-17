@@ -19,6 +19,8 @@ export events
 export errors.SolidityError
 export errors.errors
 
+{.push raises: [].}
+
 logScope:
   topics = "ethers contract"
 
@@ -48,10 +50,10 @@ func new*(ContractType: type Contract,
 
 func new*(ContractType: type Contract,
           address: Address,
-          signer: Signer): ContractType =
+          signer: Signer): ContractType {.raises: [SignerError].} =
   ContractType(signer: some signer, provider: signer.provider, address: address)
 
-func connect*[T: Contract](contract: T, provider: Provider | Signer): T =
+func connect*[T: Contract](contract: T, provider: Provider | Signer): T {.raises: [SignerError].} =
   T.new(contract.address, provider)
 
 func provider*(contract: Contract): Provider =
@@ -83,24 +85,25 @@ proc createTransaction(contract: Contract,
     gasLimit: overrides.gasLimit,
   )
 
-proc decodeResponse(T: type, bytes: seq[byte]): T =
+proc decodeResponse(T: type, bytes: seq[byte]): T {.raises: [ContractError].} =
   without decoded =? AbiDecoder.decode(bytes, T):
     raiseContractError "unable to decode return value as " & $T
   return decoded
 
-proc call(provider: Provider,
-          transaction: Transaction,
-          overrides: TransactionOverrides): Future[seq[byte]] {.async: (raises: [ProviderError]).} =
-  if overrides of CallOverrides and
-     blockTag =? CallOverrides(overrides).blockTag:
+proc call(
+    provider: Provider, transaction: Transaction, overrides: TransactionOverrides
+): Future[seq[byte]] {.async: (raises: [ProviderError, CancelledError]).} =
+  if overrides of CallOverrides and blockTag =? CallOverrides(overrides).blockTag:
     await provider.call(transaction, blockTag)
   else:
     await provider.call(transaction)
 
-proc call(contract: Contract,
-          function: string,
-          parameters: tuple,
-          overrides = TransactionOverrides()) {.async: (raises: [ProviderError, SignerError]).} =
+proc call(
+    contract: Contract,
+    function: string,
+    parameters: tuple,
+    overrides = TransactionOverrides(),
+) {.async: (raises: [ProviderError, SignerError, CancelledError]).} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -108,11 +111,15 @@ proc call(contract: Contract,
 
   discard await contract.provider.call(transaction, overrides)
 
-proc call(contract: Contract,
-          function: string,
-          parameters: tuple,
-          ReturnType: type,
-          overrides = TransactionOverrides()): Future[ReturnType] {.async: (raises: [ProviderError, SignerError, ContractError]).} =
+proc call(
+    contract: Contract,
+    function: string,
+    parameters: tuple,
+    ReturnType: type,
+    overrides = TransactionOverrides(),
+): Future[ReturnType] {.
+    async: (raises: [ProviderError, SignerError, ContractError, CancelledError])
+.} =
   var transaction = createTransaction(contract, function, parameters, overrides)
 
   if signer =? contract.signer and transaction.sender.isNone:
@@ -126,7 +133,7 @@ proc send(
   function: string,
   parameters: tuple,
   overrides = TransactionOverrides()
-): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, CancelledError, CatchableError]).} =
+): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, SignerError, ProviderError, CancelledError]).} =
 
   if signer =? contract.signer:
     withLock(signer):
@@ -263,10 +270,22 @@ func addAsyncPragma(procedure: var NimNode) =
   let pragmas = procedure[4]
   if pragmas.kind == nnkEmpty:
     procedure[4] = newNimNode(nnkPragma)
-  procedure[4].add ident("async")
+  procedure[4].add nnkExprColonExpr.newTree(
+    newIdentNode("async"),
+    nnkTupleConstr.newTree(
+      nnkExprColonExpr.newTree(
+        newIdentNode("raises"),
+        nnkBracket.newTree(
+          newIdentNode("CancelledError"),
+          newIdentNode("ProviderError"),
+          newIdentNode("EthersError"),
+          newIdentNode("AsyncLockError"),
+        ),
+      )
+    ),
+  )
 
-macro contract*(procedure: untyped{nkProcDef|nkMethodDef}): untyped =
-
+macro contract*(procedure: untyped{nkProcDef | nkMethodDef}): untyped =
   let parameters = procedure[3]
   let body = procedure[6]
 
