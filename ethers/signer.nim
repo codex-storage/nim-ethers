@@ -12,7 +12,7 @@ type
   Signer* = ref object of RootObj
     populateLock: AsyncLock
 
-template raiseSignerError*(message: string, parent: ref ProviderError = nil) =
+template raiseSignerError*(message: string, parent: ref CatchableError = nil) =
   raise newException(SignerError, message, parent)
 
 template convertError(body) =
@@ -95,7 +95,10 @@ template withLock*(signer: Signer, body: untyped) =
   try:
     body
   finally:
-    signer.populateLock.release()
+    try:
+      signer.populateLock.release()
+    except AsyncLockError as e:
+      raiseSignerError e.msg, e
 
 method populateTransaction*(
   signer: Signer,
@@ -151,7 +154,7 @@ method populateTransaction*(
 method cancelTransaction*(
   signer: Signer,
   tx: Transaction
-): Future[TransactionResponse] {.base, async: (raises: [SignerError, CancelledError, AsyncLockError, ProviderError]).} =
+): Future[TransactionResponse] {.base, async: (raises: [SignerError, CancelledError, ProviderError]).} =
   # cancels a transaction by sending with a 0-valued transaction to ourselves
   # with the failed tx's nonce
 

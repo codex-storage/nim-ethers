@@ -133,7 +133,7 @@ proc send(
   function: string,
   parameters: tuple,
   overrides = TransactionOverrides()
-): Future[?TransactionResponse] {.async: (raises: [AsyncLockError, SignerError, ProviderError, CancelledError]).} =
+): Future[?TransactionResponse] {.async: (raises: [SignerError, ProviderError, CancelledError]).} =
 
   if signer =? contract.signer:
     withLock(signer):
@@ -279,7 +279,6 @@ func addAsyncPragma(procedure: var NimNode) =
           newIdentNode("CancelledError"),
           newIdentNode("ProviderError"),
           newIdentNode("EthersError"),
-          newIdentNode("AsyncLockError"),
         ),
       )
     ),
