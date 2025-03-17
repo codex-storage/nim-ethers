@@ -293,13 +293,22 @@ proc confirm*(
 proc confirm*(
   tx: Future[TransactionResponse],
   confirmations: int = EthersDefaultConfirmations,
-  timeout: int = EthersReceiptTimeoutBlks): Future[TransactionReceipt] {.async.} =
+  timeout: int = EthersReceiptTimeoutBlks): Future[TransactionReceipt] {.async: (raises: [CancelledError, EthersError]).} =
   ## Convenience method that allows wait to be chained to a sendTransaction
   ## call, eg:
   ## `await signer.sendTransaction(populated).confirm(3)`
-
-  let txResp = await tx
-  return await txResp.confirm(confirmations, timeout)
+  try:
+    let txResp = await tx
+    return await txResp.confirm(confirmations, timeout)
+  except CancelledError as e:
+    raise e
+  except EthersError as e:
+    raise e
+  except CatchableError as e:
+    raise newException(
+      EthersError,
+      "Error when trying to confirm the provider transaction: " & e.msg
+    )
 
 method close*(
     provider: Provider
