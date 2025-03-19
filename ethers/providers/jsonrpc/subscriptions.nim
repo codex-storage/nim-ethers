@@ -19,6 +19,11 @@ type
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
+    # We need to keep around the filters that are used to create log filters on the RPC node
+    # as there might be a time when they need to be recreated as RPC node might prune/forget
+    # about them
+    # This is used of resubscribe all the subscriptions when using websocket with hardhat
+    logFilters: Table[JsonNode, EventFilter]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
@@ -140,6 +145,7 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
   convertErrorsToSubscriptionError:
     let id = await subscriptions.client.eth_subscribe("logs", filter)
     subscriptions.callbacks[id] = callback
+    subscriptions.logFilters[id] = filter
     return id
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
@@ -159,11 +165,6 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
 type
   PollingSubscriptions* = ref object of JsonRpcSubscriptions
     polling: Future[void]
-
-    # We need to keep around the filters that are used to create log filters on the RPC node
-    # as there might be a time when they need to be recreated as RPC node might prune/forget
-    # about them
-    logFilters: Table[JsonNode, EventFilter]
 
     # Used when filters are recreated to translate from the id that user
     # originally got returned to new filter id
