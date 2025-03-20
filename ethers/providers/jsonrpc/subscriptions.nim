@@ -19,10 +19,37 @@ type
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
+    # We need to keep around the filters that are used to create log filters on the RPC node
+    # as there might be a time when they need to be recreated as RPC node might prune/forget
+    # about them
+    # This is used of resubscribe all the subscriptions when using websocket with hardhat
+    logFilters: Table[JsonNode, EventFilter]
+    when defined(ws_resubscribe):
+      resubscribeFut: Future[void]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
 {.push raises:[].}
+
+when defined(ws_resubscribe):
+  # This is a workaround to manage the 5 minutes limit due to hardhat.
+  # See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
+  proc resubscribeWebsocketEventsOnTimeout*(subscriptions: JsonRpcSubscriptions) {.async.} =
+    while true:
+      await sleepAsync(4.int64.minutes)
+      for id, callback in subscriptions.callbacks:
+        var newId: JsonNode
+        if id in subscriptions.logFilters:
+          let filter = subscriptions.logFilters[id]
+          newId = await subscriptions.client.eth_subscribe("logs", filter)
+          subscriptions.logFilters[newId] = filter
+          subscriptions.logFilters.del(id)
+        else:
+          newId = await subscriptions.client.eth_subscribe("newHeads")
+
+        subscriptions.callbacks[newId] = callback
+        subscriptions.callbacks.del(id)
+        discard await subscriptions.client.eth_unsubscribe(id)
 
 template convertErrorsToSubscriptionError(body) =
   try:
@@ -52,7 +79,6 @@ func start*(subscriptions: JsonRpcSubscriptions) =
 
       # true = continue processing message using json_rpc's default message handler
       return ok true
-
 
 proc setMethodHandler(
   subscriptions: JsonRpcSubscriptions,
@@ -84,6 +110,10 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [Subscripti
   for id in ids:
     await subscriptions.unsubscribe(id)
 
+  when defined(ws_resubscribe):
+    if not subscriptions.resubscribeFut.isNil:
+      await subscriptions.resubscribeFut.cancelAndWait()
+
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
   try:
@@ -105,6 +135,10 @@ proc new*(_: type JsonRpcSubscriptions,
     if callback =? subscriptions.getCallback(id):
       callback(id, success(arguments))
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
+
+  when defined(ws_resubscribe):
+    subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
+
   subscriptions
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
@@ -140,6 +174,7 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
   convertErrorsToSubscriptionError:
     let id = await subscriptions.client.eth_subscribe("logs", filter)
     subscriptions.callbacks[id] = callback
+    subscriptions.logFilters[id] = filter
     return id
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
@@ -159,11 +194,6 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
 type
   PollingSubscriptions* = ref object of JsonRpcSubscriptions
     polling: Future[void]
-
-    # We need to keep around the filters that are used to create log filters on the RPC node
-    # as there might be a time when they need to be recreated as RPC node might prune/forget
-    # about them
-    logFilters: Table[JsonNode, EventFilter]
 
     # Used when filters are recreated to translate from the id that user
     # originally got returned to new filter id
