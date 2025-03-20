@@ -8,3 +8,4 @@ when fileExists("nimble.paths"):
 
 when (NimMajor, NimMinor) >= (2, 0):
   --mm:refc
+  --define:ws_resubscribe

@@ -24,14 +24,14 @@ type
     # about them
     # This is used of resubscribe all the subscriptions when using websocket with hardhat
     logFilters: Table[JsonNode, EventFilter]
-    when defined(resubscribe):
+    when defined(ws_resubscribe):
       resubscribeFut: Future[void]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
 {.push raises:[].}
 
-when defined(resubscribe):
+when defined(ws_resubscribe):
   # This is a workaround to manage the 5 minutes limit due to hardhat.
   # See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
   proc resubscribeWebsocketEventsOnTimeout*(subscriptions: JsonRpcSubscriptions) {.async.} =
@@ -110,7 +110,7 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [Subscripti
   for id in ids:
     await subscriptions.unsubscribe(id)
 
-  when defined(resubscribe):
+  when defined(ws_resubscribe):
     if not subscriptions.resubscribeFut.isNil:
       await subscriptions.resubscribeFut.cancelAndWait()
 
@@ -136,7 +136,7 @@ proc new*(_: type JsonRpcSubscriptions,
       callback(id, success(arguments))
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
 
-  when defined(resubscribe):
+  when defined(ws_resubscribe):
     subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
 
   subscriptions
