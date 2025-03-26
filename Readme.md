@@ -204,7 +204,7 @@ This library ships with some optional modules that provides convenience utilitie
 
 - `ethers/erc20` module provides you with ERC20 token implementation and its events
 
-Workaround
+Hardhat websockets workaround
 ---------
 
 If you're working with Hardhat, you might encounter an issue where [websocket subscriptions stop working after 5 minutes](https://github.com/NomicFoundation/hardhat/issues/2053).
