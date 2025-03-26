@@ -19,10 +19,11 @@ type
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
-    # We need to keep around the filters that are used to create log filters on the RPC node
-    # as there might be a time when they need to be recreated as RPC node might prune/forget
-    # about them
-    # This is used of resubscribe all the subscriptions when using websocket with hardhat
+    # Used by both PollingSubscriptions and WebsocketSubscriptions to store
+    # subscription filters so the subscriptions can be recreated. With
+    # PollingSubscriptions, the RPC node might prune/forget about them, and with
+    # WebsocketSubscriptions, when using hardhat, subscriptions are dropped after 5
+    # minutes.
     logFilters: Table[JsonNode, EventFilter]
     when defined(ws_resubscribe):
       resubscribeFut: Future[void]
@@ -110,10 +111,6 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [Subscripti
   for id in ids:
     await subscriptions.unsubscribe(id)
 
-  when defined(ws_resubscribe):
-    if not subscriptions.resubscribeFut.isNil:
-      await subscriptions.resubscribeFut.cancelAndWait()
-
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
   try:
@@ -189,6 +186,11 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
     # Ignore if uninstallation of the subscribiton fails.
     discard
 
+method close*(subscriptions: WebsocketSubscriptions) {.async.} =
+  await procCall JsonRpcSubscriptions(subscriptions).close()
+  if not subscriptions.resubscribeFut.isNil:
+      await subscriptions.resubscribeFut.cancelAndWait()
+      
 # Polling
 
 type
