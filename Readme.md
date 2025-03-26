@@ -207,7 +207,7 @@ This library ships with some optional modules that provides convenience utilitie
 Workaround
 ---------
 
-If you're working with Hardhat, you might encounter an issue where [subscriptions stop working after 5 minutes](https://github.com/NomicFoundation/hardhat/issues/2053).
+If you're working with Hardhat, you might encounter an issue where [websocket subscriptions stop working after 5 minutes](https://github.com/NomicFoundation/hardhat/issues/2053).
 
 This library provides a workaround using the `--define:ws_resubscribe` option. When this symbol is defined, the subscriptions will automatically resubscribe after 4 minutes.
 
