@@ -30,7 +30,8 @@ suite "Websocket re-subscriptions":
 
     let subscription = await subscriptions.subscribeLogs(filter, emptyHandler)
 
-    await sleepAsync(3000.int64.milliseconds)
+    # Wait until the re-subscription starts
+    await sleepAsync(3.int64.seconds)
 
     try:
         await subscriptions.unsubscribe(subscription)
