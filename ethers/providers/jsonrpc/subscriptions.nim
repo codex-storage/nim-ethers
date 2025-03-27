@@ -144,10 +144,14 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     let res = Block.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
     onBlock(res)
 
-  convertErrorsToSubscriptionError:
-    let id = await subscriptions.client.eth_subscribe("newHeads")
-    subscriptions.callbacks[id] = callback
-    return id
+  withLock(subscriptions):
+    convertErrorsToSubscriptionError:
+      let id = await subscriptions.client.eth_subscribe("newHeads")
+      subscriptions.callbacks[id] = callback
+      return id
+  except AsyncLockError as e:
+     error "Lock error when trying to subscribe to blocks", err = e.msg
+     raise newException(SubscriptionError, "Cannot subscribe to the blocks because of lock error")
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      filter: EventFilter,
