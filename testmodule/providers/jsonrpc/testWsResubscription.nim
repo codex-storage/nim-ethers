@@ -24,7 +24,7 @@ suite "Websocket re-subscriptions":
     await subscriptions.close()
     await client.close()
 
-  test "unsubscribing from a log filter while subscriptions are being resubscribed does not cause a concurrency error.":
+  test "unsubscribing from a log filter while subscriptions are being resubscribed does not cause a concurrency error":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: ?!Log) = discard
 
