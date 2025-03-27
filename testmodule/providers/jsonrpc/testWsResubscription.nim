@@ -8,7 +8,7 @@ import ethers/providers/jsonrpc/subscriptions
 import ../../examples
 import ./rpc_mock
 
-suite "Web socket re-subscriptions":
+suite "Websocket re-subscriptions":
   privateAccess(JsonRpcSubscriptions)
 
   var subscriptions: JsonRpcSubscriptions
