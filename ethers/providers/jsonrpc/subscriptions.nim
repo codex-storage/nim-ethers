@@ -22,10 +22,11 @@ type
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
-    # We need to keep around the filters that are used to create log filters on the RPC node
-    # as there might be a time when they need to be recreated as RPC node might prune/forget
-    # about them
-    # This is used of resubscribe all the subscriptions when using websocket with hardhat
+    # Used by both PollingSubscriptions and WebsocketSubscriptions to store
+    # subscription filters so the subscriptions can be recreated. With
+    # PollingSubscriptions, the RPC node might prune/forget about them, and with
+    # WebsocketSubscriptions, when using hardhat, subscriptions are dropped after 5
+    # minutes.
     logFilters: Table[JsonNode, EventFilter]
     when defined(ws_resubscribe):
       resubscribeFut: Future[void]
