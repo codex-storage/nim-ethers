@@ -14,9 +14,6 @@ import ./conversions
 
 export serde
 
-# Default re-subscription period is 240 seconds (4 minutes)
-const WsResubscribe {.intdefine.}: int = 240
-
 type
   JsonRpcSubscriptions* = ref object of RootObj
     client: RpcClient
@@ -101,31 +98,14 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
 
 # Web sockets
 
+# Default re-subscription period is seconds
+const WsResubscribe {.intdefine.}: int = 0
+
 type
   WebSocketSubscriptions = ref object of JsonRpcSubscriptions
     logFiltersLock: AsyncLock
-    when defined(ws_resubscribe):
-      resubscribeFut: Future[void]
-      resubscribeInterval: int
-
-proc new*(_: type JsonRpcSubscriptions,
-            client: RpcWebSocketClient,
-            resubscribeInterval = WsResubscribe): JsonRpcSubscriptions =
-  when defined(ws_resubscribe):
-    let subscriptions = WebSocketSubscriptions(client: client, resubscribeInterval: resubscribeInterval)
-  else:
-    let subscriptions = WebSocketSubscriptions(client: client)
-
-  proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
-    let id = arguments{"subscription"} or newJString("")
-    if callback =? subscriptions.getCallback(id):
-      callback(id, success(arguments))
-  subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
-
-  when defined(ws_resubscribe):
-    subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
-
-  subscriptions
+    resubscribeFut: Future[void]
+    resubscribeInterval: int
 
 template withLock*(subscriptions: WebSocketSubscriptions, body: untyped) =
   if subscriptions.logFiltersLock.isNil:
@@ -136,6 +116,54 @@ template withLock*(subscriptions: WebSocketSubscriptions, body: untyped) =
     body
   finally:
     subscriptions.logFiltersLock.release()
+
+# This is a workaround to manage the 5 minutes limit due to hardhat.
+# See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
+proc resubscribeWebsocketEventsOnTimeout*(subscriptions: WebsocketSubscriptions) {.async: (raises: [CancelledError]).} =
+  if subscriptions.resubscribeInterval <= 0:
+    info "Skipping the resubscription because the interval is zero or negative", period = subscriptions.resubscribeInterval
+  else:
+    while true:
+      await sleepAsync(subscriptions.resubscribeInterval.seconds)
+      try:
+        withLock(subscriptions):
+          for id, callback in subscriptions.callbacks:
+
+            var newId: JsonNode
+            if id in subscriptions.logFilters:
+              let filter = subscriptions.logFilters[id]
+              newId = await subscriptions.client.eth_subscribe("logs", filter)
+              subscriptions.logFilters[newId] = filter
+              subscriptions.logFilters.del(id)
+            else:
+              newId = await subscriptions.client.eth_subscribe("newHeads")
+
+            subscriptions.callbacks[newId] = callback
+            subscriptions.callbacks.del(id)
+            discard await subscriptions.client.eth_unsubscribe(id)
+      except CancelledError as e:
+        raise e
+      except CatchableError as e:
+        error "WS resubscription failed" , error = e.msg
+
+proc new*(_: type JsonRpcSubscriptions,
+            client: RpcWebSocketClient,
+            resubscribeInterval = WsResubscribe): JsonRpcSubscriptions =
+  let subscriptions = WebSocketSubscriptions(client: client, resubscribeInterval: resubscribeInterval)
+
+  proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
+    let id = arguments{"subscription"} or newJString("")
+    if callback =? subscriptions.getCallback(id):
+      callback(id, success(arguments))
+  subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
+
+  if resubscribeInterval > 0:
+    if resubscribeInterval >= 300:
+      info "Resubscription interval greater than 300 seconds is useless for hardhat workaround", resubscribeInterval = resubscribeInterval
+
+    subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
+
+  subscriptions
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
                        onBlock: BlockHandler):
@@ -190,39 +218,8 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
 
 method close*(subscriptions: WebSocketSubscriptions) {.async: (raises: [CancelledError, SubscriptionError]).} =
   await procCall JsonRpcSubscriptions(subscriptions).close()
-  when defined(ws_resubscribe):
-    if not subscriptions.resubscribeFut.isNil:
-        await subscriptions.resubscribeFut.cancelAndWait()
-
-when defined(ws_resubscribe):
-  # This is a workaround to manage the 5 minutes limit due to hardhat.
-  # See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
-  proc resubscribeWebsocketEventsOnTimeout*(subscriptions: WebsocketSubscriptions) {.async: (raises: [CancelledError]).} =
-    if subscriptions.resubscribeInterval <= 0:
-      info "Skipping the resubscription because the interval is zero or negative", period = subscriptions.resubscribeInterval
-    else:
-      while true:
-        await sleepAsync(subscriptions.resubscribeInterval.seconds)
-        try:
-          withLock(subscriptions):
-            for id, callback in subscriptions.callbacks:
-
-              var newId: JsonNode
-              if id in subscriptions.logFilters:
-                let filter = subscriptions.logFilters[id]
-                newId = await subscriptions.client.eth_subscribe("logs", filter)
-                subscriptions.logFilters[newId] = filter
-                subscriptions.logFilters.del(id)
-              else:
-                newId = await subscriptions.client.eth_subscribe("newHeads")
-
-              subscriptions.callbacks[newId] = callback
-              subscriptions.callbacks.del(id)
-              discard await subscriptions.client.eth_unsubscribe(id)
-        except CancelledError as e:
-          raise e
-        except CatchableError as e:
-          error "WS resubscription failed" , error = e.msg
+  if not subscriptions.resubscribeFut.isNil:
+      await subscriptions.resubscribeFut.cancelAndWait()
 
 # Polling
 
