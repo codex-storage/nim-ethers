@@ -120,31 +120,28 @@ template withLock*(subscriptions: WebSocketSubscriptions, body: untyped) =
 # This is a workaround to manage the 5 minutes limit due to hardhat.
 # See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
 proc resubscribeWebsocketEventsOnTimeout*(subscriptions: WebsocketSubscriptions) {.async: (raises: [CancelledError]).} =
-  if subscriptions.resubscribeInterval <= 0:
-    info "Skipping the resubscription because the interval is zero or negative", period = subscriptions.resubscribeInterval
-  else:
-    while true:
-      await sleepAsync(subscriptions.resubscribeInterval.seconds)
-      try:
-        withLock(subscriptions):
-          for id, callback in subscriptions.callbacks:
+  while true:
+    await sleepAsync(subscriptions.resubscribeInterval.seconds)
+    try:
+      withLock(subscriptions):
+        for id, callback in subscriptions.callbacks:
 
-            var newId: JsonNode
-            if id in subscriptions.logFilters:
-              let filter = subscriptions.logFilters[id]
-              newId = await subscriptions.client.eth_subscribe("logs", filter)
-              subscriptions.logFilters[newId] = filter
-              subscriptions.logFilters.del(id)
-            else:
-              newId = await subscriptions.client.eth_subscribe("newHeads")
+          var newId: JsonNode
+          if id in subscriptions.logFilters:
+            let filter = subscriptions.logFilters[id]
+            newId = await subscriptions.client.eth_subscribe("logs", filter)
+            subscriptions.logFilters[newId] = filter
+            subscriptions.logFilters.del(id)
+          else:
+            newId = await subscriptions.client.eth_subscribe("newHeads")
 
-            subscriptions.callbacks[newId] = callback
-            subscriptions.callbacks.del(id)
-            discard await subscriptions.client.eth_unsubscribe(id)
-      except CancelledError as e:
-        raise e
-      except CatchableError as e:
-        error "WS resubscription failed" , error = e.msg
+          subscriptions.callbacks[newId] = callback
+          subscriptions.callbacks.del(id)
+          discard await subscriptions.client.eth_unsubscribe(id)
+    except CancelledError as e:
+      raise e
+    except CatchableError as e:
+      error "WS resubscription failed" , error = e.msg
 
 proc new*(_: type JsonRpcSubscriptions,
             client: RpcWebSocketClient,
