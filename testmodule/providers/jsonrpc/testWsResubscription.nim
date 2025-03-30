@@ -13,11 +13,13 @@ suite "Websocket re-subscriptions":
 
   var subscriptions: JsonRpcSubscriptions
   var client: RpcWebSocketClient
+  var resubscribeInterval: int
 
   setup:
+    resubscribeInterval = 3
     client = newRpcWebSocketClient()
     await client.connect("ws://"  & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545"))
-    subscriptions = JsonRpcSubscriptions.new(client)
+    subscriptions = JsonRpcSubscriptions.new(client, resubscribeInterval = resubscribeInterval)
     subscriptions.start()
 
   teardown:
@@ -28,15 +30,14 @@ suite "Websocket re-subscriptions":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
     let emptyHandler = proc(log: ?!Log) = discard
 
-    let subscription = await subscriptions.subscribeLogs(filter, emptyHandler)
+    for i in 1..10:
+      discard await subscriptions.subscribeLogs(filter, emptyHandler)
 
     # Wait until the re-subscription starts
-    await sleepAsync(3.int64.seconds)
+    await sleepAsync(resubscribeInterval.seconds)
 
-    try:
-        await subscriptions.unsubscribe(subscription)
-    except CatchableError:
-        fail()
+    # Attempt to modify callbacks while its being iterated
+    discard await subscriptions.subscribeLogs(filter, emptyHandler)
 
   test "resubscribe events take effect with new subscription IDs in the log filters":
     let filter = EventFilter(address: Address.example, topics: @[array[32, byte].example])
@@ -46,7 +47,8 @@ suite "Websocket re-subscriptions":
     check id in subscriptions.logFilters
     check subscriptions.logFilters.len == 1
 
-    await sleepAsync(4.int64.seconds)
+    # Make sure the subscription is done
+    await sleepAsync((resubscribeInterval + 1).seconds)
 
     # The previous subscription should not be in the log filters
     check not (id in subscriptions.logFilters)

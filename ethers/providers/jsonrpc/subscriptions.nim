@@ -15,7 +15,7 @@ import ./conversions
 export serde
 
 # Default re-subscription period is 240 seconds (4 minutes)
-const WsResubscribe {.intdefine.}: int64 = 240
+const WsResubscribe {.intdefine.}: int = 240
 
 type
   JsonRpcSubscriptions* = ref object of RootObj
@@ -28,8 +28,6 @@ type
     # WebsocketSubscriptions, when using hardhat, subscriptions are dropped after 5
     # minutes.
     logFilters: Table[JsonNode, EventFilter]
-    when defined(ws_resubscribe):
-      resubscribeFut: Future[void]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
@@ -106,11 +104,18 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
 type
   WebSocketSubscriptions = ref object of JsonRpcSubscriptions
     logFiltersLock: AsyncLock
+    when defined(ws_resubscribe):
+      resubscribeFut: Future[void]
+      resubscribeInterval: int
 
 proc new*(_: type JsonRpcSubscriptions,
-          client: RpcWebSocketClient): JsonRpcSubscriptions =
+            client: RpcWebSocketClient,
+            resubscribeInterval = WsResubscribe): JsonRpcSubscriptions =
+  when defined(ws_resubscribe):
+    let subscriptions = WebSocketSubscriptions(client: client, resubscribeInterval: resubscribeInterval)
+  else:
+    let subscriptions = WebSocketSubscriptions(client: client)
 
-  let subscriptions = WebSocketSubscriptions(client: client)
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
     let id = arguments{"subscription"} or newJString("")
     if callback =? subscriptions.getCallback(id):
@@ -144,15 +149,11 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     let res = Block.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
     onBlock(res)
 
-  try:
+  convertErrorsToSubscriptionError:
     withLock(subscriptions):
-      convertErrorsToSubscriptionError:
-        let id = await subscriptions.client.eth_subscribe("newHeads")
-        subscriptions.callbacks[id] = callback
-        return id
-  except AsyncLockError as e:
-     error "Lock error when trying to subscribe to blocks", err = e.msg
-     raise newException(SubscriptionError, "Cannot subscribe to the blocks because of lock error")
+      let id = await subscriptions.client.eth_subscribe("newHeads")
+      subscriptions.callbacks[id] = callback
+      return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      filter: EventFilter,
@@ -167,16 +168,12 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
     let res = Log.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
     onLog(res)
 
-  try:
+  convertErrorsToSubscriptionError:
     withLock(subscriptions):
-      convertErrorsToSubscriptionError:
-        let id = await subscriptions.client.eth_subscribe("logs", filter)
-        subscriptions.callbacks[id] = callback
-        subscriptions.logFilters[id] = filter
-        return id
-  except AsyncLockError as e:
-     error "Lock error when trying to subscribe to logs", err = e.msg
-     raise newException(SubscriptionError, "Cannot subscribe to the logs because of lock error")
+      let id = await subscriptions.client.eth_subscribe("logs", filter)
+      subscriptions.callbacks[id] = callback
+      subscriptions.logFilters[id] = filter
+      return id
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
@@ -191,7 +188,7 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
     # Ignore if uninstallation of the subscribiton fails.
     discard
 
-method close*(subscriptions: WebsocketSubscriptions) {.async.} =
+method close*(subscriptions: WebSocketSubscriptions) {.async: (raises: [CancelledError, SubscriptionError]).} =
   await procCall JsonRpcSubscriptions(subscriptions).close()
   when defined(ws_resubscribe):
     if not subscriptions.resubscribeFut.isNil:
@@ -201,28 +198,31 @@ when defined(ws_resubscribe):
   # This is a workaround to manage the 5 minutes limit due to hardhat.
   # See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
   proc resubscribeWebsocketEventsOnTimeout*(subscriptions: WebsocketSubscriptions) {.async: (raises: [CancelledError]).} =
-    while true:
-      await sleepAsync(WsResubscribe.seconds)
-      try:
-        withLock(subscriptions):
-          for id, callback in subscriptions.callbacks:
+    if subscriptions.resubscribeInterval <= 0:
+      info "Skipping the resubscription because the interval is zero or negative", period = subscriptions.resubscribeInterval
+    else:
+      while true:
+        await sleepAsync(subscriptions.resubscribeInterval.seconds)
+        try:
+          withLock(subscriptions):
+            for id, callback in subscriptions.callbacks:
 
-            var newId: JsonNode
-            if id in subscriptions.logFilters:
-              let filter = subscriptions.logFilters[id]
-              newId = await subscriptions.client.eth_subscribe("logs", filter)
-              subscriptions.logFilters[newId] = filter
-              subscriptions.logFilters.del(id)
-            else:
-              newId = await subscriptions.client.eth_subscribe("newHeads")
+              var newId: JsonNode
+              if id in subscriptions.logFilters:
+                let filter = subscriptions.logFilters[id]
+                newId = await subscriptions.client.eth_subscribe("logs", filter)
+                subscriptions.logFilters[newId] = filter
+                subscriptions.logFilters.del(id)
+              else:
+                newId = await subscriptions.client.eth_subscribe("newHeads")
 
-            subscriptions.callbacks[newId] = callback
-            subscriptions.callbacks.del(id)
-            discard await subscriptions.client.eth_unsubscribe(id)
-      except CancelledError as e:
-        raise e
-      except CatchableError as e:
-        error "WS resubscription failed" , error = e.msg
+              subscriptions.callbacks[newId] = callback
+              subscriptions.callbacks.del(id)
+              discard await subscriptions.client.eth_unsubscribe(id)
+        except CancelledError as e:
+          raise e
+        except CatchableError as e:
+          error "WS resubscription failed" , error = e.msg
 
 # Polling
 
