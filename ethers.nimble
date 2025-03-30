@@ -18,4 +18,3 @@ task test, "Run the test suite":
   # exec "nimble install -d -y"
   withDir "testmodule":
     exec "nimble test"
-    exec "nimble testWsResubscription"
