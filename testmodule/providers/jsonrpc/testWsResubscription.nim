@@ -51,7 +51,7 @@ suite "Websocket re-subscriptions":
     await sleepAsync((resubscribeInterval + 1).seconds)
 
     # The previous subscription should not be in the log filters
-    check not (id in subscriptions.logFilters)
+    check id notin subscriptions.logFilters
 
     # There is still one subscription which is the new one
     check subscriptions.logFilters.len == 1
