@@ -63,6 +63,7 @@ type
     number*: ?UInt256
     timestamp*: UInt256
     hash*: ?BlockHash
+    baseFeePerGas* : ?UInt256
   PastTransaction* {.serialize.} = object
     blockHash*: BlockHash
     blockNumber*: UInt256
@@ -117,6 +118,11 @@ method call*(
   doAssert false, "not implemented"
 
 method getGasPrice*(
+    provider: Provider
+): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
+  doAssert false, "not implemented"
+
+method getMaxPriorityFeePerGas*(
     provider: Provider
 ): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
   doAssert false, "not implemented"

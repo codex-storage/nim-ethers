@@ -35,6 +35,7 @@ type
     gasPrice*: ?UInt256
     maxFee*: ?UInt256
     maxPriorityFee*: ?UInt256
+    maxPriorityFeePerGas*: ?UInt256
     gasLimit*: ?UInt256
   CallOverrides* = ref object of TransactionOverrides
     blockTag*: ?BlockTag
@@ -82,6 +83,7 @@ proc createTransaction(contract: Contract,
     gasPrice: overrides.gasPrice,
     maxFee: overrides.maxFee,
     maxPriorityFee: overrides.maxPriorityFee,
+    maxPriorityFeePerGas: overrides.maxPriorityFeePerGas,
     gasLimit: overrides.gasLimit,
   )
 

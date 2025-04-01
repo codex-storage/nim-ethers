@@ -1,4 +1,5 @@
 import pkg/questionable
+import pkg/chronicles
 import ./basics
 import ./errors
 import ./provider
@@ -54,6 +55,11 @@ method getGasPrice*(
     base, async: (raises: [ProviderError, SignerError, CancelledError])
 .} =
   return await signer.provider.getGasPrice()
+
+method getMaxPriorityFeePerGas*(
+    signer: Signer
+): Future[UInt256] {.async: (raises: [ProviderError, SignerError, CancelledError]).} =
+  return await signer.provider.getMaxPriorityFeePerGas()
 
 method getTransactionCount*(
     signer: Signer, blockTag = BlockTag.latest
@@ -124,8 +130,22 @@ method populateTransaction*(
     populated.sender = some(address)
   if transaction.chainId.isNone:
     populated.chainId = some(await signer.getChainId())
-  if transaction.gasPrice.isNone and (transaction.maxFee.isNone or transaction.maxPriorityFee.isNone):
-    populated.gasPrice = some(await signer.getGasPrice())
+
+  let blk = await signer.provider.getBlock(BlockTag.latest)
+
+  if baseFeePerGas =? blk.?baseFeePerGas:
+    trace "EIP-1559 is supported"
+
+    let maxPriorityFeePerGas = transaction.maxPriorityFeePerGas |? (await signer.provider.getMaxPriorityFeePerGas())
+    populated.maxPriorityFeePerGas = some(maxPriorityFeePerGas)
+
+    # Multiply by 2 because during times of congestion, it can increase by 12.5% per block.
+    # https://github.com/ethers-io/ethers.js/discussions/3601#discussioncomment-4461273
+    let maxFeePerGas = baseFeePerGas * 2 + maxPriorityFeePerGas
+    populated.maxFeePerGas = some(maxFeePerGas)
+  else:
+    trace "EIP-1559 is not supported"
+    populated.gasPrice = some(transaction.gasPrice |? (await signer.getGasPrice()))
 
   if transaction.nonce.isNone and transaction.gasLimit.isNone:
     # when both nonce and gasLimit are not populated, we must ensure getNonce is
