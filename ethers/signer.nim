@@ -139,11 +139,12 @@ method populateTransaction*(
 
     # Multiply by 2 because during times of congestion, baseFeePerGas can increase by 12.5% per block.
     # https://github.com/ethers-io/ethers.js/discussions/3601#discussioncomment-4461273
-    populated.maxFeePerGas = some(transaction.maxFeePerGas |? baseFeePerGas * 2 + maxPriorityFeePerGas)
+    let maxFeePerGas = transaction.maxFeePerGas |? baseFeePerGas * 2 + maxPriorityFeePerGas
+    populated.maxFeePerGas = some(maxFeePerGas)
 
     populated.gasPrice = none(UInt256)
 
-    trace "EIP-1559 is supported", maxPriorityFeePerGas = maxPriorityFeePerGas, maxFeePerGas = populated.maxFeePerGas
+    trace "EIP-1559 is supported", maxPriorityFeePerGas = maxPriorityFeePerGas, maxFeePerGas = maxFeePerGas
   else:
     populated.gasPrice = some(transaction.gasPrice |? (await signer.getGasPrice()))
     trace "EIP-1559 is not supported", gasPrice = populated.gasPrice
