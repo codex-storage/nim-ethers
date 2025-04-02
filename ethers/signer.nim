@@ -134,8 +134,6 @@ method populateTransaction*(
   let blk = await signer.provider.getBlock(BlockTag.latest)
 
   if baseFeePerGas =? blk.?baseFeePerGas:
-    trace "EIP-1559 is supported"
-
     let maxPriorityFeePerGas = transaction.maxPriorityFeePerGas |? (await signer.provider.getMaxPriorityFeePerGas())
     populated.maxPriorityFeePerGas = some(maxPriorityFeePerGas)
 
@@ -143,9 +141,11 @@ method populateTransaction*(
     # https://github.com/ethers-io/ethers.js/discussions/3601#discussioncomment-4461273
     let maxFeePerGas = baseFeePerGas * 2 + maxPriorityFeePerGas
     populated.maxFeePerGas = some(maxFeePerGas)
+
+    trace "EIP-1559 is supported", maxPriorityFeePerGas = maxPriorityFeePerGas, maxFeePerGas = maxFeePerGas
   else:
-    trace "EIP-1559 is not supported"
     populated.gasPrice = some(transaction.gasPrice |? (await signer.getGasPrice()))
+    trace "EIP-1559 is not supported", gasPrice = populated.gasPrice
 
   if transaction.nonce.isNone and transaction.gasLimit.isNone:
     # when both nonce and gasLimit are not populated, we must ensure getNonce is
