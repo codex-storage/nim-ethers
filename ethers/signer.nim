@@ -142,6 +142,8 @@ method populateTransaction*(
     let maxFeePerGas = baseFeePerGas * 2 + maxPriorityFeePerGas
     populated.maxFeePerGas = some(maxFeePerGas)
 
+    populated.gasPrice = none(UInt256)
+
     trace "EIP-1559 is supported", maxPriorityFeePerGas = maxPriorityFeePerGas, maxFeePerGas = maxFeePerGas
   else:
     populated.gasPrice = some(transaction.gasPrice |? (await signer.getGasPrice()))
