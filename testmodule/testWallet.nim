@@ -105,6 +105,16 @@ suite "Wallet":
     let wallet = !Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
       nonce: some 0.u256,
+      gasPrice: some 1_000_000_000.u256,
+      gasLimit: some 22_000.u256)
+    let testToken = Erc20.new(wallet.address, wallet)
+    await testToken.transfer(wallet.address, 24.u256, overrides)
+
+  test "Can call state-changing function automatically EIP1559":
+    #TODO add actual token contract, not random address. Should work regardless
+    let wallet = !Wallet.new(pk_with_funds, provider)
+    let overrides = TransactionOverrides(
+      nonce: some 0.u256,
       maxFeePerGas: some 1_000_000_000.u256,
       maxPriorityFeePerGas: some 1_000_000_000.u256,
       gasLimit: some 22_000.u256)
