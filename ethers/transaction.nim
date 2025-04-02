@@ -15,8 +15,6 @@ type
     nonce*: ?UInt256
     chainId*: ?UInt256
     gasPrice*: ?UInt256
-    maxFee*: ?UInt256
-    maxPriorityFee*: ?UInt256
     maxPriorityFeePerGas*: ?UInt256
     maxFeePerGas*: ?UInt256
     gasLimit*: ?UInt256

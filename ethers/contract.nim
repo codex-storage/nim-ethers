@@ -33,9 +33,8 @@ type
     nonce*: ?UInt256
     chainId*: ?UInt256
     gasPrice*: ?UInt256
-    maxFee*: ?UInt256
-    maxPriorityFee*: ?UInt256
     maxPriorityFeePerGas*: ?UInt256
+    maxFeePerGas*: ?UInt256
     gasLimit*: ?UInt256
   CallOverrides* = ref object of TransactionOverrides
     blockTag*: ?BlockTag
@@ -81,8 +80,7 @@ proc createTransaction(contract: Contract,
     nonce: overrides.nonce,
     chainId: overrides.chainId,
     gasPrice: overrides.gasPrice,
-    maxFee: overrides.maxFee,
-    maxPriorityFee: overrides.maxPriorityFee,
+    maxFeePerGas: overrides.maxFeePerGas,
     maxPriorityFeePerGas: overrides.maxPriorityFeePerGas,
     gasLimit: overrides.gasLimit,
   )

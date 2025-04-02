@@ -107,17 +107,17 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
       check (await token.connect(provider).balanceOf(accounts[1])) == 25.u256
       check (await token.connect(provider).balanceOf(accounts[2])) == 25.u256
 
-    test "takes custom values for nonce, gasprice and gaslimit":
+    test "takes custom values for nonce, gasprice and maxPriorityFeePerGas":
       let overrides = TransactionOverrides(
         nonce: some 100.u256,
-        gasPrice: some 200.u256,
+        maxPriorityFeePerGas: some 200.u256,
         gasLimit: some 300.u256
       )
       let signer = MockSigner.new(provider)
       discard await token.connect(signer).mint(accounts[0], 42.u256, overrides)
       check signer.transactions.len == 1
       check signer.transactions[0].nonce == overrides.nonce
-      check signer.transactions[0].gasPrice == overrides.gasPrice
+      check signer.transactions[0].maxPriorityFeePerGas == overrides.maxPriorityFeePerGas
       check signer.transactions[0].gasLimit == overrides.gasLimit
 
     test "can call functions for different block heights":
