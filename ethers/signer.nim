@@ -137,7 +137,7 @@ method populateTransaction*(
     let maxPriorityFeePerGas = transaction.maxPriorityFeePerGas |? (await signer.provider.getMaxPriorityFeePerGas())
     populated.maxPriorityFeePerGas = some(maxPriorityFeePerGas)
 
-    # Multiply by 2 because during times of congestion, it can increase by 12.5% per block.
+    # Multiply by 2 because during times of congestion, baseFeePerGas can increase by 12.5% per block.
     # https://github.com/ethers-io/ethers.js/discussions/3601#discussioncomment-4461273
     let maxFeePerGas = baseFeePerGas * 2 + maxPriorityFeePerGas
     populated.maxFeePerGas = some(maxFeePerGas)
