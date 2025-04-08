@@ -16,5 +16,3 @@ proc toErr*[E1: ref CatchableError, E2: EthersError](
   msg: string = e1.msg): ref E2 =
 
   return newException(E2, msg, e1)
-
-template errors*(types) {.pragma.}

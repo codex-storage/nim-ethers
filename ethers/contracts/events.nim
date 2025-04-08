@@ -1,7 +1,7 @@
 import std/macros
 import pkg/contractabi
-import ./basics
-import ./provider
+import ../basics
+import ../provider
 
 type
   Event* = object of RootObj
