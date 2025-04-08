@@ -1,5 +1,5 @@
 import std/os
-import pkg/asynctest
+import pkg/asynctest/chronos/unittest
 import pkg/ethers
 import pkg/stew/byteutils
 import ../../examples
