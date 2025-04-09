@@ -5,6 +5,7 @@ import ./contracts/confirmation
 import ./contracts/events
 import ./contracts/filters
 import ./contracts/syntax
+import ./contracts/gas
 import ./contracts/function
 
 export contract
@@ -16,6 +17,7 @@ export syntax.view
 export syntax.pure
 export syntax.getter
 export syntax.errors
+export gas.estimateGas
 
 {.push raises: [].}
 
@@ -23,4 +25,7 @@ macro contract*(procedure: untyped{nkProcDef | nkMethodDef}): untyped =
   procedure.params.expectMinLen(2) # at least return type and contract instance
   procedure.body.expectKind(nnkEmpty)
 
-  createContractFunction(procedure)
+  newStmtList(
+    createContractFunction(procedure),
+    createGasEstimationCall(procedure)
+  )
