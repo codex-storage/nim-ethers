@@ -64,7 +64,7 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     test "can call constant functions without a return type":
       token = TestToken.new(token.address, provider.getSigner())
       proc mint(token: TestToken, holder: Address, amount: UInt256) {.contract, view.}
-      await mint(token, accounts[1], 100.u256)
+      await token.mint(accounts[1], 100.u256)
       check (await balanceOf(token, accounts[1])) == 0.u256
 
     test "can call non-constant functions without a return type":
@@ -74,7 +74,6 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
       check (await balanceOf(token, accounts[1])) == 100.u256
 
     test "can call non-constant functions with a Confirmable return type":
-
       token = TestToken.new(token.address, provider.getSigner())
       proc mint(token: TestToken,
                 holder: Address,
@@ -145,6 +144,15 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
       expect ProviderError:
         discard await token.transfer(accounts[1], 50.u256, beforeMint)
       discard await token.transfer(accounts[1], 50.u256, afterMint)
+
+    test "can estimate gas of a function call":
+      proc mint(token: TestToken, holder: Address, amount: UInt256) {.contract.}
+      let estimate = await token.estimateGas.mint(accounts[1], 100.u256)
+      let correctGas = TransactionOverrides(gasLimit: some estimate)
+      await token.mint(accounts[1], 100.u256, correctGas)
+      let invalidGas = TransactionOverrides(gasLimit: some (estimate - 1))
+      expect ProviderError:
+        await token.mint(accounts[1], 100.u256, invalidGas)
 
     test "receives events when subscribed":
       var transfers: seq[Transfer]
