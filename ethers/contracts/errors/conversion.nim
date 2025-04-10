@@ -1,5 +1,5 @@
-import ../basics
-import ../provider
+import ../../basics
+import ../../provider
 import ./encoding
 
 type ConvertCustomErrors* =

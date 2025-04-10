@@ -97,13 +97,25 @@ suite "Contract custom errors":
     expect ErrorWithArguments:
       await contract.revertsMultipleErrors(simple = false)
 
-  test "handles gas estimation errors":
+  test "handles gas estimation errors when calling a contract function":
     proc revertsTransaction(contract: TestCustomErrors)
       {.contract, errors:[ErrorWithArguments].}
 
     let contract = contract.connect(provider.getSigner())
     try:
       await contract.revertsTransaction()
+      fail()
+    except ErrorWithArguments as error:
+      check error.arguments.one == 1.u256
+      check error.arguments.two == true
+
+  test "handles errors when only doing gas estimation":
+    proc revertsTransaction(contract: TestCustomErrors)
+      {.contract, errors:[ErrorWithArguments], used.}
+
+    let contract = contract.connect(provider.getSigner())
+    try:
+      discard await contract.estimateGas.revertsTransaction()
       fail()
     except ErrorWithArguments as error:
       check error.arguments.one == 1.u256
