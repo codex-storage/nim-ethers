@@ -5,6 +5,7 @@ import ../signer
 import ./contract
 import ./contractcall
 import ./transactions
+import ./errors
 import ./syntax
 
 type ContractGasEstimations[C] = distinct C
@@ -42,4 +43,4 @@ func createGasEstimationCall*(procedure: NimNode): NimNode =
   result.addAsyncPragma()
   result.addUsedPragma()
   result.addEstimateCall()
-
+  result.addErrorHandling()
