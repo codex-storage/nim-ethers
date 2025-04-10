@@ -216,7 +216,7 @@ method unsubscribe*(subscriptions: WebSocketSubscriptions,
     # Ignore if uninstallation of the subscribiton fails.
     discard
 
-method close*(subscriptions: WebSocketSubscriptions) {.async: (raises: [CancelledError, SubscriptionError]).} =
+method close*(subscriptions: WebSocketSubscriptions) {.async: (raises: []).} =
   await procCall JsonRpcSubscriptions(subscriptions).close()
   if not subscriptions.resubscribeFut.isNil:
       await subscriptions.resubscribeFut.cancelAndWait()
@@ -306,7 +306,7 @@ proc new*(_: type JsonRpcSubscriptions,
   asyncSpawn subscriptions.polling
   subscriptions
 
-method close*(subscriptions: PollingSubscriptions) {.async.} =
+method close*(subscriptions: PollingSubscriptions) {.async: (raises: []).} =
   await subscriptions.polling.cancelAndWait()
   await procCall JsonRpcSubscriptions(subscriptions).close()
 
