@@ -1,6 +1,6 @@
 import std/os
 import std/importutils
-import pkg/asynctest
+import pkg/asynctest/chronos/unittest
 import pkg/serde
 import pkg/json_rpc/rpcclient
 import pkg/json_rpc/rpcserver

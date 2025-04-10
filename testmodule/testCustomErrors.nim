@@ -1,6 +1,6 @@
 import std/os
 import pkg/serde
-import pkg/asynctest
+import pkg/asynctest/chronos/unittest
 import pkg/ethers
 import ./hardhat
 

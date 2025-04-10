@@ -1,6 +1,6 @@
 import std/os
 import std/strformat
-import pkg/asynctest
+import pkg/asynctest/chronos/unittest
 import pkg/chronos
 import pkg/ethers
 import pkg/ethers/testing
