@@ -90,7 +90,7 @@ method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: []), base.}
     try:
       await subscriptions.unsubscribe(id)
     except CatchableError as e:
-      error "WS unsubscription failed", error = e.msg, id = id
+      error "JsonRpc unsubscription failed", error = e.msg, id = id
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
