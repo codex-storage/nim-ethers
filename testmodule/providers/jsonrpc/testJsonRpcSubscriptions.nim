@@ -114,6 +114,7 @@ suite "HTTP polling subscriptions - mock tests":
   var mockServer: MockRpcHttpServer
 
   privateAccess(PollingSubscriptions)
+  privateAccess(JsonRpcSubscriptions)
 
   proc startServer() {.async.} =
     mockServer = MockRpcHttpServer.new()

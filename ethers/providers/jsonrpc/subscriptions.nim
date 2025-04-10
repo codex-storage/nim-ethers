@@ -19,6 +19,12 @@ type
     client: RpcClient
     callbacks: Table[JsonNode, SubscriptionCallback]
     methodHandlers: Table[string, MethodHandler]
+    # Used by both PollingSubscriptions and WebsocketSubscriptions to store
+    # subscription filters so the subscriptions can be recreated. With
+    # PollingSubscriptions, the RPC node might prune/forget about them, and with
+    # WebsocketSubscriptions, when using hardhat, subscriptions are dropped after 5
+    # minutes.
+    logFilters: Table[JsonNode, EventFilter]
   MethodHandler* = proc (j: JsonNode) {.gcsafe, raises: [].}
   SubscriptionCallback = proc(id: JsonNode, arguments: ?!JsonNode) {.gcsafe, raises:[].}
 
@@ -53,7 +59,6 @@ func start*(subscriptions: JsonRpcSubscriptions) =
       # true = continue processing message using json_rpc's default message handler
       return ok true
 
-
 proc setMethodHandler(
   subscriptions: JsonRpcSubscriptions,
   `method`: string,
@@ -79,10 +84,13 @@ method unsubscribe*(subscriptions: JsonRpcSubscriptions,
                    {.async: (raises: [CancelledError]), base.} =
   raiseAssert "not implemented "
 
-method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [SubscriptionError, CancelledError]), base.} =
+method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: []), base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
-    await subscriptions.unsubscribe(id)
+    try:
+      await subscriptions.unsubscribe(id)
+    except CatchableError as e:
+      error "JsonRpc unsubscription failed", error = e.msg, id = id
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
@@ -93,18 +101,68 @@ proc getCallback(subscriptions: JsonRpcSubscriptions,
 
 # Web sockets
 
+# Default re-subscription period is seconds
+const WsResubscribe {.intdefine.}: int = 0
+
 type
   WebSocketSubscriptions = ref object of JsonRpcSubscriptions
+    logFiltersLock: AsyncLock
+    resubscribeFut: Future[void]
+    resubscribeInterval: int
+
+template withLock*(subscriptions: WebSocketSubscriptions, body: untyped) =
+  if subscriptions.logFiltersLock.isNil:
+    subscriptions.logFiltersLock = newAsyncLock()
+
+  await subscriptions.logFiltersLock.acquire()
+  try:
+    body
+  finally:
+    subscriptions.logFiltersLock.release()
+
+# This is a workaround to manage the 5 minutes limit due to hardhat.
+# See https://github.com/NomicFoundation/hardhat/issues/2053#issuecomment-1061374064
+proc resubscribeWebsocketEventsOnTimeout*(subscriptions: WebsocketSubscriptions) {.async: (raises: [CancelledError]).} =
+  while true:
+    await sleepAsync(subscriptions.resubscribeInterval.seconds)
+    try:
+      withLock(subscriptions):
+        for id, callback in subscriptions.callbacks:
+
+          var newId: JsonNode
+          if id in subscriptions.logFilters:
+            let filter = subscriptions.logFilters[id]
+            newId = await subscriptions.client.eth_subscribe("logs", filter)
+            subscriptions.logFilters[newId] = filter
+            subscriptions.logFilters.del(id)
+          else:
+            newId = await subscriptions.client.eth_subscribe("newHeads")
+
+          subscriptions.callbacks[newId] = callback
+          subscriptions.callbacks.del(id)
+          discard await subscriptions.client.eth_unsubscribe(id)
+    except CancelledError as e:
+      raise e
+    except CatchableError as e:
+      error "WS resubscription failed" , error = e.msg
 
 proc new*(_: type JsonRpcSubscriptions,
-          client: RpcWebSocketClient): JsonRpcSubscriptions =
+            client: RpcWebSocketClient,
+            resubscribeInterval = WsResubscribe): JsonRpcSubscriptions =
+  let subscriptions = WebSocketSubscriptions(client: client, resubscribeInterval: resubscribeInterval)
 
-  let subscriptions = WebSocketSubscriptions(client: client)
   proc subscriptionHandler(arguments: JsonNode) {.raises:[].} =
     let id = arguments{"subscription"} or newJString("")
     if callback =? subscriptions.getCallback(id):
       callback(id, success(arguments))
   subscriptions.setMethodHandler("eth_subscription", subscriptionHandler)
+
+  if resubscribeInterval > 0:
+    if resubscribeInterval >= 300:
+      warn "Resubscription interval greater than 300 seconds is useless for hardhat workaround", resubscribeInterval = resubscribeInterval
+
+    subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
+
   subscriptions
 
 method subscribeBlocks(subscriptions: WebSocketSubscriptions,
@@ -120,9 +178,10 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
     onBlock(res)
 
   convertErrorsToSubscriptionError:
-    let id = await subscriptions.client.eth_subscribe("newHeads")
-    subscriptions.callbacks[id] = callback
-    return id
+    withLock(subscriptions):
+      let id = await subscriptions.client.eth_subscribe("newHeads")
+      subscriptions.callbacks[id] = callback
+      return id
 
 method subscribeLogs(subscriptions: WebSocketSubscriptions,
                      filter: EventFilter,
@@ -138,32 +197,35 @@ method subscribeLogs(subscriptions: WebSocketSubscriptions,
     onLog(res)
 
   convertErrorsToSubscriptionError:
-    let id = await subscriptions.client.eth_subscribe("logs", filter)
-    subscriptions.callbacks[id] = callback
-    return id
+    withLock(subscriptions):
+      let id = await subscriptions.client.eth_subscribe("logs", filter)
+      subscriptions.callbacks[id] = callback
+      subscriptions.logFilters[id] = filter
+      return id
 
 method unsubscribe*(subscriptions: WebSocketSubscriptions,
                    id: JsonNode)
                   {.async: (raises: [CancelledError]).} =
   try:
-    subscriptions.callbacks.del(id)
-    discard await subscriptions.client.eth_unsubscribe(id)
+    withLock(subscriptions):
+      subscriptions.callbacks.del(id)
+      discard await subscriptions.client.eth_unsubscribe(id)
   except CancelledError as e:
     raise e
   except CatchableError:
     # Ignore if uninstallation of the subscribiton fails.
     discard
 
+method close*(subscriptions: WebSocketSubscriptions) {.async: (raises: []).} =
+  await procCall JsonRpcSubscriptions(subscriptions).close()
+  if not subscriptions.resubscribeFut.isNil:
+      await subscriptions.resubscribeFut.cancelAndWait()
+
 # Polling
 
 type
   PollingSubscriptions* = ref object of JsonRpcSubscriptions
     polling: Future[void]
-
-    # We need to keep around the filters that are used to create log filters on the RPC node
-    # as there might be a time when they need to be recreated as RPC node might prune/forget
-    # about them
-    logFilters: Table[JsonNode, EventFilter]
 
     # Used when filters are recreated to translate from the id that user
     # originally got returned to new filter id
@@ -244,7 +306,7 @@ proc new*(_: type JsonRpcSubscriptions,
   asyncSpawn subscriptions.polling
   subscriptions
 
-method close*(subscriptions: PollingSubscriptions) {.async.} =
+method close*(subscriptions: PollingSubscriptions) {.async: (raises: []).} =
   await subscriptions.polling.cancelAndWait()
   await procCall JsonRpcSubscriptions(subscriptions).close()
 
