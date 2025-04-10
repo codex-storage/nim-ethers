@@ -209,7 +209,7 @@ Hardhat websockets workaround
 
 If you're working with Hardhat, you might encounter an issue where [websocket subscriptions stop working after 5 minutes](https://github.com/NomicFoundation/hardhat/issues/2053).
 
-This library provides a workaround using the `--define:ws_resubscribe=240` option. When this symbol is defined, the subscriptions will automatically resubscribe after 240 seconds (4 minutes).
+This library provides a workaround using the compile time `ws_resubscribe` symbol. When this symbol is defined and set to a value greater than 0, websocket subscriptions will automatically resubscribe after the amount of time (in seconds) specified. The recommended value is 240 seconds (4 minutes), eg `--define:ws_resubscribe=240`.
 
 Contribution
 ------------
