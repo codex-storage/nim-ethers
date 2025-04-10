@@ -1,7 +1,7 @@
 import pkg/contractabi
 import pkg/contractabi/selector
-import ../basics
-import ../errors
+import ../../basics
+import ../../errors
 
 func selector(E: type): FunctionSelector =
   when compiles(E.arguments):

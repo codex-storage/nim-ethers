@@ -1,5 +1,5 @@
 import ../provider
-import ../errors/conversion
+import ./errors/conversion
 
 {.push raises: [].}
 

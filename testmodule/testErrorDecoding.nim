@@ -3,7 +3,7 @@ import std/strutils
 import pkg/questionable/results
 import pkg/contractabi
 import pkg/ethers/errors
-import pkg/ethers/errors/encoding
+import pkg/ethers/contracts/errors/encoding
 
 suite "Decoding of custom errors":
 
