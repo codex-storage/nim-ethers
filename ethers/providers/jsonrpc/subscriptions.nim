@@ -84,10 +84,13 @@ method unsubscribe*(subscriptions: JsonRpcSubscriptions,
                    {.async: (raises: [CancelledError]), base.} =
   raiseAssert "not implemented "
 
-method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: [SubscriptionError, CancelledError]), base.} =
+method close*(subscriptions: JsonRpcSubscriptions) {.async: (raises: []), base.} =
   let ids = toSeq subscriptions.callbacks.keys
   for id in ids:
-    await subscriptions.unsubscribe(id)
+    try:
+      await subscriptions.unsubscribe(id)
+    except CatchableError as e:
+      error "WS unsubscription failed", error = e.msg, id = id
 
 proc getCallback(subscriptions: JsonRpcSubscriptions,
                  id: JsonNode): ?SubscriptionCallback  {. raises:[].} =
