@@ -156,7 +156,7 @@ proc new*(_: type JsonRpcSubscriptions,
 
   if resubscribeInterval > 0:
     if resubscribeInterval >= 300:
-      info "Resubscription interval greater than 300 seconds is useless for hardhat workaround", resubscribeInterval = resubscribeInterval
+      warn "Resubscription interval greater than 300 seconds is useless for hardhat workaround", resubscribeInterval = resubscribeInterval
 
     subscriptions.resubscribeFut = resubscribeWebsocketEventsOnTimeout(subscriptions)
 
