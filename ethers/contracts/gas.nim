@@ -5,6 +5,7 @@ import ../signer
 import ./contract
 import ./contractcall
 import ./transactions
+import ./overrides
 import ./errors
 import ./syntax
 
@@ -16,11 +17,15 @@ func estimateGas*[C: Contract](contract: C): ContractGasEstimations[C] =
 proc estimateGas(
   call: ContractCall
 ): Future[UInt256] {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
-  var transaction = createTransaction(call)
+  let transaction = createTransaction(call)
+  var blockTag = BlockTag.pending
+  if call.overrides of CallOverrides:
+    if tag =? CallOverrides(call.overrides).blockTag:
+      blockTag = tag
   if signer =? call.contract.signer:
-    await signer.estimateGas(transaction)
+    await signer.estimateGas(transaction, blockTag)
   else:
-    await call.contract.provider.estimateGas(transaction)
+    await call.contract.provider.estimateGas(transaction, blockTag)
 
 func wrapFirstParameter(procedure: var NimNode) =
   let contractType = procedure.params[1][1]

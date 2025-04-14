@@ -28,7 +28,7 @@ suite "gas estimation":
     discard await provider.send("evm_revert", @[snapshot])
     await provider.close()
 
-  test "uses pending block for gas estimations":
+  test "contract function calls use pending block for gas estimations":
     let latest = CallOverrides(blockTag: some BlockTag.latest)
     let pending = CallOverrides(blockTag: some BlockTag.pending)
 
@@ -41,3 +41,37 @@ suite "gas estimation":
     # fails with "Transaction ran out of gas" when gas estimation
     # is not done using the pending block
     await contract.checkTimeEquals(time)
+
+  test "contract gas estimation uses pending block":
+    let latest = CallOverrides(blockTag: some BlockTag.latest)
+    let pending = CallOverrides(blockTag: some BlockTag.pending)
+
+    # retrieve time of pending block
+    let time = await contract.getTime(overrides=pending)
+
+    # ensure that time of latest block and pending block differ
+    check (await contract.getTime(overrides=latest)) != time
+
+    # estimate gas
+    let gas = await contract.estimateGas.checkTimeEquals(time)
+    let overrides = TransactionOverrides(gasLimit: some gas)
+
+    # fails with "Transaction ran out of gas" when gas estimation
+    # was not done using the pending block
+    await contract.checkTimeEquals(time, overrides)
+
+  test "contract gas estimation honors a block tag override":
+    let latest = CallOverrides(blockTag: some BlockTag.latest)
+    let pending = CallOverrides(blockTag: some BlockTag.pending)
+
+    # retrieve time of pending block
+    let time = await contract.getTime(overrides=pending)
+
+    # ensure that time of latest block and pending block differ
+    check (await contract.getTime(overrides=latest)) != time
+
+    # estimate gas
+    let gasLatest = await contract.estimateGas.checkTimeEquals(time, latest)
+    let gasPending = await contract.estimateGas.checkTimeEquals(time, pending)
+
+    check gasLatest != gasPending
