@@ -1,12 +1,11 @@
 import std/os
 import std/importutils
-import pkg/asynctest
+import pkg/asynctest/chronos/unittest
 import pkg/json_rpc/rpcclient
 import ethers/provider
 import ethers/providers/jsonrpc/subscriptions
 
 import ../../examples
-import ./rpc_mock
 
 suite "Websocket re-subscriptions":
   privateAccess(JsonRpcSubscriptions)
