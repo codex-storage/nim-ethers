@@ -38,8 +38,8 @@ suite "gas estimation":
     # ensure that time of latest block and pending block differ
     check (await contract.getTime(overrides=latest)) != time
 
-    # fails with "Transaction ran out of gas" when gas estimation
-    # is not done using the pending block
+    # only succeeds when gas estimation is done using the pending block,
+    # otherwise it will fail with "Transaction ran out of gas"
     await contract.checkTimeEquals(time)
 
   test "contract gas estimation uses pending block":
@@ -56,8 +56,8 @@ suite "gas estimation":
     let gas = await contract.estimateGas.checkTimeEquals(time)
     let overrides = TransactionOverrides(gasLimit: some gas)
 
-    # fails with "Transaction ran out of gas" when gas estimation
-    # was not done using the pending block
+    # only succeeds when gas estimation is done using the pending block,
+    # otherwise it will fail with "Transaction ran out of gas"
     await contract.checkTimeEquals(time, overrides)
 
   test "contract gas estimation honors a block tag override":
