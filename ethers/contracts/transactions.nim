@@ -22,8 +22,8 @@ proc createTransaction*(call: ContractCall): Transaction =
     nonce: call.overrides.nonce,
     chainId: call.overrides.chainId,
     gasPrice: call.overrides.gasPrice,
-    maxFee: call.overrides.maxFee,
-    maxPriorityFee: call.overrides.maxPriorityFee,
+    maxFeePerGas: call.overrides.maxFeePerGas,
+    maxPriorityFeePerGas: call.overrides.maxPriorityFeePerGas,
     gasLimit: call.overrides.gasLimit,
   )
 
