@@ -156,9 +156,15 @@ method getGasPrice*(
 
 method getMaxPriorityFeePerGas*(
     provider: JsonRpcProvider
-): Future[UInt256] {.async: (raises: [ProviderError, CancelledError]).} =
-  convertError:
-    return provider.maxPriorityFeePerGas
+): Future[UInt256] {.async: (raises: [CancelledError]).} =
+    try:
+      convertError:
+        let client = await provider.client
+        return await client.eth_maxPriorityFeePerGas()
+    except ProviderError:
+      # If the provider does not provide the implementation
+      # let's just remove the manual value
+      return provider.maxPriorityFeePerGas
 
 method getTransactionCount*(
     provider: JsonRpcProvider, address: Address, blockTag = BlockTag.latest

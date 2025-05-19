@@ -124,7 +124,7 @@ method getGasPrice*(
 
 method getMaxPriorityFeePerGas*(
     provider: Provider
-): Future[UInt256] {.base, async: (raises: [ProviderError, CancelledError]).} =
+): Future[UInt256] {.base, async: (raises: [CancelledError]).} =
   doAssert false, "not implemented"
 
 method getTransactionCount*(

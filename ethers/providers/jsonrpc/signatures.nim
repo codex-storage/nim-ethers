@@ -21,3 +21,4 @@ proc eth_newBlockFilter(): JsonNode
 proc eth_newFilter(filter: EventFilter): JsonNode
 proc eth_getFilterChanges(id: JsonNode): JsonNode
 proc eth_uninstallFilter(id: JsonNode): bool
+proc eth_maxPriorityFeePerGas(): UInt256
