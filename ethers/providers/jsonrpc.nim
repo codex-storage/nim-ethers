@@ -161,7 +161,7 @@ method getMaxPriorityFeePerGas*(
       convertError:
         let client = await provider.client
         return await client.eth_maxPriorityFeePerGas()
-    except ProviderError:
+    except JsonRpcProviderError:
       # If the provider does not provide the implementation
       # let's just remove the manual value
       return provider.maxPriorityFeePerGas
