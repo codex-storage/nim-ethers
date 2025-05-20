@@ -139,7 +139,7 @@ method populateTransaction*(
 
     # Multiply by 2 because during times of congestion, baseFeePerGas can increase by 12.5% per block.
     # https://github.com/ethers-io/ethers.js/discussions/3601#discussioncomment-4461273
-    let maxFeePerGas = transaction.maxFeePerGas |? baseFeePerGas * 2 + maxPriorityFeePerGas
+    let maxFeePerGas = transaction.maxFeePerGas |? (baseFeePerGas * 2 + maxPriorityFeePerGas)
     populated.maxFeePerGas = some(maxFeePerGas)
 
     populated.gasPrice = none(UInt256)
