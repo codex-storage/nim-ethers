@@ -148,6 +148,7 @@ method populateTransaction*(
   else:
     populated.gasPrice = some(transaction.gasPrice |? (await signer.getGasPrice()))
     populated.maxFeePerGas = none(UInt256)
+    populated.maxPriorityFeePerGas = none(UInt256)
     trace "EIP-1559 is not supported", gasPrice = populated.gasPrice
 
   if transaction.nonce.isNone and transaction.gasLimit.isNone:
