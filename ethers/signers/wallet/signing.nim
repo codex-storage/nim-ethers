@@ -32,11 +32,11 @@ func toSignableTransaction(transaction: Transaction): SignableTransaction =
   signable.value = transaction.value
   signable.payload = transaction.data
 
-  if maxFee =? transaction.maxFee and
-     maxPriorityFee =? transaction.maxPriorityFee:
+  if maxFeePerGas =? transaction.maxFeePerGas and
+     maxPriorityFeePerGas =? transaction.maxPriorityFeePerGas:
     signable.txType = TxEip1559
-    signable.maxFeePerGas = GasInt(maxFee.truncate(uint64))
-    signable.maxPriorityFeePerGas = GasInt(maxPriorityFee.truncate(uint64))
+    signable.maxFeePerGas = GasInt(maxFeePerGas.truncate(uint64))
+    signable.maxPriorityFeePerGas = GasInt(maxPriorityFeePerGas.truncate(uint64))
   elif gasPrice =? transaction.gasPrice:
     signable.txType = TxLegacy
     signable.gasPrice = GasInt(gasPrice.truncate(uint64))

@@ -80,8 +80,8 @@ suite "Wallet":
       to: wallet.address,
       nonce: some 0.u256,
       chainId: some 31337.u256,
-      maxFee: some 2_000_000_000.u256,
-      maxPriorityFee: some 1_000_000_000.u256,
+      maxFeePerGas: some 2_000_000_000.u256,
+      maxPriorityFeePerGas: some 1_000_000_000.u256,
       gasLimit: some 21_000.u256
     )
     let signedTx = await wallet.signTransaction(tx)
@@ -115,8 +115,8 @@ suite "Wallet":
     let wallet = !Wallet.new(pk_with_funds, provider)
     let overrides = TransactionOverrides(
       nonce: some 0.u256,
-      maxFee: some 1_000_000_000.u256,
-      maxPriorityFee: some 1_000_000_000.u256,
+      maxFeePerGas: some 1_000_000_000.u256,
+      maxPriorityFeePerGas: some 1_000_000_000.u256,
       gasLimit: some 22_000.u256)
     let testToken = Erc20.new(wallet.address, wallet)
     await testToken.transfer(wallet.address, 24.u256, overrides)

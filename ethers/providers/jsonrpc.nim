@@ -28,6 +28,7 @@ type
   JsonRpcProvider* = ref object of Provider
     client: Future[RpcClient]
     subscriptions: Future[JsonRpcSubscriptions]
+    maxPriorityFeePerGas: UInt256
 
   JsonRpcSubscription* = ref object of Subscription
     subscriptions: JsonRpcSubscriptions
@@ -43,6 +44,7 @@ type
 
 const defaultUrl = "http://localhost:8545"
 const defaultPollingInterval = 4.seconds
+const defaultMaxPriorityFeePerGas = 1_000_000_000.u256
 
 proc jsonHeaders: seq[(string, string)] =
   @[("Content-Type", "application/json")]
@@ -50,7 +52,8 @@ proc jsonHeaders: seq[(string, string)] =
 proc new*(
   _: type JsonRpcProvider,
   url=defaultUrl,
-  pollingInterval=defaultPollingInterval): JsonRpcProvider {.raises: [JsonRpcProviderError].} =
+  pollingInterval=defaultPollingInterval,
+  maxPriorityFeePerGas=defaultMaxPriorityFeePerGas): JsonRpcProvider {.raises: [JsonRpcProviderError].} =
 
   var initialized: Future[void]
   var client: RpcClient
@@ -87,7 +90,7 @@ proc new*(
       return subscriptions
 
   initialized = initialize()
-  return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions())
+  return JsonRpcProvider(client: awaitClient(), subscriptions: awaitSubscriptions(), maxPriorityFeePerGas: maxPriorityFeePerGas)
 
 proc callImpl(
     client: RpcClient, call: string, args: JsonNode
@@ -150,6 +153,18 @@ method getGasPrice*(
   convertError:
     let client = await provider.client
     return await client.eth_gasPrice()
+
+method getMaxPriorityFeePerGas*(
+    provider: JsonRpcProvider
+): Future[UInt256] {.async: (raises: [CancelledError]).} =
+    try:
+      convertError:
+        let client = await provider.client
+        return await client.eth_maxPriorityFeePerGas()
+    except JsonRpcProviderError:
+      # If the provider does not provide the implementation
+      # let's just remove the manual value
+      return provider.maxPriorityFeePerGas
 
 method getTransactionCount*(
     provider: JsonRpcProvider, address: Address, blockTag = BlockTag.latest
