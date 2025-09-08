@@ -25,7 +25,7 @@ func toSignableTransaction(transaction: Transaction): SignableTransaction =
     raiseWalletError "missing gas limit"
 
   signable.nonce = nonce.truncate(uint64)
-  signable.chainId = ChainId(chainId.truncate(uint64))
+  signable.chainId = chainId(chainId.truncate(uint64))
   signable.gasLimit = GasInt(gasLimit.truncate(uint64))
 
   signable.to = Opt.some(EthAddress(transaction.to))
@@ -50,7 +50,7 @@ func sign(key: PrivateKey, transaction: SignableTransaction): seq[byte] =
 
   # Temporary V value, used to signal to the hashing function
   # that we'd like to use an EIP-155 signature
-  transaction.V = uint64(transaction.chainId) * 2 + 35
+  transaction.V = transaction.chainId.truncate(uint64) * 2 + 35
 
   let hash = transaction.txHashNoSignature().data
   let signature = key.sign(SkMessage(hash)).toRaw()
@@ -60,7 +60,7 @@ func sign(key: PrivateKey, transaction: SignableTransaction): seq[byte] =
   transaction.V = uint64(signature[64])
 
   if transaction.txType == TxLegacy:
-    transaction.V += uint64(transaction.chainId) * 2 + 35
+    transaction.V += transaction.chainId.truncate(uint64) * 2 + 35
 
   rlp.encode(transaction)
 
