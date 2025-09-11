@@ -72,6 +72,14 @@ method subscribeBlocks*(subscriptions: JsonRpcSubscriptions,
                        {.async: (raises: [SubscriptionError, CancelledError]), base,.} =
   raiseAssert "not implemented"
 
+method subscribePendingTransactions*(
+  subscriptions: JsonRpcSubscriptions,
+  onTx: PendingTransactionHandler
+): Future[JsonNode]
+  {.async: (raises: [SubscriptionError, CancelledError]), base,.}
+  =
+  raiseAssert "not implemented"
+
 method subscribeLogs*(subscriptions: JsonRpcSubscriptions,
                       filter: EventFilter,
                       onLog: LogHandler):
@@ -180,6 +188,26 @@ method subscribeBlocks(subscriptions: WebSocketSubscriptions,
   convertErrorsToSubscriptionError:
     withLock(subscriptions):
       let id = await subscriptions.client.eth_subscribe("newHeads")
+      subscriptions.callbacks[id] = callback
+      return id
+
+method subscribePendingTransactions*(
+  subscriptions: WebSocketSubscriptions,
+  onTx: PendingTransactionHandler
+): Future[JsonNode]
+  {.async: (raises: [SubscriptionError, CancelledError]).} =
+
+  proc callback(id: JsonNode, argumentsResult: ?!JsonNode) {.raises: [].} =
+    without arguments =? argumentsResult, error:
+      onTx(failure(TransactionHash, error.toErr(SubscriptionError)))
+      return
+
+    let res = TransactionHash.fromJson(arguments{"result"}).mapFailure(SubscriptionError)
+    onTx(res)
+
+  convertErrorsToSubscriptionError:
+    withLock(subscriptions):
+      let id = await subscriptions.client.eth_subscribe("newPendingTransactions")
       subscriptions.callbacks[id] = callback
       return id
 

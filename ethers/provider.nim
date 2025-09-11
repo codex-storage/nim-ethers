@@ -58,6 +58,7 @@ type
     transactionType* {.serialize("type"), deserialize("type").}: TransactionType
   LogHandler* = proc(log: ?!Log) {.gcsafe, raises:[].}
   BlockHandler* = proc(blck: ?!Block) {.gcsafe, raises:[].}
+  PendingTransactionHandler* = proc(txHash: ?!TransactionHash) {.gcsafe, raises:[].}
   Topic* = array[32, byte]
   Block* {.serialize.} = object
     number*: ?UInt256
