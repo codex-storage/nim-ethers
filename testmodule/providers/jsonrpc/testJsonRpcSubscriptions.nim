@@ -22,7 +22,7 @@ suite "JsonRpcSubscriptions":
     let subscriptions = JsonRpcSubscriptions.new(client)
     check not isNil subscriptions
 
-template subscriptionTests(subscriptions, client) =
+template subscriptionTests(subscriptions, client, tipe) =
 
   test "subscribes to new blocks":
     var latestBlock: Block
@@ -72,6 +72,19 @@ template subscriptionTests(subscriptions, client) =
     await sleepAsync(100.millis)
     check count == 0
 
+  if tipe == "Websocket":
+    test "subscribes to pendingTransactions":
+      var count = 0
+      proc callback(tx: ?!TransactionHash) =
+        count += 1
+
+      let subscription = await subscriptions.subscribePendingTransactions(callback)
+      discard await client.call("eth_sendTransaction",
+        """[{"to": "0x0000000000000000000000000000000000000000", "value": "0x0"}]""".parseJson)
+      discard await client.call("evm_mine", newJArray())
+      check eventually count > 0
+      await subscriptions.unsubscribe(subscription)
+
 suite "Web socket subscriptions":
 
   var subscriptions: JsonRpcSubscriptions
@@ -87,7 +100,7 @@ suite "Web socket subscriptions":
     await subscriptions.close()
     await client.close()
 
-  subscriptionTests(subscriptions, client)
+  subscriptionTests(subscriptions, client, "Websocket")
 
 suite "HTTP polling subscriptions":
 
@@ -105,7 +118,7 @@ suite "HTTP polling subscriptions":
     await subscriptions.close()
     await client.close()
 
-  subscriptionTests(subscriptions, client)
+  subscriptionTests(subscriptions, client, "HttpPolling")
 
 suite "HTTP polling subscriptions - mock tests":
 
