@@ -13,6 +13,9 @@ type
   Signer* = ref object of RootObj
     populateLock: AsyncLock
 
+logScope:
+  topics = "ethers signer"
+
 template raiseSignerError*(message: string, parent: ref CatchableError = nil) =
   raise newException(SignerError, message, parent)
 
