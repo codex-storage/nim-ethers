@@ -33,7 +33,7 @@ JSON-RPC provider is supported:
 import ethers
 import chronos
 
-let provider = JsonRpcProvider.new("ws://localhost:8545")
+let provider = await JsonRpcProvider.connect("ws://localhost:8545")
 let accounts = await provider.listAccounts()
 ```
 
@@ -137,11 +137,8 @@ You can now subscribe to Transfer events by calling `subscribe` on the contract
 instance.
 
 ```nim
-proc handleTransfer(transferResult: ?!Transfer) =
-  if transferResult.isOk:
-    echo "received transfer: ", transferResult.value
-  else:
-    echo "error during transfer: ", transferResult.error.msg
+proc handleTransfer(transferResult: Transfer) =
+  echo "received transfer: ", transferResult.value
 
 let subscription = await token.subscribe(Transfer, handleTransfer)
 ```
@@ -203,13 +200,6 @@ Utilities
 This library ships with some optional modules that provides convenience utilities for you such as:
 
 - `ethers/erc20` module provides you with ERC20 token implementation and its events
-
-Hardhat websockets workaround
----------
-
-If you're working with Hardhat, you might encounter an issue where [websocket subscriptions stop working after 5 minutes](https://github.com/NomicFoundation/hardhat/issues/2053).
-
-This library provides a workaround using the compile time `ws_resubscribe` symbol. When this symbol is defined and set to a value greater than 0, websocket subscriptions will automatically resubscribe after the amount of time (in seconds) specified. The recommended value is 240 seconds (4 minutes), eg `--define:ws_resubscribe=240`.
 
 Contribution
 ------------

@@ -8,10 +8,10 @@ suite "JsonRpcSigner":
 
   var provider: JsonRpcProvider
   var accounts: seq[Address]
-  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+  let url = "http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("http://" & providerUrl)
+    provider = await JsonRpcProvider.connect(url, pollingInterval = 100.millis)
     accounts = await provider.listAccounts()
 
   teardown:
@@ -75,7 +75,7 @@ suite "JsonRpcSigner":
 
     let blk = !(await signer.provider.getBlock(BlockTag.latest))
     transaction.maxFeePerGas = some(!blk.baseFeePerGas * 2.u256 + !populated.maxPriorityFeePerGas)
-    
+
     check populated == transaction
 
   test "populate fails when sender does not match signer address":

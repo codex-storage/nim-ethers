@@ -6,7 +6,7 @@ import ./contract
 import ./events
 import ./fields
 
-type EventHandler*[E: Event] = proc(event: ?!E) {.gcsafe, raises:[].}
+type EventHandler*[E: Event] = proc(event: E) {.gcsafe, raises:[].}
 
 proc subscribe*[E: Event](contract: Contract,
                           _: type E,
@@ -16,13 +16,9 @@ proc subscribe*[E: Event](contract: Contract,
   let topic = topic($E, E.fieldTypes).toArray
   let filter = EventFilter(address: contract.address, topics: @[topic])
 
-  proc logHandler(logResult: ?!Log) {.raises: [].} =
-    without log =? logResult, error:
-      handler(failure(E, error))
-      return
-
+  proc logHandler(log: Log) {.raises: [].} =
     if event =? E.decode(log.data, log.topics):
-      handler(success(event))
+      handler(event)
 
   contract.provider.subscribe(filter, logHandler)
 

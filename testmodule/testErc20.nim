@@ -24,7 +24,7 @@ for url in ["ws://" & providerUrl, "http://"  & providerUrl]:
     var accounts: seq[Address]
 
     setup:
-      provider = JsonRpcProvider.new(url, pollingInterval = 100.millis)
+      provider = await JsonRpcProvider.connect(url, pollingInterval = 100.millis)
       snapshot = await provider.send("evm_snapshot")
       accounts = await provider.listAccounts()
       let deployment = readDeployment()

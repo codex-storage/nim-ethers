@@ -27,10 +27,11 @@ type
   FilterByBlockHash* {.serialize.} = ref object of EventFilter
     blockHash*: BlockHash
   Log* {.serialize.} = object
-    blockNumber*: UInt256
+    blockNumber*: BlockNumber
     data*: seq[byte]
     logIndex*: UInt256
     removed*: bool
+    address*: Address
     topics*: seq[Topic]
   TransactionHash* = array[32, byte]
   BlockHash* = array[32, byte]
@@ -51,22 +52,24 @@ type
     blockHash*: ?BlockHash
     transactionHash*: TransactionHash
     logs*: seq[Log]
-    blockNumber*: ?UInt256
+    blockNumber*: ?BlockNumber
     cumulativeGasUsed*: UInt256
     effectiveGasPrice*: ?UInt256
     status*: TransactionStatus
     transactionType* {.serialize("type"), deserialize("type").}: TransactionType
-  LogHandler* = proc(log: ?!Log) {.gcsafe, raises:[].}
-  BlockHandler* = proc(blck: ?!Block) {.gcsafe, raises:[].}
+  LogHandler* = proc(log: Log) {.gcsafe, raises:[].}
+  BlockHandler* = proc(blck: Block) {.gcsafe, raises:[].}
   Topic* = array[32, byte]
   Block* {.serialize.} = object
-    number*: ?UInt256
+    number*: ?BlockNumber
     timestamp*: UInt256
     hash*: ?BlockHash
     baseFeePerGas* : ?UInt256
+    logsBloom*: ?StUint[2048]
+  BlockNumber* = UInt256
   PastTransaction* {.serialize.} = object
     blockHash*: BlockHash
-    blockNumber*: UInt256
+    blockNumber*: BlockNumber
     sender* {.serialize("from"), deserialize("from").}: Address
     gas*: UInt256
     gasPrice*: UInt256
@@ -222,7 +225,7 @@ proc confirm*(
   tx: TransactionResponse,
   confirmations = EthersDefaultConfirmations,
   timeout = EthersReceiptTimeoutBlks): Future[TransactionReceipt]
-  {.async: (raises: [CancelledError, ProviderError, SubscriptionError, EthersError]).} =
+  {.async: (raises: [CancelledError, ProviderError, EthersError]).} =
 
   ## Waits for a transaction to be mined and for the specified number of blocks
   ## to pass since it was mined (confirmations). The number of confirmations
@@ -232,69 +235,40 @@ proc confirm*(
 
   assert confirmations > 0
 
-  var blockNumber: UInt256
-
-  ## We need initialized succesfull Result, because the first iteration of the `while` loop
-  ## bellow is triggered "manually" by calling `await updateBlockNumber` and not by block
-  ## subscription. If left uninitialized then the Result is in error state and error is raised.
-  ## This result is not used for block value, but for block subscription errors.
-  var blockSubscriptionResult: ?!Block = success(Block(number: UInt256.none, timestamp: 0.u256, hash: BlockHash.none))
+  var blockNumber = await tx.provider.getBlockNumber()
   let blockEvent = newAsyncEvent()
+  blockEvent.fire()
 
-  proc updateBlockNumber {.async: (raises: []).} =
-    try:
-      let number = await tx.provider.getBlockNumber()
-      if number > blockNumber:
-        blockNumber = number
-        blockEvent.fire()
-    except ProviderError, CancelledError:
-      # there's nothing we can do here
-      discard
-
-  proc onBlock(blckResult: ?!Block) =
-    blockSubscriptionResult = blckResult
-
-    if blckResult.isErr:
+  proc onBlock(blck: Block) =
+    if number =? blck.number:
+      blockNumber = number
       blockEvent.fire()
-      return
 
-    # ignore block parameter; hardhat may call this with pending blocks
-    asyncSpawn updateBlockNumber()
-
-  await updateBlockNumber()
   let subscription = await tx.provider.subscribe(onBlock)
 
   let finish = blockNumber + timeout.u256
-  var receipt: ?TransactionReceipt
 
-  while true:
-    await blockEvent.wait()
-    blockEvent.clear()
+  try:
+    var receipt: ?TransactionReceipt
 
-    if blockSubscriptionResult.isErr:
-      let error = blockSubscriptionResult.error()
+    while true:
+      await blockEvent.wait()
+      blockEvent.clear()
 
-      if error of SubscriptionError:
-        raise (ref SubscriptionError)(error)
-      elif error of CancelledError:
-        raise (ref CancelledError)(error)
-      else:
-        raise error.toErr(ProviderError)
+      if blockNumber >= finish:
+        raise newException(EthersError, "tx not mined before timeout")
 
-    if blockNumber >= finish:
-      await subscription.unsubscribe()
-      raise newException(EthersError, "tx not mined before timeout")
+      if receipt.?blockNumber.isNone:
+        receipt = await tx.provider.getTransactionReceipt(tx.hash)
 
-    if receipt.?blockNumber.isNone:
-      receipt = await tx.provider.getTransactionReceipt(tx.hash)
+      without receipt =? receipt and txBlockNumber =? receipt.blockNumber:
+        continue
 
-    without receipt =? receipt and txBlockNumber =? receipt.blockNumber:
-      continue
-
-    if txBlockNumber + confirmations.u256 <= blockNumber + 1:
-      await subscription.unsubscribe()
-      await tx.provider.ensureSuccess(receipt)
-      return receipt
+      if txBlockNumber + confirmations.u256 <= blockNumber + 1:
+        await tx.provider.ensureSuccess(receipt)
+        return receipt
+  finally:
+    await subscription.unsubscribe()
 
 proc confirm*(
   tx: Future[TransactionResponse],

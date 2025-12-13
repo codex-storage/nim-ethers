@@ -4,7 +4,6 @@ type
   SolidityError* = object of EthersError
   ContractError* = object of EthersError
   SignerError* = object of EthersError
-  SubscriptionError* = object of EthersError
   ProviderError* = object of EthersError
     data*: ?seq[byte]
 

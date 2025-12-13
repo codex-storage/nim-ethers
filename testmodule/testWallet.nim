@@ -13,10 +13,10 @@ proc transfer*(erc20: Erc20, recipient: Address, amount: UInt256) {.contract.}
 suite "Wallet":
   var provider: JsonRpcProvider
   var snapshot: JsonNode
-  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+  let url = "http://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("http://" & providerUrl)
+    provider = await JsonRpcProvider.connect(url, pollingInterval = 100.millis)
     snapshot = await provider.send("evm_snapshot")
 
   teardown:
@@ -31,13 +31,12 @@ suite "Wallet":
     check isSuccess Wallet.new("0x" & pk1)
 
   test "Can create Wallet with provider":
-    let provider = JsonRpcProvider.new()
     check isSuccess Wallet.new(pk1, provider)
     discard Wallet.new(PrivateKey.fromHex(pk1).get, provider)
 
   test "Cannot create wallet with invalid key string":
     check isFailure Wallet.new("0xInvalidKey")
-    check isFailure Wallet.new("0xInvalidKey", JsonRpcProvider.new())
+    check isFailure Wallet.new("0xInvalidKey", provider)
 
   test "Can connect Wallet to provider":
     let wallet = !Wallet.new(pk1)

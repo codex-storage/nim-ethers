@@ -93,10 +93,10 @@ suite "Testing helpers - contracts":
   var snapshot: JsonNode
   var accounts: seq[Address]
   let revertReason = "revert reason"
-  let providerUrl = getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
+  let url = "ws://" & getEnv("ETHERS_TEST_PROVIDER", "localhost:8545")
 
   setup:
-    provider = JsonRpcProvider.new("ws://" & providerUrl)
+    provider = await JsonRpcProvider.connect(url, pollingInterval = 100.millis)
     snapshot = await provider.send("evm_snapshot")
     accounts = await provider.listAccounts()
     helpersContract = TestHelpers.new(provider.getSigner())

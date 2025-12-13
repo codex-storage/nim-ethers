@@ -58,7 +58,7 @@ method getGasPrice*(
 
 method getMaxPriorityFeePerGas*(
     signer: Signer
-): Future[UInt256] {.async: (raises: [SignerError, CancelledError]).} =
+): Future[UInt256] {.base, async: (raises: [SignerError, CancelledError]).} =
   return await signer.provider.getMaxPriorityFeePerGas()
 
 method getTransactionCount*(

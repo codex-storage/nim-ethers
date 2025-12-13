@@ -28,7 +28,7 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     var accounts: seq[Address]
 
     setup:
-      provider = JsonRpcProvider.new(url, pollingInterval = 100.millis)
+      provider = await JsonRpcProvider.connect(url, pollingInterval = 100.millis)
       snapshot = await provider.send("evm_snapshot")
       accounts = await provider.listAccounts()
       let deployment = readDeployment()
@@ -157,10 +157,7 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     test "receives events when subscribed":
       var transfers: seq[Transfer]
 
-      proc handleTransfer(transferRes: ?!Transfer) =
-        without transfer =? transferRes, error:
-          echo error.msg
-
+      proc handleTransfer(transfer: Transfer) =
         transfers.add(transfer)
 
       let signer0 = provider.getSigner(accounts[0])
@@ -182,9 +179,8 @@ for url in ["ws://"  & providerUrl, "http://"  & providerUrl]:
     test "stops receiving events when unsubscribed":
       var transfers: seq[Transfer]
 
-      proc handleTransfer(transferRes: ?!Transfer) =
-        if transfer =? transferRes:
-          transfers.add(transfer)
+      proc handleTransfer(transfer: Transfer) =
+        transfers.add(transfer)
 
       let signer0 = provider.getSigner(accounts[0])
 
